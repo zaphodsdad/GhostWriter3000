@@ -14,6 +14,7 @@
 - [x] Default model settings - configure preferred generation/critique models
 - [x] Editable generation preview - tweak scene outline before generating
 - [x] Scene form modal - better UX for scene editing
+- [x] OpenRouter credits display - show remaining balance near word count
 
 ---
 
@@ -50,7 +51,7 @@
 
 ## Phase 5: Robustness
 
-- [ ] **5.1** Cost tracking - tokens per generation, running totals
+- [ ] **5.1** Cost tracking - tokens per generation, running totals (credits balance done, per-gen tracking remaining)
 - [ ] **5.2** Backup system - auto-backup before overwrites
 - [ ] **5.3** Version history for prose iterations
 - [ ] **5.4** Unit tests for services
