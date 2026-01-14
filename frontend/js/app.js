@@ -27,6 +27,10 @@ let chatSending = false;
 // Style guide state
 let styleGuide = null;
 
+// Credit alert state
+let creditAlertSettings = { threshold: 5, enabled: true };
+let lastCreditAlertShown = 0; // Prevent spam
+
 // Queue state
 let queueData = [];
 let queuePollingInterval = null;
@@ -86,6 +90,16 @@ async function loadSettings() {
 
         // Populate default model dropdowns
         populateSettingsModelDropdowns(data.default_generation_model, data.default_critique_model);
+
+        // Load credit alert settings
+        const thresholdInput = document.getElementById('settings-credit-threshold');
+        const alertsEnabledInput = document.getElementById('settings-credit-alerts-enabled');
+        if (thresholdInput) thresholdInput.value = data.credit_alert_threshold || 5;
+        if (alertsEnabledInput) alertsEnabledInput.checked = data.credit_alerts_enabled !== false;
+
+        // Update global credit alert settings
+        creditAlertSettings.threshold = data.credit_alert_threshold || 5;
+        creditAlertSettings.enabled = data.credit_alerts_enabled !== false;
 
         // Clear the input fields (we don't send back actual keys for security)
         document.getElementById('settings-openrouter-key').value = '';
@@ -167,6 +181,8 @@ async function saveSettings() {
     const customKey = document.getElementById('settings-custom-key').value.trim();
     const defaultGenModel = document.getElementById('settings-default-gen-model').value;
     const defaultCritiqueModel = document.getElementById('settings-default-critique-model').value;
+    const creditThreshold = parseFloat(document.getElementById('settings-credit-threshold').value) || 5;
+    const creditAlertsEnabled = document.getElementById('settings-credit-alerts-enabled').checked;
 
     // Build update object - only include non-empty values for keys
     const update = {};
@@ -178,6 +194,10 @@ async function saveSettings() {
     // Always include model settings (empty string means use system default)
     update.default_generation_model = defaultGenModel || null;
     update.default_critique_model = defaultCritiqueModel || null;
+
+    // Always include credit alert settings
+    update.credit_alert_threshold = creditThreshold;
+    update.credit_alerts_enabled = creditAlertsEnabled;
 
     try {
         const response = await fetch('/api/settings', {
@@ -4396,12 +4416,20 @@ async function loadCredits() {
             valueEl.textContent = '$' + remaining.toFixed(3);
         }
 
-        // Color based on remaining amount
+        // Color based on threshold or fixed amounts
         valueEl.className = 'credits-value';
+        const threshold = creditAlertSettings.threshold || 5;
         if (remaining < 1) {
             valueEl.classList.add('critical');
-        } else if (remaining < 5) {
+        } else if (remaining < threshold) {
             valueEl.classList.add('low');
+        }
+
+        // Show alert if enabled and below threshold (max once per 10 minutes)
+        const now = Date.now();
+        if (creditAlertSettings.enabled && remaining < threshold && (now - lastCreditAlertShown > 600000)) {
+            lastCreditAlertShown = now;
+            showToast('Low Credits', `Balance is $${remaining.toFixed(2)} - consider topping up`, 'warning');
         }
 
     } catch (e) {

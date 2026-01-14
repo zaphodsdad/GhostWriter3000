@@ -96,6 +96,29 @@
 
                     <hr class="settings-divider">
 
+                    <h3>Credit Alerts</h3>
+                    <p class="text-muted mb-20">Get notified when your OpenRouter credits are running low.</p>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Low Credit Threshold</label>
+                            <div class="input-with-prefix">
+                                <span class="input-prefix">$</span>
+                                <input type="number" id="settings-credit-threshold" min="0" step="0.5" value="5" placeholder="5.00">
+                            </div>
+                            <small class="text-muted">Warn when credits fall below this amount</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Enable Alerts</label>
+                            <label class="toggle">
+                                <input type="checkbox" id="settings-credit-alerts-enabled" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <hr class="settings-divider">
+
                     <h3>Data Storage</h3>
                     <p class="text-muted mb-20">Configure where your projects are stored.</p>
 

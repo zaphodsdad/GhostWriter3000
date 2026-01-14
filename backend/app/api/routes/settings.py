@@ -28,6 +28,8 @@ class UserSettings(BaseModel):
     custom_endpoint_key: Optional[str] = None
     default_generation_model: Optional[str] = None
     default_critique_model: Optional[str] = None
+    credit_alert_threshold: Optional[float] = 5.0
+    credit_alerts_enabled: Optional[bool] = True
 
 
 class DataDirSettings(BaseModel):
@@ -43,6 +45,8 @@ class UserSettingsResponse(BaseModel):
     custom_endpoint_key_set: bool = False
     default_generation_model: Optional[str] = None
     default_critique_model: Optional[str] = None
+    credit_alert_threshold: float = 5.0
+    credit_alerts_enabled: bool = True
     data_dir: str = ""
     data_dir_from: str = ""  # "default", "env", "config"
 
@@ -130,6 +134,8 @@ async def get_settings():
         custom_endpoint_key_set=bool(user_settings.get("custom_endpoint_key")),
         default_generation_model=user_settings.get("default_generation_model"),
         default_critique_model=user_settings.get("default_critique_model"),
+        credit_alert_threshold=user_settings.get("credit_alert_threshold", 5.0),
+        credit_alerts_enabled=user_settings.get("credit_alerts_enabled", True),
         data_dir=data_dir,
         data_dir_from=data_dir_from,
     )

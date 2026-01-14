@@ -303,6 +303,82 @@ nav {
     }
 }
 
+/* Input with prefix (e.g., $ for currency) */
+.input-with-prefix {
+    display: flex;
+    align-items: center;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.input-with-prefix .input-prefix {
+    padding: 12px;
+    background: var(--bg-card);
+    color: var(--text-muted);
+    border-right: 1px solid var(--border);
+    font-weight: 500;
+}
+
+.input-with-prefix input {
+    border: none;
+    background: transparent;
+    flex: 1;
+    padding: 12px;
+    width: auto;
+}
+
+.input-with-prefix input:focus {
+    outline: none;
+}
+
+/* Toggle switch */
+.toggle {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 28px;
+    cursor: pointer;
+}
+
+.toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--border);
+    border-radius: 28px;
+    transition: background 0.2s;
+}
+
+.toggle-slider::before {
+    content: '';
+    position: absolute;
+    height: 22px;
+    width: 22px;
+    left: 3px;
+    bottom: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+}
+
+.toggle input:checked + .toggle-slider {
+    background: var(--primary);
+}
+
+.toggle input:checked + .toggle-slider::before {
+    transform: translateX(22px);
+}
+
 /* Item List */
 .item-list {
     display: flex;
