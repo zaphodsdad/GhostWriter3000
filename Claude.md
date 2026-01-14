@@ -203,7 +203,12 @@ Fine-tune before generating:
 1. System automatically generates a concise summary
 2. Scene marked as `is_canon: true`
 3. Prose and summary saved to scene record
-4. Future scenes automatically include this summary in context
+
+**When generating a new scene**:
+1. System auto-calculates previous scenes based on structural order (act → chapter → scene)
+2. Fetches summaries from last 10 canon scenes
+3. Includes them in "STORY SO FAR" section of the prompt
+4. No manual linking required - it figures out scene order from your project structure
 
 **Scene Model**:
 ```json
