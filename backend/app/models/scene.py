@@ -48,6 +48,12 @@ class Scene(BaseModel):
     is_canon: bool = Field(False, description="Whether this scene has been accepted as canon")
     prose: Optional[str] = Field(None, description="Final prose (if canon)")
     summary: Optional[str] = Field(None, description="Scene summary (if canon)")
+
+    # Edit mode fields - for revising existing prose instead of generating from scratch
+    edit_mode: bool = Field(False, description="Whether this scene is in edit mode (imported prose)")
+    original_prose: Optional[str] = Field(None, description="Original imported prose (edit mode only)")
+    edit_mode_started_at: Optional[datetime] = Field(None, description="When edit mode was initiated")
+
     created_at: datetime = Field(default_factory=datetime.utcnow, description="Creation timestamp")
     updated_at: datetime = Field(default_factory=datetime.utcnow, description="Last update timestamp")
 
@@ -86,6 +92,10 @@ class SceneCreate(BaseModel):
     pov: Optional[str] = Field(None, description="Point of view")
     target_length: Optional[str] = Field(None, description="Target word count or length")
 
+    # Edit mode - import existing prose instead of generating
+    prose: Optional[str] = Field(None, description="Imported prose for edit mode")
+    edit_mode: bool = Field(False, description="Start in edit mode with imported prose")
+
 
 class SceneUpdate(BaseModel):
     """Model for updating a scene."""
@@ -105,3 +115,7 @@ class SceneUpdate(BaseModel):
     prose: Optional[str] = Field(None, description="Scene prose content")
     summary: Optional[str] = Field(None, description="Scene summary for continuity")
     is_canon: Optional[bool] = Field(None, description="Whether scene is accepted as canon")
+
+    # Edit mode fields
+    edit_mode: Optional[bool] = Field(None, description="Toggle edit mode")
+    original_prose: Optional[str] = Field(None, description="Original imported prose")

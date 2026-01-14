@@ -8,6 +8,8 @@ from typing import List
 
 from app.models.project import Project, ProjectCreate, ProjectUpdate, ProjectSummary
 from app.config import settings
+from app.utils.file_utils import read_json_file, write_json_file
+from typing import Optional
 
 router = APIRouter()
 
@@ -77,6 +79,8 @@ async def list_projects():
                     title=data.get("title", project_id),
                     description=data.get("description"),
                     genre=data.get("genre"),
+                    series_id=data.get("series_id"),
+                    book_number=data.get("book_number"),
                     character_count=count_files(settings.characters_dir(project_id), "*.md"),
                     world_count=count_files(settings.world_dir(project_id), "*.md"),
                     scene_count=count_files(settings.scenes_dir(project_id), "*.json"),
@@ -124,6 +128,8 @@ async def get_project(project_id: str):
             description=data.get("description"),
             author=data.get("author"),
             genre=data.get("genre"),
+            series_id=data.get("series_id"),
+            book_number=data.get("book_number"),
             created_at=datetime.fromisoformat(data.get("created_at", datetime.utcnow().isoformat())),
             updated_at=datetime.fromisoformat(data.get("updated_at", datetime.utcnow().isoformat()))
         )
@@ -176,6 +182,8 @@ async def create_project(project: ProjectCreate):
             "description": project.description,
             "author": project.author,
             "genre": project.genre,
+            "series_id": project.series_id,
+            "book_number": project.book_number,
             "created_at": now.isoformat(),
             "updated_at": now.isoformat()
         }
@@ -190,6 +198,8 @@ async def create_project(project: ProjectCreate):
             description=project.description,
             author=project.author,
             genre=project.genre,
+            series_id=project.series_id,
+            book_number=project.book_number,
             created_at=now,
             updated_at=now
         )
@@ -247,6 +257,8 @@ async def update_project(project_id: str, update: ProjectUpdate):
             description=data.get("description"),
             author=data.get("author"),
             genre=data.get("genre"),
+            series_id=data.get("series_id"),
+            book_number=data.get("book_number"),
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"])
         )
@@ -255,6 +267,125 @@ async def update_project(project_id: str, update: ProjectUpdate):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{project_id}/structure")
+async def clear_project_structure(project_id: str):
+    """
+    Clear all acts, chapters, and scenes from a project.
+
+    Keeps the project itself, plus characters, world, style, and references.
+    Use this to re-import an outline cleanly.
+
+    Args:
+        project_id: Project ID
+
+    Returns:
+        Summary of what was deleted
+    """
+    project_path = settings.project_dir(project_id)
+    if not project_path.exists():
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+    deleted = {"acts": 0, "chapters": 0, "scenes": 0, "generations": 0}
+
+    # Delete all scenes
+    scenes_dir = settings.scenes_dir(project_id)
+    if scenes_dir.exists():
+        for f in scenes_dir.glob("*.json"):
+            f.unlink()
+            deleted["scenes"] += 1
+
+    # Delete all chapters
+    chapters_dir = settings.chapters_dir(project_id)
+    if chapters_dir.exists():
+        for f in chapters_dir.glob("*.json"):
+            f.unlink()
+            deleted["chapters"] += 1
+
+    # Delete all acts
+    acts_dir = settings.acts_dir(project_id)
+    if acts_dir.exists():
+        for f in acts_dir.glob("*.json"):
+            f.unlink()
+            deleted["acts"] += 1
+
+    # Delete all generations
+    generations_dir = settings.generations_dir(project_id)
+    if generations_dir.exists():
+        for f in generations_dir.glob("*.json"):
+            f.unlink()
+            deleted["generations"] += 1
+
+    return {
+        "message": "Project structure cleared",
+        "deleted": deleted
+    }
+
+
+from pydantic import BaseModel
+
+class MoveToSeriesRequest(BaseModel):
+    series_id: Optional[str] = None
+    book_number: Optional[int] = None
+
+
+@router.put("/{project_id}/series")
+async def update_project_series(project_id: str, request: MoveToSeriesRequest):
+    """
+    Move a project into or out of a series.
+
+    Args:
+        project_id: Project ID
+        request: Series ID and book number
+
+    Returns:
+        Updated project
+    """
+    project_path = settings.project_dir(project_id) / "project.json"
+    if not project_path.exists():
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+    # Validate series exists if provided
+    if request.series_id:
+        series_path = settings.series_path(request.series_id) / "series.json"
+        if not series_path.exists():
+            raise HTTPException(status_code=404, detail=f"Series not found: {request.series_id}")
+
+    # Load and update project
+    data = await read_json_file(project_path)
+    old_series_id = data.get("series_id")
+
+    data["series_id"] = request.series_id
+    data["book_number"] = request.book_number if request.series_id else None
+    data["updated_at"] = datetime.utcnow().isoformat()
+
+    await write_json_file(project_path, data)
+
+    # Update series project lists
+    if old_series_id and old_series_id != request.series_id:
+        # Remove from old series
+        old_series_path = settings.series_path(old_series_id) / "series.json"
+        if old_series_path.exists():
+            series_data = await read_json_file(old_series_path)
+            if project_id in series_data.get("project_ids", []):
+                series_data["project_ids"].remove(project_id)
+                await write_json_file(old_series_path, series_data)
+
+    if request.series_id:
+        # Add to new series
+        series_path = settings.series_path(request.series_id) / "series.json"
+        series_data = await read_json_file(series_path)
+        if project_id not in series_data.get("project_ids", []):
+            series_data["project_ids"].append(project_id)
+            await write_json_file(series_path, series_data)
+
+    return {
+        "message": f"Project moved to series" if request.series_id else "Project removed from series",
+        "project_id": project_id,
+        "series_id": request.series_id,
+        "book_number": request.book_number
+    }
 
 
 @router.delete("/{project_id}")

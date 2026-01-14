@@ -50,16 +50,21 @@ def build_system_prompt(
     characters: List[Dict[str, Any]],
     world_contexts: List[Dict[str, Any]],
     previous_scene_summaries: List[Dict[str, Any]] = None,
-    style_guide: Dict[str, Any] = None
+    style_guide: Dict[str, Any] = None,
+    references: List[Dict[str, Any]] = None,
+    previous_books: List[Dict[str, Any]] = None
 ) -> str:
     """
-    Build system prompt with character, world context, previous scene summaries, and style guide.
+    Build system prompt with character, world context, previous scene summaries, style guide,
+    reference documents, and previous book summaries for series continuity.
 
     Args:
         characters: List of character data dictionaries
         world_contexts: List of world context data dictionaries
         previous_scene_summaries: List of previous scene summaries for continuity
         style_guide: Style guide dictionary with pov, tense, tone, heat_level, guide
+        references: List of reference documents (style guides, published books, notes)
+        previous_books: List of earlier book summaries in series
 
     Returns:
         Formatted system prompt
@@ -116,6 +121,63 @@ def build_system_prompt(
             prompt_parts.append(f"## {world.get('metadata', {}).get('name', 'World')}\n")
             prompt_parts.append(f"**Metadata:**\n{format_metadata(world.get('metadata', {}))}\n")
             prompt_parts.append(f"**Details:**\n{world.get('content', '')}\n")
+
+    # Add reference documents (style references, published books, notes)
+    if references:
+        prompt_parts.append("\n# REFERENCE DOCUMENTS\n")
+        prompt_parts.append("Use these reference documents for style, continuity, and context:\n")
+
+        # Group by type for clarity
+        style_refs = [r for r in references if r.get('doc_type') == 'style_reference']
+        book_refs = [r for r in references if r.get('doc_type') == 'published_book']
+        other_refs = [r for r in references if r.get('doc_type') not in ['style_reference', 'published_book']]
+
+        if style_refs:
+            prompt_parts.append("## Style References\n")
+            for ref in style_refs:
+                prompt_parts.append(f"### {ref.get('title', 'Reference')}\n")
+                if ref.get('description'):
+                    prompt_parts.append(f"*{ref['description']}*\n")
+                content = ref.get('content', '')
+                # Truncate very long references to avoid context overflow
+                if len(content) > 8000:
+                    content = content[:8000] + "\n...[truncated for length]"
+                prompt_parts.append(f"{content}\n")
+
+        if book_refs:
+            prompt_parts.append("## Published Works Reference\n")
+            prompt_parts.append("*Reference these published works for style and continuity:*\n")
+            for ref in book_refs:
+                prompt_parts.append(f"### {ref.get('title', 'Book')}\n")
+                if ref.get('description'):
+                    prompt_parts.append(f"*{ref['description']}*\n")
+                content = ref.get('content', '')
+                if len(content) > 8000:
+                    content = content[:8000] + "\n...[truncated for length]"
+                prompt_parts.append(f"{content}\n")
+
+        if other_refs:
+            prompt_parts.append("## Additional References\n")
+            for ref in other_refs:
+                prompt_parts.append(f"### {ref.get('title', 'Reference')}\n")
+                if ref.get('description'):
+                    prompt_parts.append(f"*{ref['description']}*\n")
+                content = ref.get('content', '')
+                if len(content) > 5000:
+                    content = content[:5000] + "\n...[truncated for length]"
+                prompt_parts.append(f"{content}\n")
+
+    # Add previous books in series for continuity
+    if previous_books:
+        prompt_parts.append("\n# EARLIER BOOKS IN SERIES\n")
+        prompt_parts.append("This is part of a series. Here are summaries of earlier books for continuity:\n")
+        for book in previous_books:
+            book_num = book.get('book_number', '?')
+            title = book.get('title', 'Untitled')
+            prompt_parts.append(f"## Book {book_num}: {title}\n")
+            summary = book.get('summary', 'No summary available.')
+            prompt_parts.append(f"{summary}\n")
+        prompt_parts.append("")
 
     return "\n".join(prompt_parts)
 

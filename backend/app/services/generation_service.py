@@ -10,6 +10,7 @@ from app.models.scene import Scene
 from app.services.llm_service import get_llm_service
 from app.services.state_manager import get_state_manager
 from app.services.markdown_parser import MarkdownParser
+from app.services.series_service import get_series_service
 from app.utils.prompt_templates import build_system_prompt, build_generation_prompt, clean_prose_output
 from app.utils.file_utils import read_json_file, write_json_file
 from app.utils.logging import get_logger
@@ -26,6 +27,7 @@ class GenerationService:
         self.llm = get_llm_service()
         self.state_manager = get_state_manager()
         self.parser = MarkdownParser()
+        self.series_service = get_series_service()
 
     async def start_generation(
         self,
@@ -84,6 +86,124 @@ class GenerationService:
 
         return state
 
+    async def start_edit_mode_generation(
+        self,
+        project_id: str,
+        scene_id: str,
+        max_iterations: int = 5,
+        generation_model: Optional[str] = None,
+        critique_model: Optional[str] = None
+    ) -> GenerationState:
+        """
+        Start edit mode generation for a scene with imported prose.
+
+        This skips initial generation and goes directly to critique.
+        The scene must be in edit mode with original_prose set.
+
+        Args:
+            project_id: Project ID
+            scene_id: Scene ID to edit
+            max_iterations: Maximum revision iterations allowed
+            generation_model: Optional model for revisions
+            critique_model: Optional model for critique
+
+        Returns:
+            Initial generation state
+
+        Raises:
+            FileNotFoundError: If scene not found
+            ValueError: If scene not in edit mode or missing prose
+        """
+        # Load scene
+        scene = await self._load_scene(project_id, scene_id)
+
+        # Validate edit mode
+        if not scene.edit_mode:
+            raise ValueError(f"Scene {scene_id} is not in edit mode. Enable edit mode first.")
+
+        if not scene.original_prose:
+            raise ValueError(f"Scene {scene_id} has no imported prose. Import prose first.")
+
+        # Create new generation state
+        generation_id = str(uuid.uuid4())
+        state = GenerationState(
+            generation_id=generation_id,
+            project_id=project_id,
+            scene_id=scene_id,
+            status=GenerationStatus.INITIALIZED,
+            max_iterations=max_iterations,
+            character_ids=scene.character_ids,
+            world_context_ids=scene.world_context_ids,
+            previous_scene_ids=scene.previous_scene_ids,
+            generation_model=generation_model,
+            critique_model=critique_model,
+            edit_mode=True
+        )
+
+        # Save initial state
+        await self.state_manager.save_state(state)
+
+        logger.info(
+            f"Starting edit mode generation for scene {scene_id}",
+            extra={"generation_id": generation_id, "project_id": project_id, "scene_id": scene_id}
+        )
+
+        # Start edit mode generation in background
+        import asyncio
+        asyncio.create_task(self._run_edit_mode_generation(project_id, generation_id))
+
+        return state
+
+    async def _run_edit_mode_generation(self, project_id: str, generation_id: str) -> None:
+        """
+        Run edit mode generation - skip initial generation, go straight to critique.
+
+        Args:
+            project_id: Project ID
+            generation_id: Generation ID
+        """
+        try:
+            # Load state
+            state = await self.state_manager.load_state(project_id, generation_id)
+            state.status = GenerationStatus.GENERATING
+            state.updated_at = datetime.utcnow()
+            await self.state_manager.save_state(state)
+
+            # Load scene to get the original prose
+            scene = await self._load_scene(project_id, state.scene_id)
+
+            # Use the imported original prose as the first iteration
+            iteration = Iteration(
+                iteration_number=1,
+                prose=scene.original_prose,
+                critique=None,
+                approved=None,
+                timestamp=datetime.utcnow()
+            )
+
+            # Update state
+            state.current_iteration = 1
+            state.iterations.append(iteration)
+            state.status = GenerationStatus.GENERATION_COMPLETE
+            state.updated_at = datetime.utcnow()
+            await self.state_manager.save_state(state)
+
+            # Go directly to critique
+            await self._run_critique(project_id, generation_id)
+
+        except Exception as e:
+            logger.error(
+                f"Edit mode generation failed: {str(e)}",
+                extra={"generation_id": generation_id, "project_id": project_id},
+                exc_info=True
+            )
+            # Update state with error
+            state = await self.state_manager.load_state(project_id, generation_id)
+            state.status = GenerationStatus.ERROR
+            state.error_message = str(e)
+            state.updated_at = datetime.utcnow()
+            await self.state_manager.save_state(state)
+
     async def _run_generation(self, project_id: str, generation_id: str) -> None:
         """
         Run the initial generation process.
@@ -99,15 +219,33 @@ class GenerationService:
             state.updated_at = datetime.utcnow()
             await self.state_manager.save_state(state)
 
-            # Load scene and context
+            # Load scene
             scene = await self._load_scene(project_id, state.scene_id)
-            characters = await self._load_characters(project_id, state.character_ids)
-            world_contexts = await self._load_world_contexts(project_id, state.world_context_ids)
-            previous_summaries = await self._load_previous_summaries(project_id, state.previous_scene_ids)
-            style_guide = await self._load_style_guide(project_id)
 
-            # Build prompts
-            system_prompt = build_system_prompt(characters, world_contexts, previous_summaries, style_guide)
+            # Load combined context (handles series inheritance and references)
+            combined_context = await self.series_service.get_combined_context(project_id)
+
+            # Also load scene-specific characters/world that may not be in combined context
+            scene_characters = await self._load_characters(project_id, state.character_ids)
+            scene_worlds = await self._load_world_contexts(project_id, state.world_context_ids)
+            previous_summaries = await self._load_previous_summaries(project_id, state.previous_scene_ids)
+
+            # Merge scene-specific context with combined context
+            all_characters = combined_context.get("characters", []) + scene_characters
+            all_worlds = combined_context.get("worlds", []) + scene_worlds
+            all_references = [r for r in combined_context.get("references", []) if r.get("use_in_generation", True)]
+            previous_books = combined_context.get("previous_books", [])
+            style_guide = combined_context.get("style_guide")
+
+            # Build prompts with full context including references
+            system_prompt = build_system_prompt(
+                all_characters,
+                all_worlds,
+                previous_summaries,
+                style_guide,
+                references=all_references,
+                previous_books=previous_books
+            )
             user_prompt = build_generation_prompt(scene.model_dump())
 
             # Generate prose (use custom model if specified)

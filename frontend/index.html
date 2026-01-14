@@ -104,32 +104,82 @@
             </div>
         </div>
 
-        <!-- Project Selector (shown when no project selected) -->
+        <!-- Series and Project Selector (shown when no project selected) -->
         <section id="project-selector" class="view active">
+            <!-- Library Section -->
             <div class="card">
-                <h2>Select a Project</h2>
-                <p class="text-muted mb-20">Choose an existing project or create a new one to get started.</p>
-
-                <div id="projects-list" class="item-list">
-                    <div class="empty-state">Loading projects...</div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h2>Your Library</h2>
+                        <p class="text-muted">Series and standalone books. Click a book to open it.</p>
+                    </div>
+                    <div>
+                        <button class="btn btn-outline" onclick="clearSeriesSelection()" id="clear-series-btn" style="display: none;">Show All</button>
+                        <button class="btn btn-primary" onclick="showNewSeriesForm()">+ New Series</button>
+                    </div>
                 </div>
-
-                <div class="action-bar">
-                    <button class="btn btn-primary" onclick="showNewProjectForm()">+ New Project</button>
+                <div id="series-list" class="item-list">
+                    <div class="empty-state">Loading series...</div>
                 </div>
             </div>
 
-            <!-- New Project Form (hidden by default) -->
-            <div id="new-project-form" class="card" style="display: none;">
-                <h3>Create New Project</h3>
-                <form onsubmit="createProject(event)">
+            <!-- New Series Form (hidden by default) -->
+            <div id="new-series-form" class="card" style="display: none;">
+                <h3>Create New Series</h3>
+                <form onsubmit="createSeries(event)">
                     <div class="form-group">
-                        <label>Project Title *</label>
-                        <input type="text" id="project-title" required placeholder="e.g., My Fantasy Novel">
+                        <label>Series Title *</label>
+                        <input type="text" id="series-title" required placeholder="e.g., The Starlight Chronicles">
                     </div>
                     <div class="form-group">
                         <label>Description</label>
-                        <textarea id="project-description" placeholder="What is this project about?"></textarea>
+                        <textarea id="series-description" placeholder="What is this series about?"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Author</label>
+                            <input type="text" id="series-author" placeholder="Your name">
+                        </div>
+                        <div class="form-group">
+                            <label>Genre</label>
+                            <input type="text" id="series-genre" placeholder="e.g., Fantasy, Sci-Fi">
+                        </div>
+                    </div>
+                    <div class="action-bar">
+                        <button type="submit" class="btn btn-success">Create Series</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideNewSeriesForm()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- New Book Section -->
+            <div class="card" id="new-book-section">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2>Create a New Book</h2>
+                        <p class="text-muted">Start a standalone book, or add it to a series later.</p>
+                    </div>
+                    <button class="btn btn-primary" onclick="showNewProjectForm()">+ New Book</button>
+                </div>
+            </div>
+
+            <!-- Hidden projects list for filtered view -->
+            <div class="card" id="filtered-projects-section" style="display: none;">
+                <h2 id="filtered-projects-title">Books in Series</h2>
+                <div id="projects-list" class="item-list"></div>
+            </div>
+
+            <!-- New Book Form (hidden by default) -->
+            <div id="new-project-form" class="card" style="display: none;">
+                <h3>Create New Book</h3>
+                <form onsubmit="createProject(event)">
+                    <div class="form-group">
+                        <label>Book Title *</label>
+                        <input type="text" id="project-title" required placeholder="e.g., The Crimson Rites">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="project-description" placeholder="What is this book about?"></textarea>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -141,8 +191,20 @@
                             <input type="text" id="project-genre" placeholder="e.g., Fantasy, Sci-Fi">
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label>Add to Series (optional)</label>
+                        <select id="project-series">
+                            <option value="">-- Standalone Book --</option>
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                    <div class="form-group" id="book-number-group" style="display: none;">
+                        <label>Book Number</label>
+                        <input type="number" id="project-book-number" min="1" placeholder="e.g., 1, 2, 3">
+                        <small class="text-muted">Position in the series</small>
+                    </div>
                     <div class="action-bar">
-                        <button type="submit" class="btn btn-success">Create Project</button>
+                        <button type="submit" class="btn btn-success">Create Book</button>
                         <button type="button" class="btn btn-secondary" onclick="hideNewProjectForm()">Cancel</button>
                     </div>
                 </form>
@@ -156,15 +218,20 @@
                     <div>
                         <h2 id="current-project-title">Project Name</h2>
                         <p class="text-muted" id="current-project-description">Project description</p>
+                        <div id="project-series-info" style="margin-top: 8px; display: none;">
+                            <span class="badge series-badge" id="project-series-badge"></span>
+                        </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 20px;">
                         <div class="master-word-count">
                             <span class="word-count-value" id="master-word-count">0</span>
                             <span class="word-count-label">words</span>
                         </div>
-                        <div>
-                            <button class="btn btn-secondary" onclick="toggleSidebar()" id="sidebar-toggle">Toggle Outline</button>
-                            <button class="btn btn-secondary" onclick="switchProject()">Switch Project</button>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-outline" onclick="showMoveToSeriesModal()">Series</button>
+                            <button class="btn btn-outline btn-danger-outline" onclick="confirmClearStructure()">Clear</button>
+                            <button class="btn btn-secondary" onclick="toggleSidebar()" id="sidebar-toggle">Outline</button>
+                            <button class="btn btn-secondary" onclick="switchProject()">Switch</button>
                         </div>
                     </div>
                 </div>
@@ -194,6 +261,7 @@
                         <button class="nav-btn" data-view="worlds">Worlds</button>
                         <button class="nav-btn" data-view="structure">Structure</button>
                         <button class="nav-btn" data-view="style">Style</button>
+                        <button class="nav-btn" data-view="references">References</button>
                         <button class="nav-btn" data-view="generate">Generate</button>
                         <button class="nav-btn" data-view="queue" id="queue-nav-btn">Queue <span class="queue-badge" id="queue-badge" style="display: none;">0</span></button>
                         <button class="nav-btn" data-view="chat">Chat</button>
@@ -650,6 +718,72 @@ This will be included in the AI prompt during generation."></textarea>
                             </div>
                         </section>
 
+                        <!-- References View -->
+                        <section id="references-view" class="view">
+                            <div class="card">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <div>
+                                        <h2>Reference Library</h2>
+                                        <p class="text-muted">Documents to inform AI generation: style guides, published books, notes.</p>
+                                    </div>
+                                    <button class="btn btn-primary" onclick="showNewReferenceForm()">+ Add Reference</button>
+                                </div>
+                                <div id="references-list" class="item-list">
+                                    <div class="empty-state">Loading references...</div>
+                                </div>
+                            </div>
+
+                            <!-- Reference Form (hidden by default) -->
+                            <div id="reference-form" class="card" style="display: none;">
+                                <h3>Add Reference Document</h3>
+                                <form onsubmit="saveReference(event)">
+                                    <div class="form-group">
+                                        <label>Title *</label>
+                                        <input type="text" id="ref-title" required placeholder="e.g., Book 1 Full Text, Style Reference">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Description</label>
+                                        <textarea id="ref-description" placeholder="What is this document? How should it be used?"></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Document Type</label>
+                                        <select id="ref-type">
+                                            <option value="style_reference">Style Reference</option>
+                                            <option value="published_book">Published Book</option>
+                                            <option value="world_notes">World Notes</option>
+                                            <option value="character_notes">Character Notes</option>
+                                            <option value="research">Research</option>
+                                            <option value="other" selected>Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Content *</label>
+                                        <textarea id="ref-content" required placeholder="Paste the full text content here..." style="min-height: 300px;"></textarea>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>
+                                                <input type="checkbox" id="ref-use-generation" checked>
+                                                Use in Generation
+                                            </label>
+                                            <small class="text-muted">Include in prose generation prompts</small>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>
+                                                <input type="checkbox" id="ref-use-chat" checked>
+                                                Use in Chat
+                                            </label>
+                                            <small class="text-muted">Include in chat context</small>
+                                        </div>
+                                    </div>
+                                    <div class="action-bar">
+                                        <button type="submit" class="btn btn-success">Save Reference</button>
+                                        <button type="button" class="btn btn-secondary" onclick="hideReferenceForm()">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </section>
+
                         <!-- Generate View -->
                         <section id="generate-view" class="view">
                             <!-- Step 1: Select Scene -->
@@ -950,6 +1084,56 @@ This will be included in the AI prompt during generation."></textarea>
                         <!-- Reference prose goes here -->
                     </div>
                 </aside>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Prose Modal (Edit Mode) -->
+    <div id="import-prose-modal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="hideImportProseModal()"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Import Prose for Revision</h2>
+                <button class="modal-close" onclick="hideImportProseModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-20">Paste existing prose to revise. The AI will critique and help you improve it.</p>
+                <div class="form-group">
+                    <label>Prose Content</label>
+                    <textarea id="import-prose-text" rows="20" placeholder="Paste your existing prose here..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="importProseForEdit()">Import & Enable Edit Mode</button>
+                <button class="btn btn-secondary" onclick="hideImportProseModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Move to Series Modal -->
+    <div id="move-series-modal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="hideMoveToSeriesModal()"></div>
+        <div class="modal-content" style="max-width: 400px;">
+            <div class="modal-header">
+                <h2>Move to Series</h2>
+                <button class="modal-close" onclick="hideMoveToSeriesModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Select Series</label>
+                    <select id="move-series-select">
+                        <option value="">-- No Series (Standalone) --</option>
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+                <div class="form-group" id="move-book-number-group" style="display: none;">
+                    <label>Book Number</label>
+                    <input type="number" id="move-book-number" min="1" placeholder="e.g., 1, 2, 3">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="moveProjectToSeries()">Save</button>
+                <button class="btn btn-secondary" onclick="hideMoveToSeriesModal()">Cancel</button>
             </div>
         </div>
     </div>

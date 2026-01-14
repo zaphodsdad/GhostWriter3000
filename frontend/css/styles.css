@@ -212,6 +212,27 @@ nav {
     background: var(--danger-hover);
 }
 
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.btn-outline:hover {
+    background: var(--bg-input);
+    border-color: var(--primary);
+}
+
+.btn-danger-outline {
+    border-color: var(--danger);
+    color: var(--danger);
+}
+
+.btn-danger-outline:hover {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: var(--danger);
+}
+
 .btn-secondary {
     background: var(--bg-input);
     color: var(--text);
@@ -336,6 +357,84 @@ nav {
 .badge.canon {
     background: var(--success);
     color: white;
+}
+
+.badge.series-badge {
+    background: var(--primary);
+    color: white;
+}
+
+/* Series items */
+.series-item.selected {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.series-books {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+}
+
+.series-books.empty {
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.series-book {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    margin: 4px 0;
+    background: var(--bg-input);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.series-book:hover {
+    background: var(--border);
+}
+
+.series-book .book-number {
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.85rem;
+}
+
+.series-book .book-title {
+    flex: 1;
+    font-weight: 500;
+}
+
+.series-book .book-stats {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* Standalone books section */
+.standalone-section {
+    background: var(--bg-input);
+    border-style: dashed;
+}
+
+.standalone-section .item-title {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* Reference items */
+.reference-item .badge.series-badge {
+    background: var(--warning);
+    color: #1e293b;
+}
+
+/* Edit mode badge */
+.badge.edit-mode {
+    background: var(--warning);
+    color: #1e293b;
 }
 
 .item-content {
@@ -710,6 +809,15 @@ nav {
 }
 
 .structure-scene.canon {
+    border-left: 3px solid var(--success);
+}
+
+.structure-scene.edit-mode {
+    border-left: 3px solid var(--warning);
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.structure-scene.edit-mode.canon {
     border-left: 3px solid var(--success);
 }
 

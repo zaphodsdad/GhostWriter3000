@@ -80,6 +80,32 @@ class Settings(BaseSettings):
         """Path to generations directory for a project."""
         return self.project_dir(project_id) / "generations"
 
+    def project_references_dir(self, project_id: str) -> Path:
+        """Path to references directory for a project."""
+        return self.project_dir(project_id) / "references"
+
+    # Series-related paths
+    @property
+    def series_dir(self) -> Path:
+        """Path to series directory."""
+        return self.data_dir / "series"
+
+    def series_path(self, series_id: str) -> Path:
+        """Path to a specific series directory."""
+        return self.series_dir / series_id
+
+    def series_characters_dir(self, series_id: str) -> Path:
+        """Path to characters directory for a series."""
+        return self.series_path(series_id) / "characters"
+
+    def series_world_dir(self, series_id: str) -> Path:
+        """Path to world context directory for a series."""
+        return self.series_path(series_id) / "world"
+
+    def series_references_dir(self, series_id: str) -> Path:
+        """Path to references directory for a series."""
+        return self.series_path(series_id) / "references"
+
 
 # Global settings instance
 settings = Settings()

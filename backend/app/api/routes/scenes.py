@@ -3,6 +3,7 @@
 from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from typing import List, Optional
+from pydantic import BaseModel, Field
 
 from app.models.scene import Scene, SceneCreate, SceneUpdate
 from app.config import settings
@@ -296,6 +297,126 @@ async def get_scene_prose(project_id: str, scene_id: str):
             "summary": data.get("summary"),
             "word_count": word_count
         }
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Scene not found: {scene_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Edit Mode Models and Endpoints
+
+class EditModeRequest(BaseModel):
+    """Request to enable edit mode with imported prose."""
+    prose: str = Field(..., description="The prose text to import for editing", min_length=1)
+
+
+class EditModeResponse(BaseModel):
+    """Response after enabling edit mode."""
+    scene_id: str
+    title: str
+    edit_mode: bool
+    original_prose: str
+    word_count: int
+    message: str
+
+
+@router.post("/{scene_id}/edit-mode", response_model=EditModeResponse)
+async def enable_edit_mode(project_id: str, scene_id: str, request: EditModeRequest):
+    """
+    Enable edit mode for a scene by importing existing prose.
+
+    This sets the scene up for revision rather than generation from scratch.
+    The imported prose becomes the "original" that will be critiqued and revised.
+
+    Args:
+        project_id: Project ID
+        scene_id: Scene ID
+        request: EditModeRequest with the prose to import
+
+    Returns:
+        EditModeResponse with updated scene info
+
+    Raises:
+        HTTPException: If scene not found or already has canon prose
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
+        data = await read_json_file(filepath)
+
+        # Check if scene already has canon prose
+        if data.get("is_canon") and data.get("prose"):
+            raise HTTPException(
+                status_code=400,
+                detail="Scene already has canon prose. Clear it first to enable edit mode."
+            )
+
+        # Enable edit mode
+        now = datetime.utcnow()
+        data["edit_mode"] = True
+        data["original_prose"] = request.prose
+        data["edit_mode_started_at"] = now.isoformat()
+        data["updated_at"] = now.isoformat()
+
+        # Save updated scene
+        await write_json_file(filepath, data)
+
+        word_count = len(request.prose.split())
+
+        return EditModeResponse(
+            scene_id=scene_id,
+            title=data.get("title", "Untitled"),
+            edit_mode=True,
+            original_prose=request.prose,
+            word_count=word_count,
+            message=f"Edit mode enabled. {word_count} words imported. Ready for critique."
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Scene not found: {scene_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{scene_id}/edit-mode")
+async def disable_edit_mode(project_id: str, scene_id: str):
+    """
+    Disable edit mode and clear imported prose.
+
+    Args:
+        project_id: Project ID
+        scene_id: Scene ID
+
+    Returns:
+        Success message
+
+    Raises:
+        HTTPException: If scene not found or not in edit mode
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
+        data = await read_json_file(filepath)
+
+        if not data.get("edit_mode"):
+            raise HTTPException(status_code=400, detail="Scene is not in edit mode")
+
+        # Disable edit mode
+        data["edit_mode"] = False
+        data["original_prose"] = None
+        data["edit_mode_started_at"] = None
+        data["updated_at"] = datetime.utcnow().isoformat()
+
+        await write_json_file(filepath, data)
+
+        return {"message": f"Edit mode disabled for scene {scene_id}"}
 
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Scene not found: {scene_id}")

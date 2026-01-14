@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from app.models.generation import (
     GenerationStart,
+    EditModeStart,
     GenerationResponse,
     GenerationState,
     GenerationStatus
@@ -54,6 +55,46 @@ async def start_generation(project_id: str, request: GenerationStart, background
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
+
+
+@router.post("/start-edit", response_model=GenerationResponse)
+async def start_edit_mode_generation(project_id: str, request: EditModeStart, background_tasks: BackgroundTasks):
+    """
+    Start edit mode generation for a scene with imported prose.
+
+    This skips the initial generation step and goes directly to critique.
+    The scene must already be in edit mode with original_prose set.
+
+    Args:
+        project_id: Project ID
+        request: EditModeStart request with scene_id and max_iterations
+
+    Returns:
+        Initial generation state (starting at critique phase)
+
+    Raises:
+        HTTPException: If scene not found, not in edit mode, or missing prose
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        service = get_generation_service()
+        state = await service.start_edit_mode_generation(
+            project_id=project_id,
+            scene_id=request.scene_id,
+            max_iterations=request.max_iterations,
+            generation_model=request.generation_model,
+            critique_model=request.critique_model
+        )
+
+        return _build_response(state)
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Edit mode generation failed: {str(e)}")
 
 
 @router.get("/queue", response_model=List[GenerationResponse])

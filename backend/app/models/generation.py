@@ -45,6 +45,7 @@ class GenerationState(BaseModel):
     previous_scene_ids: List[str] = Field(default_factory=list, description="Previous scene IDs for continuity")
     generation_model: Optional[str] = Field(None, description="Model used for prose generation")
     critique_model: Optional[str] = Field(None, description="Model used for critique")
+    edit_mode: bool = Field(False, description="Whether this is an edit mode generation (started with existing prose)")
     iterations: List[Iteration] = Field(default_factory=list, description="List of all iterations")
     final_prose: Optional[str] = Field(None, description="Final accepted prose (when status=COMPLETED)")
     scene_summary: Optional[str] = Field(None, description="Auto-generated scene summary (when status=COMPLETED)")
@@ -109,6 +110,15 @@ class GenerationStart(BaseModel):
     scene_id: str = Field(..., description="Scene ID to generate prose for")
     max_iterations: int = Field(5, description="Maximum allowed iterations", ge=1, le=100)
     generation_model: Optional[str] = Field(None, description="Model for prose generation (uses .env default if not specified)")
+    critique_model: Optional[str] = Field(None, description="Model for critique (uses .env default if not specified)")
+
+
+class EditModeStart(BaseModel):
+    """Request model to start edit mode generation (skip to critique)."""
+
+    scene_id: str = Field(..., description="Scene ID with imported prose to edit")
+    max_iterations: int = Field(5, description="Maximum allowed iterations", ge=1, le=100)
+    generation_model: Optional[str] = Field(None, description="Model for revisions (uses .env default if not specified)")
     critique_model: Optional[str] = Field(None, description="Model for critique (uses .env default if not specified)")
 
 

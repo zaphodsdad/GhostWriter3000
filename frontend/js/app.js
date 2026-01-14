@@ -37,6 +37,14 @@ let previousQueueCount = 0;
 // Settings state
 let settingsModalOpen = false;
 
+// Series state
+let seriesList = [];
+let currentSeries = null;
+
+// Reference library state
+let projectReferences = [];
+let seriesReferences = [];
+
 // ============================================
 // Settings Modal
 // ============================================
@@ -208,6 +216,7 @@ function apiUrl(path) {
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
     checkHealth();
+    loadSeries();
     loadProjects();
     setInterval(checkHealth, 30000);
 });
@@ -242,6 +251,7 @@ async function loadProjects() {
         const response = await fetch('/api/projects/');
         projects = await response.json();
         renderProjects();
+        renderSeriesList(); // Re-render series to show nested books
     } catch (e) {
         console.error('Failed to load projects:', e);
         document.getElementById('projects-list').innerHTML =
@@ -252,32 +262,76 @@ async function loadProjects() {
 function renderProjects() {
     const list = document.getElementById('projects-list');
 
-    if (projects.length === 0) {
-        list.innerHTML = '<div class="empty-state">No projects yet. Create your first project to get started!</div>';
+    // Filter by selected series if one is selected
+    let filteredProjects = projects;
+    if (currentSeries) {
+        filteredProjects = projects.filter(p => p.series_id === currentSeries.id);
+    }
+
+    // Update clear series button visibility
+    const clearBtn = document.getElementById('clear-series-btn');
+    if (clearBtn) {
+        clearBtn.style.display = currentSeries ? 'inline-flex' : 'none';
+    }
+
+    if (filteredProjects.length === 0) {
+        const msg = currentSeries
+            ? `No books in "${currentSeries.title}" yet. Create one to get started!`
+            : 'No projects yet. Create your first project to get started!';
+        list.innerHTML = `<div class="empty-state">${msg}</div>`;
         return;
     }
 
-    list.innerHTML = projects.map(p => `
-        <div class="item" onclick="selectProject('${p.id}')" style="cursor: pointer;">
-            <div class="item-header">
-                <div class="item-title">${escapeHtml(p.title)}</div>
-                <div class="item-actions">
-                    <button class="btn btn-danger" onclick="event.stopPropagation(); deleteProject('${p.id}')">Delete</button>
+    list.innerHTML = filteredProjects.map(p => {
+        // Find series name if project is in a series
+        const series = seriesList.find(s => s.id === p.series_id);
+        const seriesBadge = series && p.book_number
+            ? `<span class="badge series-badge">Book ${p.book_number}</span>`
+            : series
+                ? `<span class="badge series-badge">${escapeHtml(series.title)}</span>`
+                : '';
+
+        return `
+            <div class="item" onclick="selectProject('${p.id}')" style="cursor: pointer;">
+                <div class="item-header">
+                    <div class="item-title">${escapeHtml(p.title)}</div>
+                    <div class="item-actions">
+                        <button class="btn btn-danger" onclick="event.stopPropagation(); deleteProject('${p.id}')">Delete</button>
+                    </div>
                 </div>
+                <div class="item-meta">
+                    ${seriesBadge}
+                    ${p.genre ? `<span class="badge">${escapeHtml(p.genre)}</span>` : ''}
+                    <span class="badge">${p.character_count} characters</span>
+                    <span class="badge">${p.scene_count} scenes</span>
+                    ${p.canon_scene_count > 0 ? `<span class="badge canon">${p.canon_scene_count} canon</span>` : ''}
+                </div>
+                ${p.description ? `<div class="item-content">${escapeHtml(p.description)}</div>` : ''}
             </div>
-            <div class="item-meta">
-                ${p.genre ? `<span class="badge">${escapeHtml(p.genre)}</span>` : ''}
-                <span class="badge">${p.character_count} characters</span>
-                <span class="badge">${p.scene_count} scenes</span>
-                ${p.canon_scene_count > 0 ? `<span class="badge canon">${p.canon_scene_count} canon</span>` : ''}
-            </div>
-            ${p.description ? `<div class="item-content">${escapeHtml(p.description)}</div>` : ''}
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function showNewProjectForm() {
     document.getElementById('new-project-form').style.display = 'block';
+
+    // Populate series select
+    const seriesSelect = document.getElementById('project-series');
+    seriesSelect.innerHTML = '<option value="">-- Standalone Project --</option>' +
+        seriesList.map(s => `<option value="${s.id}">${escapeHtml(s.title)}</option>`).join('');
+
+    // If a series is currently selected, pre-select it
+    if (currentSeries) {
+        seriesSelect.value = currentSeries.id;
+        document.getElementById('book-number-group').style.display = 'block';
+    }
+
+    // Add change handler for series select
+    seriesSelect.onchange = function() {
+        const bookNumGroup = document.getElementById('book-number-group');
+        bookNumGroup.style.display = this.value ? 'block' : 'none';
+    };
+
     document.getElementById('project-title').focus();
 }
 
@@ -287,6 +341,9 @@ function hideNewProjectForm() {
     document.getElementById('project-description').value = '';
     document.getElementById('project-author').value = '';
     document.getElementById('project-genre').value = '';
+    document.getElementById('project-series').value = '';
+    document.getElementById('project-book-number').value = '';
+    document.getElementById('book-number-group').style.display = 'none';
 }
 
 async function createProject(e) {
@@ -296,17 +353,27 @@ async function createProject(e) {
     const description = document.getElementById('project-description').value.trim();
     const author = document.getElementById('project-author').value.trim();
     const genre = document.getElementById('project-genre').value.trim();
+    const seriesId = document.getElementById('project-series').value || null;
+    const bookNumber = document.getElementById('project-book-number').value;
 
     if (!title) {
-        alert('Please enter a project title');
+        alert('Please enter a book title');
         return;
     }
 
     try {
+        const projectData = { title, description, author, genre };
+        if (seriesId) {
+            projectData.series_id = seriesId;
+            if (bookNumber) {
+                projectData.book_number = parseInt(bookNumber);
+            }
+        }
+
         const response = await fetch('/api/projects/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, description, author, genre })
+            body: JSON.stringify(projectData)
         });
 
         if (!response.ok) {
@@ -315,15 +382,33 @@ async function createProject(e) {
         }
 
         const project = await response.json();
+
+        // If added to a series, update the series to include this project
+        if (seriesId) {
+            try {
+                await fetch(`/api/series/${seriesId}/books`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_id: project.id,
+                        book_number: bookNumber ? parseInt(bookNumber) : null
+                    })
+                });
+            } catch (err) {
+                console.error('Failed to add project to series:', err);
+            }
+        }
+
         hideNewProjectForm();
+        await loadSeries(); // Refresh series list
         selectProject(project.id);
     } catch (e) {
-        alert('Error creating project: ' + e.message);
+        alert('Error creating book: ' + e.message);
     }
 }
 
 async function deleteProject(projectId) {
-    if (!confirm('Are you sure you want to delete this project? This will delete all characters, worlds, and scenes.')) {
+    if (!confirm('Are you sure you want to delete this book? This will delete all characters, worlds, and scenes.')) {
         return;
     }
 
@@ -338,7 +423,7 @@ async function deleteProject(projectId) {
 
         await loadProjects();
     } catch (e) {
-        alert('Error deleting project: ' + e.message);
+        alert('Error deleting book: ' + e.message);
     }
 }
 
@@ -354,11 +439,14 @@ async function selectProject(projectId) {
         document.getElementById('current-project-description').textContent =
             currentProject.description || 'No description';
 
+        // Show series info if project is in a series
+        updateProjectSeriesDisplay();
+
         // Setup navigation and load data
         setupNavigation();
         await loadAllData();
     } catch (e) {
-        alert('Error loading project: ' + e.message);
+        alert('Error loading book: ' + e.message);
     }
 }
 
@@ -374,6 +462,527 @@ function switchProject() {
     document.getElementById('project-selector').classList.add('active');
 
     loadProjects();
+}
+
+// ============================================
+// Clear Project Structure
+// ============================================
+async function confirmClearStructure() {
+    // Triple confirmation for safety
+    const projectTitle = currentProject?.title || 'this project';
+
+    const confirm1 = confirm(
+        `WARNING: This will delete ALL acts, chapters, scenes, and generations from "${projectTitle}".\n\n` +
+        `Characters, world, style, and references will be preserved.\n\n` +
+        `Are you sure you want to continue?`
+    );
+    if (!confirm1) return;
+
+    const confirm2 = confirm(
+        `SECOND CONFIRMATION:\n\n` +
+        `You are about to permanently delete the entire story structure.\n` +
+        `This cannot be undone.\n\n` +
+        `Type OK to confirm you want to clear "${projectTitle}".`
+    );
+    if (!confirm2) return;
+
+    const confirm3 = prompt(
+        `FINAL CONFIRMATION:\n\n` +
+        `Type "DELETE" (all caps) to permanently clear the project structure:`
+    );
+    if (confirm3 !== 'DELETE') {
+        alert('Clear cancelled. You must type DELETE exactly.');
+        return;
+    }
+
+    try {
+        const response = await fetch(apiUrl('/structure'), {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to clear structure');
+        }
+
+        const result = await response.json();
+        showToast('Success',
+            `Cleared: ${result.deleted.acts} acts, ${result.deleted.chapters} chapters, ${result.deleted.scenes} scenes`,
+            'success'
+        );
+
+        // Reload data
+        await loadAllData();
+
+    } catch (e) {
+        alert('Error clearing structure: ' + e.message);
+    }
+}
+
+// ============================================
+// Move to Series
+// ============================================
+function showMoveToSeriesModal() {
+    const modal = document.getElementById('move-series-modal');
+    const select = document.getElementById('move-series-select');
+
+    // Populate series dropdown
+    select.innerHTML = '<option value="">-- No Series (Standalone) --</option>' +
+        seriesList.map(s => `<option value="${s.id}">${escapeHtml(s.title)}</option>`).join('');
+
+    // Pre-select current series if any
+    if (currentProject?.series_id) {
+        select.value = currentProject.series_id;
+        document.getElementById('move-book-number-group').style.display = 'block';
+        document.getElementById('move-book-number').value = currentProject.book_number || '';
+    } else {
+        document.getElementById('move-book-number-group').style.display = 'none';
+    }
+
+    // Add change handler
+    select.onchange = function() {
+        document.getElementById('move-book-number-group').style.display = this.value ? 'block' : 'none';
+    };
+
+    modal.style.display = 'flex';
+}
+
+function hideMoveToSeriesModal() {
+    document.getElementById('move-series-modal').style.display = 'none';
+}
+
+async function moveProjectToSeries() {
+    const seriesId = document.getElementById('move-series-select').value || null;
+    const bookNumber = document.getElementById('move-book-number').value;
+
+    try {
+        const response = await fetch(apiUrl('/series'), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                series_id: seriesId,
+                book_number: bookNumber ? parseInt(bookNumber) : null
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to move project');
+        }
+
+        // Update local state
+        currentProject.series_id = seriesId;
+        currentProject.book_number = bookNumber ? parseInt(bookNumber) : null;
+
+        // Update UI
+        updateProjectSeriesDisplay();
+        hideMoveToSeriesModal();
+        await loadSeries(); // Refresh series list
+
+        showToast('Success', seriesId ? 'Project moved to series' : 'Project removed from series', 'success');
+
+    } catch (e) {
+        alert('Error moving book: ' + e.message);
+    }
+}
+
+function updateProjectSeriesDisplay() {
+    const infoDiv = document.getElementById('project-series-info');
+    const badge = document.getElementById('project-series-badge');
+
+    if (currentProject?.series_id) {
+        const series = seriesList.find(s => s.id === currentProject.series_id);
+        if (series) {
+            const bookNum = currentProject.book_number ? ` - Book ${currentProject.book_number}` : '';
+            badge.textContent = `${series.title}${bookNum}`;
+            infoDiv.style.display = 'block';
+        } else {
+            infoDiv.style.display = 'none';
+        }
+    } else {
+        infoDiv.style.display = 'none';
+    }
+}
+
+// ============================================
+// Series Management
+// ============================================
+async function loadSeries() {
+    try {
+        const response = await fetch('/api/series/');
+        seriesList = await response.json();
+        renderSeriesList();
+    } catch (e) {
+        console.error('Failed to load series:', e);
+    }
+}
+
+function renderSeriesList() {
+    const list = document.getElementById('series-list');
+    if (!list) return;
+
+    let html = '';
+
+    // Render each series with nested books
+    html += seriesList.map(s => {
+        const seriesBooks = projects.filter(p => p.series_id === s.id);
+        seriesBooks.sort((a, b) => (a.book_number || 999) - (b.book_number || 999));
+
+        const booksHtml = seriesBooks.length > 0
+            ? `<div class="series-books">
+                ${seriesBooks.map(book => `
+                    <div class="series-book" onclick="event.stopPropagation(); selectProject('${book.id}')">
+                        <span class="book-number">${book.book_number ? `Book ${book.book_number}:` : ''}</span>
+                        <span class="book-title">${escapeHtml(book.title)}</span>
+                        <span class="book-stats">${book.scene_count} scenes${book.canon_scene_count > 0 ? `, ${book.canon_scene_count} canon` : ''}</span>
+                    </div>
+                `).join('')}
+               </div>`
+            : '<div class="series-books empty">No books yet</div>';
+
+        return `
+            <div class="item series-item ${currentSeries?.id === s.id ? 'selected' : ''}">
+                <div class="item-header" onclick="selectSeries('${s.id}')" style="cursor: pointer;">
+                    <div class="item-title">${escapeHtml(s.title)}</div>
+                    <div class="item-actions">
+                        <span class="badge">${seriesBooks.length} books</span>
+                        ${s.genre ? `<span class="badge">${escapeHtml(s.genre)}</span>` : ''}
+                        <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteSeries('${s.id}')">Delete</button>
+                    </div>
+                </div>
+                ${s.description ? `<div class="item-content" style="margin: 8px 0;">${escapeHtml(s.description.substring(0, 200))}...</div>` : ''}
+                ${booksHtml}
+            </div>
+        `;
+    }).join('');
+
+    // Render standalone books (not in any series)
+    const standaloneBooks = projects.filter(p => !p.series_id);
+    if (standaloneBooks.length > 0) {
+        html += `
+            <div class="item series-item standalone-section">
+                <div class="item-header">
+                    <div class="item-title">Standalone Books</div>
+                    <div class="item-actions">
+                        <span class="badge">${standaloneBooks.length} books</span>
+                    </div>
+                </div>
+                <div class="series-books">
+                    ${standaloneBooks.map(book => `
+                        <div class="series-book" onclick="selectProject('${book.id}')">
+                            <span class="book-title">${escapeHtml(book.title)}</span>
+                            <span class="book-stats">${book.scene_count} scenes${book.canon_scene_count > 0 ? `, ${book.canon_scene_count} canon` : ''}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    if (!html) {
+        list.innerHTML = '<div class="empty-state">No books yet. Create a series or standalone book to get started.</div>';
+        return;
+    }
+
+    list.innerHTML = html;
+}
+
+function showNewSeriesForm() {
+    document.getElementById('new-series-form').style.display = 'block';
+    document.getElementById('series-title').focus();
+}
+
+function hideNewSeriesForm() {
+    document.getElementById('new-series-form').style.display = 'none';
+    document.getElementById('series-title').value = '';
+    document.getElementById('series-description').value = '';
+    document.getElementById('series-author').value = '';
+    document.getElementById('series-genre').value = '';
+}
+
+async function createSeries(e) {
+    e.preventDefault();
+
+    const title = document.getElementById('series-title').value.trim();
+    const description = document.getElementById('series-description').value.trim();
+    const author = document.getElementById('series-author').value.trim();
+    const genre = document.getElementById('series-genre').value.trim();
+
+    if (!title) {
+        alert('Please enter a series title');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/series/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, description, author, genre })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to create series');
+        }
+
+        hideNewSeriesForm();
+        await loadSeries();
+    } catch (e) {
+        alert('Error creating series: ' + e.message);
+    }
+}
+
+async function deleteSeries(seriesId) {
+    if (!confirm('Delete this series? Books will be unlinked but not deleted.')) return;
+
+    try {
+        await fetch(`/api/series/${seriesId}`, { method: 'DELETE' });
+        if (currentSeries?.id === seriesId) {
+            currentSeries = null;
+        }
+        await loadSeries();
+        await loadProjects();
+    } catch (e) {
+        alert('Error deleting series: ' + e.message);
+    }
+}
+
+async function selectSeries(seriesId) {
+    try {
+        const response = await fetch(`/api/series/${seriesId}`);
+        currentSeries = await response.json();
+        renderSeriesList();
+        await loadProjects(); // Reload to filter by series if needed
+    } catch (e) {
+        alert('Error loading series: ' + e.message);
+    }
+}
+
+function clearSeriesSelection() {
+    currentSeries = null;
+    renderSeriesList();
+    loadProjects();
+}
+
+// ============================================
+// Reference Library
+// ============================================
+async function loadReferences() {
+    if (!currentProject) return;
+
+    try {
+        // Load project references
+        const projResponse = await fetch(apiUrl('/references/'));
+        projectReferences = await projResponse.json();
+
+        // Load series references if project is in a series
+        if (currentProject.series_id) {
+            const seriesResponse = await fetch(`/api/series/${currentProject.series_id}/references/`);
+            seriesReferences = await seriesResponse.json();
+        } else {
+            seriesReferences = [];
+        }
+
+        renderReferences();
+    } catch (e) {
+        console.error('Failed to load references:', e);
+    }
+}
+
+function renderReferences() {
+    const list = document.getElementById('references-list');
+    if (!list) return;
+
+    const allRefs = [
+        ...seriesReferences.map(r => ({ ...r, scope: 'series' })),
+        ...projectReferences.map(r => ({ ...r, scope: 'project' }))
+    ];
+
+    if (allRefs.length === 0) {
+        list.innerHTML = '<div class="empty-state">No reference documents yet. Upload style guides, published books, or notes to help the AI.</div>';
+        return;
+    }
+
+    const docTypeLabels = {
+        'style_reference': 'Style Reference',
+        'published_book': 'Published Book',
+        'world_notes': 'World Notes',
+        'character_notes': 'Character Notes',
+        'research': 'Research',
+        'other': 'Other'
+    };
+
+    list.innerHTML = allRefs.map(r => `
+        <div class="item reference-item">
+            <div class="item-header">
+                <div class="item-title">${escapeHtml(r.title)}</div>
+                <div class="item-actions">
+                    <span class="badge ${r.scope === 'series' ? 'series-badge' : ''}">${r.scope}</span>
+                    <button class="btn btn-small btn-danger" onclick="deleteReference('${r.id}', '${r.scope}')">Delete</button>
+                </div>
+            </div>
+            <div class="item-meta">
+                <span class="badge">${docTypeLabels[r.doc_type] || r.doc_type}</span>
+                <span class="badge">${r.word_count?.toLocaleString() || 0} words</span>
+                ${r.use_in_generation ? '<span class="badge canon">Gen</span>' : ''}
+                ${r.use_in_chat ? '<span class="badge">Chat</span>' : ''}
+            </div>
+            ${r.description ? `<div class="item-content">${escapeHtml(r.description)}</div>` : ''}
+        </div>
+    `).join('');
+}
+
+function showNewReferenceForm() {
+    document.getElementById('reference-form').style.display = 'block';
+    document.getElementById('ref-title').focus();
+}
+
+function hideReferenceForm() {
+    document.getElementById('reference-form').style.display = 'none';
+    document.getElementById('ref-title').value = '';
+    document.getElementById('ref-description').value = '';
+    document.getElementById('ref-type').value = 'other';
+    document.getElementById('ref-content').value = '';
+    document.getElementById('ref-use-generation').checked = true;
+    document.getElementById('ref-use-chat').checked = true;
+}
+
+async function saveReference(e) {
+    e.preventDefault();
+
+    const title = document.getElementById('ref-title').value.trim();
+    const description = document.getElementById('ref-description').value.trim();
+    const docType = document.getElementById('ref-type').value;
+    const content = document.getElementById('ref-content').value.trim();
+    const useInGeneration = document.getElementById('ref-use-generation').checked;
+    const useInChat = document.getElementById('ref-use-chat').checked;
+
+    if (!title || !content) {
+        alert('Please enter a title and content');
+        return;
+    }
+
+    try {
+        const response = await fetch(apiUrl('/references/'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title,
+                description: description || undefined,
+                doc_type: docType,
+                content,
+                use_in_generation: useInGeneration,
+                use_in_chat: useInChat
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to save reference');
+        }
+
+        hideReferenceForm();
+        await loadReferences();
+        showToast('Success', 'Reference document saved', 'success');
+    } catch (e) {
+        alert('Error saving reference: ' + e.message);
+    }
+}
+
+async function deleteReference(refId, scope) {
+    if (!confirm('Delete this reference document?')) return;
+
+    try {
+        const url = scope === 'series' && currentProject?.series_id
+            ? `/api/series/${currentProject.series_id}/references/${refId}`
+            : apiUrl(`/references/${refId}`);
+
+        await fetch(url, { method: 'DELETE' });
+        await loadReferences();
+    } catch (e) {
+        alert('Error deleting reference: ' + e.message);
+    }
+}
+
+// ============================================
+// Edit Mode
+// ============================================
+function showImportProseModal(sceneId) {
+    const modal = document.getElementById('import-prose-modal');
+    modal.style.display = 'flex';
+    modal.dataset.sceneId = sceneId;
+    document.getElementById('import-prose-text').value = '';
+    document.getElementById('import-prose-text').focus();
+}
+
+function hideImportProseModal() {
+    document.getElementById('import-prose-modal').style.display = 'none';
+}
+
+async function importProseForEdit() {
+    const modal = document.getElementById('import-prose-modal');
+    const sceneId = modal.dataset.sceneId;
+    const prose = document.getElementById('import-prose-text').value.trim();
+
+    if (!prose) {
+        alert('Please paste or type the prose to import');
+        return;
+    }
+
+    try {
+        const response = await fetch(apiUrl(`/scenes/${sceneId}/edit-mode`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prose })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to import prose');
+        }
+
+        const result = await response.json();
+        hideImportProseModal();
+        await loadScenes();
+        renderOutlineTree();
+        renderStructureTree();
+        showToast('Success', result.message, 'success');
+    } catch (e) {
+        alert('Error importing prose: ' + e.message);
+    }
+}
+
+async function startEditModeGeneration(sceneId) {
+    const genModel = document.getElementById('gen-model')?.value || null;
+    const critiqueModel = document.getElementById('critique-model')?.value || null;
+
+    try {
+        const response = await fetch(apiUrl('/generations/start-edit'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                scene_id: sceneId,
+                max_iterations: 5,
+                generation_model: genModel || undefined,
+                critique_model: critiqueModel || undefined
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to start edit mode');
+        }
+
+        const state = await response.json();
+        currentGenId = state.generation_id;
+        currentGenModel = genModel;
+        currentCritiqueModel = critiqueModel;
+
+        showGenStep('progress');
+        startPolling();
+    } catch (e) {
+        alert('Error starting edit mode: ' + e.message);
+    }
 }
 
 // ============================================
@@ -494,6 +1103,11 @@ async function navigateToView(view) {
         // Keep polling in background for badge updates, but less frequently
         // stopQueuePolling(); // Uncomment to stop polling when not on queue view
     }
+
+    // Handle references view
+    if (view === 'references') {
+        await loadReferences();
+    }
 }
 
 // ============================================
@@ -506,7 +1120,8 @@ async function loadAllData() {
         loadActs(),
         loadChapters(),
         loadScenes(),
-        loadStyleGuide()
+        loadStyleGuide(),
+        loadReferences()
     ]);
     updateStats();
     populateFormSelects();
@@ -871,15 +1486,34 @@ function renderStructureChapter(chapter) {
             </div>
             ${chapter.description ? `<p class="text-muted" style="font-size: 0.9rem;">${escapeHtml(chapter.description)}</p>` : ''}
             <div class="structure-scenes">
-                ${chapterScenes.map(s => `
-                    <div class="structure-scene ${s.is_canon ? 'canon' : ''}" onclick="showReadingView('scene', '${s.id}')">
-                        <span>${escapeHtml(s.title)}</span>
-                        <div class="item-actions">
-                            ${s.is_canon ? '<span class="badge canon">Canon</span>' : ''}
-                            <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteScene('${s.id}')">Delete</button>
+                ${chapterScenes.map(s => {
+                    const isEditMode = s.edit_mode;
+                    const badges = [];
+                    if (s.is_canon) badges.push('<span class="badge canon">Canon</span>');
+                    if (isEditMode) badges.push('<span class="badge edit-mode">Edit Mode</span>');
+
+                    // Show import button for non-canon scenes without edit mode
+                    const importBtn = !s.is_canon && !isEditMode
+                        ? `<button class="btn btn-small" onclick="event.stopPropagation(); showImportProseModal('${s.id}')" title="Import existing prose for revision">Import</button>`
+                        : '';
+
+                    // Show start edit generation for scenes in edit mode
+                    const editGenBtn = isEditMode && !s.is_canon
+                        ? `<button class="btn btn-small btn-success" onclick="event.stopPropagation(); startEditModeGeneration('${s.id}')" title="Start critique and revision">Revise</button>`
+                        : '';
+
+                    return `
+                        <div class="structure-scene ${s.is_canon ? 'canon' : ''} ${isEditMode ? 'edit-mode' : ''}" onclick="showReadingView('scene', '${s.id}')">
+                            <span>${escapeHtml(s.title)}</span>
+                            <div class="item-actions">
+                                ${badges.join('')}
+                                ${importBtn}
+                                ${editGenBtn}
+                                <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteScene('${s.id}')">Delete</button>
+                            </div>
                         </div>
-                    </div>
-                `).join('')}
+                    `;
+                }).join('')}
                 ${chapterScenes.length === 0 ? '<div class="empty-state" style="padding: 10px;">No scenes yet</div>' : ''}
             </div>
         </div>

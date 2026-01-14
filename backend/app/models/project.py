@@ -14,6 +14,11 @@ class Project(BaseModel):
     description: Optional[str] = Field(None, description="Project description")
     author: Optional[str] = Field(None, description="Author name")
     genre: Optional[str] = Field(None, description="Genre (e.g., Fantasy, Sci-Fi)")
+
+    # Series integration
+    series_id: Optional[str] = Field(None, description="Series this project belongs to (if any)")
+    book_number: Optional[int] = Field(None, ge=1, description="Book number within series (1, 2, 3...)")
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -55,6 +60,10 @@ class ProjectCreate(BaseModel):
     author: Optional[str] = Field(None, description="Author name")
     genre: Optional[str] = Field(None, description="Genre")
 
+    # Series integration (optional - project can be standalone)
+    series_id: Optional[str] = Field(None, description="Series to add this project to")
+    book_number: Optional[int] = Field(None, ge=1, description="Book number in series")
+
     @field_validator("title")
     @classmethod
     def validate_title(cls, v: str) -> str:
@@ -72,6 +81,10 @@ class ProjectUpdate(BaseModel):
     author: Optional[str] = Field(None, description="Author name")
     genre: Optional[str] = Field(None, description="Genre")
 
+    # Series integration
+    series_id: Optional[str] = Field(None, description="Series this project belongs to")
+    book_number: Optional[int] = Field(None, ge=1, description="Book number in series")
+
 
 class ProjectSummary(BaseModel):
     """Summary of a project for listing."""
@@ -80,9 +93,17 @@ class ProjectSummary(BaseModel):
     title: str
     description: Optional[str]
     genre: Optional[str]
+
+    # Series info
+    series_id: Optional[str] = None
+    book_number: Optional[int] = None
+
+    # Counts
     character_count: int = 0
     world_count: int = 0
     scene_count: int = 0
     canon_scene_count: int = 0
+    total_word_count: int = 0
+
     created_at: datetime
     updated_at: datetime
