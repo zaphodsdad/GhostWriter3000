@@ -36,14 +36,14 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 
 ---
 
-## NOW: Continuity System
+## NOW: Continuity System ✅
 
 *Foundation for multi-scene generation. Without this, scene 50 doesn't know what happened in scenes 1-49.*
 
-- [ ] Wire up `previous_scene_ids` in scene form (UI exists, needs linking)
-- [ ] Auto-suggest scene linking based on chapter/scene order
-- [ ] Display previous scene summaries in generation context
-- [ ] Verify summaries are being included in prompts
+- [x] Auto-calculate previous scenes based on act → chapter → scene order
+- [x] Include last 10 canon scene summaries in generation context
+- [x] Works for both normal generation and edit mode
+- [ ] (Future) Add chapter-level summaries for longer books
 
 ---
 
