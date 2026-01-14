@@ -57,6 +57,14 @@ class GenerationService:
         # Load scene
         scene = await self._load_scene(project_id, scene_id)
 
+        # Auto-calculate previous canon scenes based on structural order
+        previous_scene_ids = await self._get_previous_canon_scenes(project_id, scene_id)
+
+        logger.info(
+            f"Found {len(previous_scene_ids)} previous canon scenes for continuity",
+            extra={"scene_id": scene_id, "previous_count": len(previous_scene_ids)}
+        )
+
         # Create new generation state
         generation_id = str(uuid.uuid4())
         state = GenerationState(
@@ -67,7 +75,7 @@ class GenerationService:
             max_iterations=max_iterations,
             character_ids=scene.character_ids,
             world_context_ids=scene.world_context_ids,
-            previous_scene_ids=scene.previous_scene_ids,
+            previous_scene_ids=previous_scene_ids,
             generation_model=generation_model,
             critique_model=critique_model
         )
@@ -124,6 +132,14 @@ class GenerationService:
         if not scene.original_prose:
             raise ValueError(f"Scene {scene_id} has no imported prose. Import prose first.")
 
+        # Auto-calculate previous canon scenes based on structural order
+        previous_scene_ids = await self._get_previous_canon_scenes(project_id, scene_id)
+
+        logger.info(
+            f"Found {len(previous_scene_ids)} previous canon scenes for edit mode continuity",
+            extra={"scene_id": scene_id, "previous_count": len(previous_scene_ids)}
+        )
+
         # Create new generation state
         generation_id = str(uuid.uuid4())
         state = GenerationState(
@@ -134,7 +150,7 @@ class GenerationService:
             max_iterations=max_iterations,
             character_ids=scene.character_ids,
             world_context_ids=scene.world_context_ids,
-            previous_scene_ids=scene.previous_scene_ids,
+            previous_scene_ids=previous_scene_ids,
             generation_model=generation_model,
             critique_model=critique_model,
             edit_mode=True
@@ -586,6 +602,100 @@ class GenerationService:
                     })
 
         return summaries
+
+    async def _get_previous_canon_scenes(
+        self,
+        project_id: str,
+        current_scene_id: str,
+        max_scenes: int = 10
+    ) -> List[str]:
+        """
+        Get IDs of previous canon scenes based on structural order.
+
+        Scenes are ordered by: act_number → chapter_number → scene_number
+
+        Args:
+            project_id: Project ID
+            current_scene_id: The scene we're generating (to find position)
+            max_scenes: Maximum number of previous scenes to return
+
+        Returns:
+            List of scene IDs for previous canon scenes, in chronological order
+        """
+        # Load all acts
+        acts_dir = settings.project_dir(project_id) / "acts"
+        acts = {}
+        if acts_dir.exists():
+            for filepath in acts_dir.glob("*.json"):
+                try:
+                    data = await read_json_file(filepath)
+                    acts[data["id"]] = data.get("act_number", 999)
+                except Exception:
+                    pass
+
+        # Load all chapters
+        chapters_dir = settings.project_dir(project_id) / "chapters"
+        chapters = {}
+        if chapters_dir.exists():
+            for filepath in chapters_dir.glob("*.json"):
+                try:
+                    data = await read_json_file(filepath)
+                    chapter_id = data["id"]
+                    act_id = data.get("act_id", "")
+                    act_number = acts.get(act_id, 999)
+                    chapter_number = data.get("chapter_number", 999)
+                    chapters[chapter_id] = (act_number, chapter_number)
+                except Exception:
+                    pass
+
+        # Load all scenes
+        scenes_dir = settings.scenes_dir(project_id)
+        scenes_with_order = []
+        if scenes_dir.exists():
+            for filepath in scenes_dir.glob("*.json"):
+                try:
+                    data = await read_json_file(filepath)
+                    scene_id = data["id"]
+                    chapter_id = data.get("chapter_id", "")
+                    scene_number = data.get("scene_number", 999)
+                    is_canon = data.get("is_canon", False)
+                    has_summary = bool(data.get("summary"))
+
+                    # Get ordering from chapter
+                    act_number, chapter_number = chapters.get(chapter_id, (999, 999))
+
+                    scenes_with_order.append({
+                        "id": scene_id,
+                        "act_number": act_number,
+                        "chapter_number": chapter_number,
+                        "scene_number": scene_number,
+                        "is_canon": is_canon,
+                        "has_summary": has_summary
+                    })
+                except Exception:
+                    pass
+
+        # Sort by act → chapter → scene
+        scenes_with_order.sort(key=lambda s: (s["act_number"], s["chapter_number"], s["scene_number"]))
+
+        # Find current scene's position
+        current_index = -1
+        for i, scene in enumerate(scenes_with_order):
+            if scene["id"] == current_scene_id:
+                current_index = i
+                break
+
+        if current_index <= 0:
+            return []
+
+        # Get previous canon scenes (up to max_scenes)
+        previous_canon = []
+        for scene in scenes_with_order[:current_index]:
+            if scene["is_canon"] and scene["has_summary"]:
+                previous_canon.append(scene["id"])
+
+        # Return last N scenes
+        return previous_canon[-max_scenes:]
 
     async def _load_style_guide(self, project_id: str) -> Optional[Dict[str, Any]]:
         """Load style guide for the project."""
