@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prose Generation Pipeline</title>
+    <link rel="stylesheet" href="css/main.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📚 Prose Generation Pipeline</h1>
+            <p class="subtitle">Automated prose generation with critique-revision loop</p>
+        </header>
+
+        <nav>
+            <button class="nav-btn active" data-view="overview">Overview</button>
+            <button class="nav-btn" data-view="characters">Characters</button>
+            <button class="nav-btn" data-view="world">World</button>
+            <button class="nav-btn" data-view="scenes">Scenes</button>
+            <button class="nav-btn" onclick="window.location.href='/create.html'">Generate</button>
+        </nav>
+
+        <main id="main-content">
+            <!-- Overview Section -->
+            <section id="overview-view" class="view active">
+                <h2>Welcome to Prose Generation Pipeline</h2>
+                <div class="info-card">
+                    <h3>🚀 Getting Started</h3>
+                    <p>This pipeline helps you generate narrative prose using Claude AI. Here's how it works:</p>
+                    <ol>
+                        <li><strong>Create Characters</strong> - Define your characters with detailed profiles</li>
+                        <li><strong>Build World Context</strong> - Establish your story's setting and rules</li>
+                        <li><strong>Write Scene Outlines</strong> - Describe what happens in each scene</li>
+                        <li><strong>Generate Prose</strong> - Let Claude create the narrative</li>
+                        <li><strong>Critique & Revise</strong> - Iteratively improve with manual approval</li>
+                    </ol>
+                </div>
+
+                <div class="info-card">
+                    <h3>📊 Current Status</h3>
+                    <div class="stats">
+                        <div class="stat">
+                            <div class="stat-value" id="char-count">1</div>
+                            <div class="stat-label">Characters</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="world-count">1</div>
+                            <div class="stat-label">World Contexts</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="scene-count">1</div>
+                            <div class="stat-label">Scenes</div>
+                        </div>
+                        <div class="stat">
+                            <div class="stat-value" id="gen-count">0</div>
+                            <div class="stat-label">Generations</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h3>🔧 System Health</h3>
+                    <p><strong>API Status:</strong> <span id="api-status" class="status-badge">Checking...</span></p>
+                    <p><strong>Backend:</strong> <span id="backend-status" class="status-badge">Not Connected</span></p>
+                </div>
+            </section>
+
+            <!-- Characters Section -->
+            <section id="characters-view" class="view">
+                <h2>Characters</h2>
+                <div class="info-card">
+                    <h3>Elena Blackwood</h3>
+                    <div class="metadata">
+                        <span class="badge">Protagonist</span>
+                        <span class="badge">Age: 28</span>
+                        <span class="badge">Archaeologist</span>
+                    </div>
+                    <p><strong>Personality:</strong> Curious, Determined, Skeptical of authority</p>
+                    <p><strong>Background:</strong> Orphaned at age 10, raised by her uncle who was a historian. After his mysterious death, she became driven to complete his work on discovering the Lost Temple.</p>
+                    <details>
+                        <summary>View Full Profile</summary>
+                        <div class="full-content">
+                            <h4>Skills</h4>
+                            <ul>
+                                <li>Ancient languages</li>
+                                <li>Rock climbing</li>
+                                <li>Puzzle solving</li>
+                            </ul>
+                            <h4>Goals</h4>
+                            <p><strong>Short-term:</strong> Discover the location of the Lost Temple</p>
+                            <p><strong>Long-term:</strong> Prove her uncle's theories about ancient civilization</p>
+                            <h4>Voice and Mannerisms</h4>
+                            <ul>
+                                <li>Speaks quickly when excited about a discovery</li>
+                                <li>Often quotes her uncle's sayings</li>
+                                <li>Uses dry humor as a defense mechanism</li>
+                            </ul>
+                        </div>
+                    </details>
+                </div>
+                <button class="btn-primary">+ Add New Character</button>
+            </section>
+
+            <!-- World Section -->
+            <section id="world-view" class="view">
+                <h2>World Context</h2>
+                <div class="info-card">
+                    <h3>The Shattered Empire</h3>
+                    <div class="metadata">
+                        <span class="badge">Post-collapse</span>
+                        <span class="badge">Medieval + Ancient Tech</span>
+                        <span class="badge">Rune-based Magic</span>
+                    </div>
+                    <p><strong>Era:</strong> Approximately 200 years after the Fall</p>
+                    <p><strong>Summary:</strong> Two centuries ago, the mighty Empire collapsed in a cataclysmic event. The capital was consumed by otherworldly fire, and civilization fragmented into feuding city-states.</p>
+                    <details>
+                        <summary>View Full Context</summary>
+                        <div class="full-content">
+                            <h4>Major Factions</h4>
+                            <ul>
+                                <li><strong>The Archivists:</strong> Preserve knowledge from before the Fall (Low military, high influence)</li>
+                                <li><strong>The Warlord Council:</strong> Military rulers of the Green Coast (High military, medium influence)</li>
+                                <li><strong>The Cult of the Flame:</strong> Religious zealots seeking to restore the Empire (Medium military, high zealotry)</li>
+                            </ul>
+                            <h4>Geography</h4>
+                            <ul>
+                                <li><strong>The Wastes:</strong> Desert wasteland where the capital once stood</li>
+                                <li><strong>The Valley of Kings:</strong> Mountainous region with ancient ruins</li>
+                                <li><strong>The Green Coast:</strong> Fertile coastal region, most populated</li>
+                                <li><strong>The Frozen North:</strong> Unexplored, rumored to hold secrets</li>
+                            </ul>
+                        </div>
+                    </details>
+                </div>
+                <button class="btn-primary">+ Add New World Context</button>
+            </section>
+
+            <!-- Scenes Section -->
+            <section id="scenes-view" class="view">
+                <h2>Scenes</h2>
+                <div class="info-card">
+                    <h3>Discovery in the Wastes</h3>
+                    <div class="metadata">
+                        <span class="badge">scene-001</span>
+                        <span class="badge">discovery</span>
+                        <span class="badge">tension</span>
+                        <span class="badge">cliffhanger</span>
+                    </div>
+                    <p><strong>Outline:</strong> Elena and her small expedition team discover the entrance to the Lost Temple hidden beneath the sands of the Wastes. After weeks of following cryptic clues from her uncle's journal, she finally locates the site. As they begin to carefully excavate the entrance, Elena realizes they're being watched - Cult of the Flame scouts have tracked them.</p>
+                    <details>
+                        <summary>View Scene Details</summary>
+                        <div class="full-content">
+                            <p><strong>Characters:</strong> Elena Blackwood</p>
+                            <p><strong>World Context:</strong> The Shattered Empire</p>
+                            <p><strong>Tone:</strong> Suspenseful with moments of wonder and discovery</p>
+                            <p><strong>POV:</strong> Third person limited (Elena's perspective)</p>
+                            <p><strong>Target Length:</strong> 1500-2000 words</p>
+                            <p><strong>Additional Notes:</strong> This scene should establish the physical danger of the setting and set up the rivalry with the Cult. Include sensory details of the harsh desert environment. Elena should demonstrate both her expertise and her impulsiveness.</p>
+                        </div>
+                    </details>
+                    <button class="btn-success">Generate Prose</button>
+                </div>
+                <button class="btn-primary">+ Add New Scene</button>
+            </section>
+
+            <!-- Generate Section -->
+            <section id="generate-view" class="view">
+                <h2>Generate Prose</h2>
+                <div class="info-card">
+                    <h3>Generation Pipeline</h3>
+                    <p>The generation pipeline will:</p>
+                    <ol>
+                        <li>Generate initial prose using your selected model</li>
+                        <li>Automatically critique the prose</li>
+                        <li>Present the prose and critique for your review</li>
+                        <li>Allow you to approve revisions or accept the final version</li>
+                    </ol>
+                    <button class="btn-success" style="width: 100%; margin-top: 20px; padding: 15px; font-size: 1.1rem;" onclick="window.location.href='/create.html'">
+                        🚀 Start Generating Prose
+                    </button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>

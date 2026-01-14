@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prose Pipeline</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="app">
+        <header>
+            <div class="header-content">
+                <div class="header-left">
+                    <button class="hamburger-btn" id="hamburger-btn" onclick="toggleSettingsModal()" title="Settings">
+                        <span class="hamburger-icon">&#9776;</span>
+                    </button>
+                    <div class="header-title">
+                        <h1>Prose Pipeline</h1>
+                        <p>AI-powered prose generation with critique and revision</p>
+                    </div>
+                </div>
+                <div class="health-status" id="health-status">Connecting...</div>
+            </div>
+        </header>
+
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal" style="display: none;">
+            <div class="modal-backdrop" onclick="toggleSettingsModal()"></div>
+            <div class="modal-content settings-modal">
+                <div class="modal-header">
+                    <h2>Settings</h2>
+                    <button class="modal-close" onclick="toggleSettingsModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <h3>API Keys</h3>
+                    <p class="text-muted mb-20">Configure your LLM API keys. Keys are stored locally and never shared.</p>
+
+                    <div class="form-group">
+                        <label>OpenRouter API Key</label>
+                        <div class="api-key-input">
+                            <input type="password" id="settings-openrouter-key" placeholder="sk-or-v1-...">
+                            <button class="btn btn-small" onclick="togglePasswordVisibility('settings-openrouter-key')">Show</button>
+                        </div>
+                        <small class="text-muted">Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></small>
+                        <div id="openrouter-key-status" class="key-status"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Anthropic API Key (Direct)</label>
+                        <div class="api-key-input">
+                            <input type="password" id="settings-anthropic-key" placeholder="sk-ant-...">
+                            <button class="btn btn-small" onclick="togglePasswordVisibility('settings-anthropic-key')">Show</button>
+                        </div>
+                        <small class="text-muted">Optional. Only needed if using Anthropic directly instead of OpenRouter.</small>
+                        <div id="anthropic-key-status" class="key-status"></div>
+                    </div>
+
+                    <hr class="settings-divider">
+
+                    <h3>Custom LLM Endpoint</h3>
+                    <p class="text-muted mb-20">For self-hosted models (Ollama, vLLM, etc.) using OpenAI-compatible API.</p>
+
+                    <div class="form-group">
+                        <label>Endpoint URL</label>
+                        <input type="text" id="settings-custom-url" placeholder="http://localhost:11434/v1">
+                        <small class="text-muted">Must be OpenAI-compatible (e.g., Ollama, vLLM, text-generation-webui)</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label>API Key (if required)</label>
+                        <div class="api-key-input">
+                            <input type="password" id="settings-custom-key" placeholder="Optional API key">
+                            <button class="btn btn-small" onclick="togglePasswordVisibility('settings-custom-key')">Show</button>
+                        </div>
+                    </div>
+
+                    <hr class="settings-divider">
+
+                    <h3>Data Storage</h3>
+                    <p class="text-muted mb-20">Configure where your projects are stored.</p>
+
+                    <div class="form-group">
+                        <label>Current Data Directory</label>
+                        <div class="data-dir-display">
+                            <code id="settings-data-dir-current">/path/to/data</code>
+                            <span class="badge" id="settings-data-dir-source">default</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Change Data Directory</label>
+                        <div class="api-key-input">
+                            <input type="text" id="settings-data-dir" placeholder="Enter new path (e.g., /home/user/my-projects)">
+                            <button class="btn btn-small btn-primary" onclick="saveDataDir()">Apply</button>
+                        </div>
+                        <small class="text-muted">Server restart required after changing. Leave empty to keep current.</small>
+                        <div id="data-dir-status" class="key-status"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" onclick="saveSettings()">Save Settings</button>
+                    <button class="btn btn-secondary" onclick="toggleSettingsModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Selector (shown when no project selected) -->
+        <section id="project-selector" class="view active">
+            <div class="card">
+                <h2>Select a Project</h2>
+                <p class="text-muted mb-20">Choose an existing project or create a new one to get started.</p>
+
+                <div id="projects-list" class="item-list">
+                    <div class="empty-state">Loading projects...</div>
+                </div>
+
+                <div class="action-bar">
+                    <button class="btn btn-primary" onclick="showNewProjectForm()">+ New Project</button>
+                </div>
+            </div>
+
+            <!-- New Project Form (hidden by default) -->
+            <div id="new-project-form" class="card" style="display: none;">
+                <h3>Create New Project</h3>
+                <form onsubmit="createProject(event)">
+                    <div class="form-group">
+                        <label>Project Title *</label>
+                        <input type="text" id="project-title" required placeholder="e.g., My Fantasy Novel">
+                    </div>
+                    <div class="form-group">
+                        <label>Description</label>
+                        <textarea id="project-description" placeholder="What is this project about?"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Author</label>
+                            <input type="text" id="project-author" placeholder="Your name">
+                        </div>
+                        <div class="form-group">
+                            <label>Genre</label>
+                            <input type="text" id="project-genre" placeholder="e.g., Fantasy, Sci-Fi">
+                        </div>
+                    </div>
+                    <div class="action-bar">
+                        <button type="submit" class="btn btn-success">Create Project</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideNewProjectForm()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- Main App (shown when project is selected) -->
+        <div id="main-app" style="display: none;">
+            <div class="project-header card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h2 id="current-project-title">Project Name</h2>
+                        <p class="text-muted" id="current-project-description">Project description</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <div class="master-word-count">
+                            <span class="word-count-value" id="master-word-count">0</span>
+                            <span class="word-count-label">words</span>
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary" onclick="toggleSidebar()" id="sidebar-toggle">Toggle Outline</button>
+                            <button class="btn btn-secondary" onclick="switchProject()">Switch Project</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="main-layout">
+                <!-- Collapsible Sidebar -->
+                <aside id="sidebar" class="sidebar">
+                    <div class="sidebar-header">
+                        <h3>Outline</h3>
+                        <button class="btn btn-small" onclick="showActForm()">+ Act</button>
+                        <button class="btn btn-small" onclick="showChapterForm()">+ Chapter</button>
+                    </div>
+                    <div id="outline-tree" class="outline-tree">
+                        <!-- Populated by JS -->
+                    </div>
+                    <div class="sidebar-footer">
+                        <button class="btn btn-primary btn-block" onclick="showReadingView('manuscript')">Read Manuscript</button>
+                    </div>
+                </aside>
+
+                <!-- Main Content Area -->
+                <div class="main-content">
+                    <nav id="nav">
+                        <button class="nav-btn active" data-view="dashboard">Dashboard</button>
+                        <button class="nav-btn" data-view="characters">Characters</button>
+                        <button class="nav-btn" data-view="worlds">Worlds</button>
+                        <button class="nav-btn" data-view="structure">Structure</button>
+                        <button class="nav-btn" data-view="style">Style</button>
+                        <button class="nav-btn" data-view="generate">Generate</button>
+                        <button class="nav-btn" data-view="queue" id="queue-nav-btn">Queue <span class="queue-badge" id="queue-badge" style="display: none;">0</span></button>
+                        <button class="nav-btn" data-view="chat">Chat</button>
+                    </nav>
+
+                    <main>
+                        <!-- Dashboard View -->
+                        <section id="dashboard-view" class="view active">
+                            <div class="card">
+                                <h2>Dashboard</h2>
+                                <div class="stats-grid">
+                                    <div class="stat-card">
+                                        <div class="stat-value" id="stat-characters">0</div>
+                                        <div class="stat-label">Characters</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-value" id="stat-worlds">0</div>
+                                        <div class="stat-label">Worlds</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-value" id="stat-chapters">0</div>
+                                        <div class="stat-label">Chapters</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-value" id="stat-scenes">0</div>
+                                        <div class="stat-label">Scenes</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-value" id="stat-canon">0</div>
+                                        <div class="stat-label">Canon Scenes</div>
+                                    </div>
+                                    <div class="stat-card">
+                                        <div class="stat-value" id="stat-words">0</div>
+                                        <div class="stat-label">Words</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card">
+                                <h3>Quick Start</h3>
+                                <ol style="margin-left: 20px; color: var(--text-muted);">
+                                    <li>Create <strong>Characters</strong> with detailed profiles</li>
+                                    <li>Build <strong>World</strong> context for your story</li>
+                                    <li>Set up your <strong>Structure</strong> with chapters (and optionally acts)</li>
+                                    <li>Create <strong>Scenes</strong> within chapters</li>
+                                    <li><strong>Generate</strong> prose and iterate with AI critique</li>
+                                    <li>Accept scenes as <strong>Canon</strong> to build your manuscript</li>
+                                </ol>
+                            </div>
+                        </section>
+
+                        <!-- Characters View -->
+                        <section id="characters-view" class="view">
+                            <div class="card">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <h2>Characters</h2>
+                                    <button class="btn btn-primary" onclick="showCharacterForm()">+ New Character</button>
+                                </div>
+                                <div id="characters-list" class="item-list">
+                                    <div class="empty-state">Loading...</div>
+                                </div>
+                            </div>
+
+                            <!-- Character Form (hidden by default) -->
+                            <div id="character-form" class="card" style="display: none;">
+                                <h3 id="character-form-title">New Character</h3>
+                                <form onsubmit="saveCharacter(event)">
+                                    <div class="form-group">
+                                        <label>Character Name *</label>
+                                        <input type="text" id="char-name" required placeholder="e.g., Elena Blackwood">
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Role</label>
+                                            <input type="text" id="char-role" placeholder="e.g., Protagonist">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Age</label>
+                                            <input type="number" id="char-age" placeholder="e.g., 28">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Occupation</label>
+                                        <input type="text" id="char-occupation" placeholder="e.g., Archaeologist">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Personality Traits</label>
+                                        <input type="text" id="char-traits" placeholder="e.g., Curious, Determined, Skeptical">
+                                        <small>Comma-separated list</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Background</label>
+                                        <textarea id="char-background" placeholder="Character's history and backstory..."></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Additional Details</label>
+                                        <textarea id="char-content" placeholder="Voice, mannerisms, goals, fears, conflicts..."></textarea>
+                                    </div>
+                                    <div class="action-bar">
+                                        <button type="submit" class="btn btn-success">Save Character</button>
+                                        <button type="button" class="btn btn-secondary" onclick="hideCharacterForm()">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </section>
+
+                        <!-- Worlds View -->
+                        <section id="worlds-view" class="view">
+                            <div class="card">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <h2>World Contexts</h2>
+                                    <button class="btn btn-primary" onclick="showWorldForm()">+ New World</button>
+                                </div>
+                                <div id="worlds-list" class="item-list">
+                                    <div class="empty-state">Loading...</div>
+                                </div>
+                            </div>
+
+                            <!-- World Form (hidden by default) -->
+                            <div id="world-form" class="card" style="display: none;">
+                                <h3 id="world-form-title">New World Context</h3>
+                                <form onsubmit="saveWorld(event)">
+                                    <div class="form-row">
+                                        <div class="form-group" style="flex: 2;">
+                                            <label>Name *</label>
+                                            <input type="text" id="world-name" required placeholder="e.g., The Shattered Empire">
+                                        </div>
+                                        <div class="form-group" style="flex: 1;">
+                                            <label>Category *</label>
+                                            <select id="world-category" required>
+                                                <option value="locations">Locations</option>
+                                                <option value="lore">Lore & History</option>
+                                                <option value="factions">Factions & Groups</option>
+                                                <option value="systems">Systems & Rules</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Era / Time Period</label>
+                                            <input type="text" id="world-era" placeholder="e.g., Medieval Fantasy">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Technology Level</label>
+                                            <input type="text" id="world-tech" placeholder="e.g., Medieval with magic">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Magic System</label>
+                                        <input type="text" id="world-magic" placeholder="e.g., Rune-based, requires ancient knowledge">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Details</label>
+                                        <textarea id="world-content" placeholder="History, geography, cultures, rules..." style="min-height: 200px;"></textarea>
+                                    </div>
+                                    <div class="action-bar">
+                                        <button type="submit" class="btn btn-success">Save</button>
+                                        <button type="button" class="btn btn-secondary" onclick="hideWorldForm()">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </section>
+
+                        <!-- Structure View (Acts, Chapters, Scenes) -->
+                        <section id="structure-view" class="view">
+                            <div class="card">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <h2>Story Structure</h2>
+                                    <div>
+                                        <button class="btn btn-outline" onclick="showImportOutlineModal()">Import Outline</button>
+                                        <button class="btn btn-secondary" onclick="showActForm()">+ Act</button>
+                                        <button class="btn btn-primary" onclick="showChapterForm()">+ Chapter</button>
+                                    </div>
+                                </div>
+
+                                <!-- Structure Tree -->
+                                <div id="structure-tree" class="structure-tree">
+                                    <div class="empty-state">Loading structure...</div>
+                                </div>
+                            </div>
+
+                            <!-- Act Form -->
+                            <div id="act-form" class="card" style="display: none;">
+                                <h3>New Act</h3>
+                                <form onsubmit="saveAct(event)">
+                                    <div class="form-group">
+                                        <label>Act Title *</label>
+                                        <input type="text" id="act-title" required placeholder="e.g., Act I: The Beginning">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Description</label>
+                                        <textarea id="act-description" placeholder="What happens in this act?"></textarea>
+                                    </div>
+                                    <div class="action-bar">
+                                        <button type="submit" class="btn btn-success">Save Act</button>
+                                        <button type="button" class="btn btn-secondary" onclick="hideActForm()">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Chapter Form -->
+                            <div id="chapter-form" class="card" style="display: none;">
+                                <h3>New Chapter</h3>
+                                <form onsubmit="saveChapter(event)">
+                                    <div class="form-group">
+                                        <label>Chapter Title *</label>
+                                        <input type="text" id="chapter-title" required placeholder="e.g., The Journey Begins">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Description</label>
+                                        <textarea id="chapter-description" placeholder="What is this chapter about?"></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Act (optional)</label>
+                                        <select id="chapter-act">
+                                            <option value="">-- No Act --</option>
+                                            <!-- Populated by JS -->
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Planning Notes</label>
+                                        <textarea id="chapter-notes" placeholder="Private notes for planning..."></textarea>
+                                    </div>
+                                    <div class="action-bar">
+                                        <button type="submit" class="btn btn-success">Save Chapter</button>
+                                        <button type="button" class="btn btn-secondary" onclick="hideChapterForm()">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Scene Form -->
+                            <div id="scene-form" class="card" style="display: none;">
+                                <h3 id="scene-form-title">New Scene</h3>
+                                <form onsubmit="saveScene(event)">
+                                    <div class="form-group">
+                                        <label>Chapter *</label>
+                                        <select id="scene-chapter" required>
+                                            <option value="">-- Select Chapter --</option>
+                                            <!-- Populated by JS -->
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Scene Title *</label>
+                                        <input type="text" id="scene-title" required placeholder="e.g., Discovery in the Wastes">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Scene Outline *</label>
+                                        <textarea id="scene-outline" required placeholder="Describe what happens in this scene. Who is involved? What's the conflict? How does it advance the story?" style="min-height: 150px;"></textarea>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Tone</label>
+                                            <input type="text" id="scene-tone" placeholder="e.g., Suspenseful, Melancholic">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Point of View</label>
+                                            <input type="text" id="scene-pov" placeholder="e.g., Third person limited">
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Target Length</label>
+                                            <input type="text" id="scene-length" placeholder="e.g., 1500-2000 words">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Scene Number</label>
+                                            <input type="number" id="scene-number" placeholder="e.g., 1">
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Characters</label>
+                                        <select id="scene-characters" multiple style="min-height: 80px;">
+                                            <!-- Populated by JS -->
+                                        </select>
+                                        <small>Hold Ctrl/Cmd to select multiple</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>World Context</label>
+                                        <select id="scene-world">
+                                            <option value="">-- Select World --</option>
+                                            <!-- Populated by JS -->
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Previous Scenes (for continuity)</label>
+                                        <select id="scene-previous" multiple style="min-height: 80px;">
+                                            <!-- Populated by JS -->
+                                        </select>
+                                        <small>Select scenes that come before this one</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Additional Notes</label>
+                                        <textarea id="scene-notes" placeholder="Any specific instructions for the AI..."></textarea>
+                                    </div>
+                                    <div class="action-bar">
+                                        <button type="submit" class="btn btn-success">Save Scene</button>
+                                        <button type="button" class="btn btn-secondary" onclick="hideSceneForm()">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Import Outline Modal -->
+                            <div id="import-outline-modal" class="card" style="display: none;">
+                                <h3>Import Outline from Markdown</h3>
+                                <p class="text-muted mb-20">Paste your outline in Markdown format. Use # for Acts (optional), ## for Chapters, and ### for Scenes. Text under scene headings becomes the scene outline.</p>
+
+                                <!-- Step 1: Input -->
+                                <div id="import-step-input">
+                                    <div class="form-group">
+                                        <label>Markdown Outline</label>
+                                        <textarea id="import-markdown" rows="20" placeholder="# Act I: The Beginning
+
+## Chapter 1: First Steps
+
+### Scene 1: Opening
+The protagonist wakes to find their world changed. They must...
+
+### Scene 2: Discovery
+Exploring the new reality, our hero encounters...
+
+## Chapter 2: Rising Action
+
+### Scene 3: The Challenge
+A major obstacle presents itself..."></textarea>
+                                    </div>
+                                    <div class="action-bar">
+                                        <button class="btn btn-primary" onclick="previewOutlineImport()">Preview Import</button>
+                                        <button class="btn btn-secondary" onclick="hideImportOutlineModal()">Cancel</button>
+                                    </div>
+                                </div>
+
+                                <!-- Step 2: Preview -->
+                                <div id="import-step-preview" style="display: none;">
+                                    <div id="import-warnings" class="import-warnings" style="display: none;"></div>
+
+                                    <div class="import-preview-grid">
+                                        <div class="import-preview-section">
+                                            <h4>Acts (<span id="import-act-count">0</span>)</h4>
+                                            <ul id="import-acts-list"></ul>
+                                        </div>
+                                        <div class="import-preview-section">
+                                            <h4>Chapters (<span id="import-chapter-count">0</span>)</h4>
+                                            <ul id="import-chapters-list"></ul>
+                                        </div>
+                                        <div class="import-preview-section">
+                                            <h4>Scenes (<span id="import-scene-count">0</span>)</h4>
+                                            <ul id="import-scenes-list"></ul>
+                                        </div>
+                                    </div>
+
+                                    <div class="action-bar">
+                                        <button class="btn btn-success" onclick="confirmOutlineImport()">Confirm Import</button>
+                                        <button class="btn btn-secondary" onclick="backToImportInput()">Back to Edit</button>
+                                        <button class="btn btn-secondary" onclick="hideImportOutlineModal()">Cancel</button>
+                                    </div>
+                                </div>
+
+                                <!-- Step 3: Importing -->
+                                <div id="import-step-progress" style="display: none;">
+                                    <div class="progress-container">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" style="width: 50%;"></div>
+                                        </div>
+                                        <div class="progress-status generating">Importing...</div>
+                                    </div>
+                                </div>
+
+                                <!-- Step 4: Complete -->
+                                <div id="import-step-complete" style="display: none;">
+                                    <div class="success-message">
+                                        <h4>Import Complete!</h4>
+                                        <p id="import-result-message"></p>
+                                    </div>
+                                    <div class="action-bar">
+                                        <button class="btn btn-primary" onclick="hideImportOutlineModal()">Done</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Style View -->
+                        <section id="style-view" class="view">
+                            <div class="card">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <div>
+                                        <h2>Style Guide</h2>
+                                        <p class="text-muted">Define your prose style, voice, and writing rules. This guides AI generation.</p>
+                                    </div>
+                                    <button class="btn btn-success" onclick="saveStyleGuide()">Save Style Guide</button>
+                                </div>
+
+                                <!-- Quick Reference Fields -->
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Point of View</label>
+                                        <select id="style-pov">
+                                            <option value="">-- Not Set --</option>
+                                            <option value="First Person">First Person</option>
+                                            <option value="First Person (Multiple)">First Person (Multiple POV)</option>
+                                            <option value="Third Limited">Third Person Limited</option>
+                                            <option value="Third Omniscient">Third Person Omniscient</option>
+                                            <option value="Second Person">Second Person</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Tense</label>
+                                        <select id="style-tense">
+                                            <option value="">-- Not Set --</option>
+                                            <option value="Past">Past Tense</option>
+                                            <option value="Present">Present Tense</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label>Tone</label>
+                                        <input type="text" id="style-tone" placeholder="e.g., Dark Romantasy, Light Fantasy, Gritty Thriller">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Heat Level (Romance)</label>
+                                        <select id="style-heat">
+                                            <option value="">-- Not Set --</option>
+                                            <option value="Clean">Clean (No explicit content)</option>
+                                            <option value="Sweet">Sweet (Closed door)</option>
+                                            <option value="Sensual">Sensual (Fade to black)</option>
+                                            <option value="Steamy">Steamy (Open door, tasteful)</option>
+                                            <option value="Explicit">Explicit (Detailed scenes)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Main Style Guide Textarea -->
+                                <div class="form-group">
+                                    <label>Full Style Guide</label>
+                                    <textarea id="style-guide" rows="30" placeholder="Paste your complete style guide here...
+
+Include things like:
+- Voice and POV rules
+- Prose style (sentence structure, metaphor usage)
+- Dialogue patterns
+- Banned constructions or AI tells to avoid
+- Sensory writing priorities
+- Pacing guidelines
+- Character voice notes
+- Genre conventions
+- Example passages
+
+This will be included in the AI prompt during generation."></textarea>
+                                    <small>Markdown supported. This entire guide is sent to the AI during prose generation.</small>
+                                </div>
+
+                                <div id="style-save-status" class="text-muted" style="margin-top: 10px;"></div>
+                            </div>
+                        </section>
+
+                        <!-- Generate View -->
+                        <section id="generate-view" class="view">
+                            <!-- Step 1: Select Scene -->
+                            <div id="gen-step-select" class="card">
+                                <h2>Generate Prose</h2>
+                                <div class="form-group">
+                                    <label>Select a Scene to Generate</label>
+                                    <select id="gen-scene-select" onchange="onSceneSelected()">
+                                        <option value="">-- Choose a Scene --</option>
+                                        <!-- Populated by JS -->
+                                    </select>
+                                </div>
+                                <div id="gen-scene-preview" style="display: none;">
+                                    <div class="item mt-20">
+                                        <div class="item-title" id="gen-preview-title"></div>
+                                        <div class="item-content mt-20" id="gen-preview-outline"></div>
+                                    </div>
+                                </div>
+                                <div class="form-row mt-20">
+                                    <div class="form-group">
+                                        <label>Generation Model</label>
+                                        <select id="gen-model">
+                                            <option value="">Use Default</option>
+                                            <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
+                                            <option value="anthropic/claude-opus-4">Claude Opus 4</option>
+                                            <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</option>
+                                            <option value="openai/gpt-4o">GPT-4o</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Critique Model</label>
+                                        <select id="critique-model">
+                                            <option value="">Use Default</option>
+                                            <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
+                                            <option value="anthropic/claude-opus-4">Claude Opus 4</option>
+                                            <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button class="btn btn-success mt-20" id="gen-start-btn" onclick="startGeneration()" disabled>
+                                    Start Generation
+                                </button>
+                            </div>
+
+                            <!-- Step 2: Progress -->
+                            <div id="gen-step-progress" class="card" style="display: none;">
+                                <h2>Generating...</h2>
+                                <div class="progress-container">
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="gen-progress-fill" style="width: 10%;"></div>
+                                    </div>
+                                    <div class="progress-status generating" id="gen-status">Initializing...</div>
+                                </div>
+                                <p class="text-muted text-center" id="gen-status-detail">Setting up generation pipeline...</p>
+                            </div>
+
+                            <!-- Step 3: Review -->
+                            <div id="gen-step-review" class="card" style="display: none;">
+                                <h2>Review Generated Prose</h2>
+                                <p class="text-muted mb-20">Revision <span id="gen-iteration">1</span></p>
+
+                                <div class="two-col">
+                                    <div>
+                                        <h3>Generated Prose <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="gen-model-used"></span></h3>
+                                        <div class="prose-box" id="gen-prose"></div>
+                                        <div class="prose-stats mt-20">
+                                            <span id="gen-prose-word-count">0 words</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h3>AI Critique <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="critique-model-used"></span></h3>
+                                        <div class="prose-box" id="gen-critique"></div>
+                                    </div>
+                                </div>
+
+                                <div class="action-bar">
+                                    <button class="btn btn-primary" id="gen-revise-btn" onclick="approveAndRevise()">
+                                        Approve & Revise
+                                    </button>
+                                    <button class="btn btn-success" onclick="acceptFinal()">
+                                        Accept as Canon
+                                    </button>
+                                    <button class="btn btn-danger" onclick="rejectGeneration()">
+                                        Reject & Start Over
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Step 4: Complete -->
+                            <div id="gen-step-complete" class="card" style="display: none;">
+                                <h2>Generation Complete!</h2>
+                                <p class="text-muted mb-20">Your scene has been saved as canon with a summary for continuity.</p>
+
+                                <h3>Scene Summary</h3>
+                                <div class="prose-box" id="gen-summary"></div>
+
+                                <div class="action-bar">
+                                    <button class="btn btn-primary" onclick="resetGeneration()">Generate Another Scene</button>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Reading View (Modal-like overlay) -->
+                        <section id="reading-view" class="view">
+                            <div class="card">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <div>
+                                        <h2 id="reading-title">Reading</h2>
+                                        <p class="text-muted" id="reading-subtitle"></p>
+                                    </div>
+                                    <div id="reading-actions">
+                                        <button class="btn btn-primary" onclick="startEditingProse()" id="edit-prose-btn" style="display: none;">Edit Prose</button>
+                                        <button class="btn btn-secondary" onclick="openReferencePanel()" id="reference-btn" style="display: none;">Open as Reference</button>
+                                        <button class="btn btn-secondary" onclick="closeReadingView()">Close</button>
+                                    </div>
+                                </div>
+
+                                <!-- Read Mode -->
+                                <div id="reading-mode">
+                                    <div id="reading-content" class="reading-content">
+                                        <!-- Prose content goes here -->
+                                    </div>
+                                    <div id="reading-stats" class="text-muted mt-20" style="text-align: right;"></div>
+                                </div>
+
+                                <!-- Edit Mode -->
+                                <div id="editing-mode" style="display: none;">
+                                    <div class="form-group">
+                                        <label>Edit Prose</label>
+                                        <textarea id="prose-editor" class="prose-editor" rows="25" placeholder="Write or edit your prose here..."></textarea>
+                                    </div>
+                                    <div class="editing-stats">
+                                        <span id="editing-word-count">0 words</span>
+                                    </div>
+                                    <div class="form-group mt-20">
+                                        <label>
+                                            <input type="checkbox" id="mark-as-canon" />
+                                            Mark as Canon
+                                        </label>
+                                        <small class="text-muted">Canon scenes are included in the manuscript and used for continuity.</small>
+                                    </div>
+                                    <div class="action-bar">
+                                        <button class="btn btn-success" onclick="saveProseEdit()">Save Changes</button>
+                                        <button class="btn btn-secondary" onclick="cancelProseEdit()">Cancel</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Chat View -->
+                        <section id="chat-view" class="view">
+                            <div class="card">
+                                <div class="chat-header">
+                                    <div>
+                                        <h2>Chat with AI</h2>
+                                        <p class="text-muted" id="chat-scope-info">Select a scope to start chatting</p>
+                                    </div>
+                                    <div class="chat-scope-controls">
+                                        <select id="chat-scope-select" onchange="onChatScopeChange()">
+                                            <option value="">-- Select Scope --</option>
+                                            <option value="project">Project-wide</option>
+                                        </select>
+                                        <select id="chat-model-select">
+                                            <option value="">Default Model</option>
+                                            <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
+                                            <option value="anthropic/claude-opus-4">Claude Opus 4</option>
+                                            <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</option>
+                                            <option value="openai/gpt-4o">GPT-4o</option>
+                                        </select>
+                                        <button class="btn btn-small btn-secondary" onclick="clearChatConversation()" title="Clear conversation">Clear</button>
+                                    </div>
+                                </div>
+
+                                <!-- Conversation Messages -->
+                                <div id="chat-messages" class="chat-messages">
+                                    <div class="chat-empty-state">
+                                        <p>Select a scope above to start a conversation.</p>
+                                        <p class="text-muted">The AI has access to your characters, world context, and scene summaries.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Chat Input -->
+                                <div id="chat-input-container" class="chat-input-container" style="display: none;">
+                                    <div id="chat-edit-indicator" class="chat-edit-indicator" style="display: none;">
+                                        <span class="edit-badge">Edits Applied</span>
+                                        <span id="chat-edit-count">0 changes made</span>
+                                    </div>
+                                    <div class="chat-input-row">
+                                        <textarea id="chat-input" placeholder="Ask about your story, request edits, or brainstorm ideas..." rows="2"></textarea>
+                                        <button class="btn btn-primary" id="chat-send-btn" onclick="sendChatMessage()" disabled>Send</button>
+                                    </div>
+                                    <p class="text-muted chat-hint">The AI can edit characters, world context, and scenes when asked.</p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Queue View -->
+                        <section id="queue-view" class="view">
+                            <div class="card">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <div>
+                                        <h2>Generation Queue</h2>
+                                        <p class="text-muted">Track and review your batch generations</p>
+                                    </div>
+                                    <div class="queue-controls">
+                                        <select id="queue-filter" onchange="filterQueue()">
+                                            <option value="">All Generations</option>
+                                            <option value="awaiting_approval">Awaiting Review</option>
+                                            <option value="generating">In Progress</option>
+                                            <option value="completed">Completed</option>
+                                            <option value="error">Failed</option>
+                                        </select>
+                                        <button class="btn btn-secondary" onclick="refreshQueue()">Refresh</button>
+                                    </div>
+                                </div>
+
+                                <!-- Queue Stats -->
+                                <div class="queue-stats" id="queue-stats">
+                                    <div class="queue-stat">
+                                        <span class="queue-stat-value" id="queue-stat-total">0</span>
+                                        <span class="queue-stat-label">Total</span>
+                                    </div>
+                                    <div class="queue-stat">
+                                        <span class="queue-stat-value" id="queue-stat-progress">0</span>
+                                        <span class="queue-stat-label">In Progress</span>
+                                    </div>
+                                    <div class="queue-stat">
+                                        <span class="queue-stat-value" id="queue-stat-review">0</span>
+                                        <span class="queue-stat-label">Awaiting Review</span>
+                                    </div>
+                                    <div class="queue-stat">
+                                        <span class="queue-stat-value" id="queue-stat-done">0</span>
+                                        <span class="queue-stat-label">Completed</span>
+                                    </div>
+                                </div>
+
+                                <!-- Queue List -->
+                                <div id="queue-list" class="queue-list">
+                                    <div class="empty-state">No generations yet. Start generating scenes!</div>
+                                </div>
+                            </div>
+
+                            <!-- Queue Review Panel (shown when reviewing from queue) -->
+                            <div id="queue-review-panel" class="card" style="display: none;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <div>
+                                        <h3 id="queue-review-title">Reviewing Scene</h3>
+                                        <p class="text-muted">
+                                            <span id="queue-review-position">1 of 5</span> awaiting review
+                                        </p>
+                                    </div>
+                                    <div class="queue-nav-buttons">
+                                        <button class="btn btn-secondary" id="queue-prev-btn" onclick="queuePrev()" disabled>Previous</button>
+                                        <button class="btn btn-secondary" id="queue-next-btn" onclick="queueNext()">Next</button>
+                                        <button class="btn btn-outline" onclick="closeQueueReview()">Back to Queue</button>
+                                    </div>
+                                </div>
+
+                                <p class="text-muted mb-20">Revision <span id="queue-review-iteration">1</span></p>
+
+                                <div class="two-col">
+                                    <div>
+                                        <h4>Generated Prose <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="queue-review-gen-model"></span></h4>
+                                        <div class="prose-box" id="queue-review-prose"></div>
+                                        <div class="prose-stats mt-20">
+                                            <span id="queue-review-word-count">0 words</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <h4>AI Critique <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="queue-review-critique-model"></span></h4>
+                                        <div class="prose-box" id="queue-review-critique"></div>
+                                    </div>
+                                </div>
+
+                                <div class="action-bar">
+                                    <button class="btn btn-primary" id="queue-revise-btn" onclick="queueApproveAndRevise()">
+                                        Approve & Revise
+                                    </button>
+                                    <button class="btn btn-success" onclick="queueAcceptFinal()">
+                                        Accept as Canon
+                                    </button>
+                                    <button class="btn btn-danger" onclick="queueReject()">
+                                        Reject
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                    </main>
+                </div>
+
+                <!-- Reference Panel (side-by-side) -->
+                <aside id="reference-panel" class="reference-panel" style="display: none;">
+                    <div class="reference-header">
+                        <h3 id="reference-title">Reference</h3>
+                        <button class="btn btn-small btn-danger" onclick="closeReferencePanel()">Close</button>
+                    </div>
+                    <div id="reference-content" class="reference-content">
+                        <!-- Reference prose goes here -->
+                    </div>
+                </aside>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>

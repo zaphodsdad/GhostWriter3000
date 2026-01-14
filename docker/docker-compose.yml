@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  prose-pipeline:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: prose-pipeline
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - LLM_PROVIDER=${LLM_PROVIDER:-openrouter}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - GENERATION_MODEL=${GENERATION_MODEL:-anthropic/claude-opus-4-20250514}
+      - CRITIQUE_MODEL=${CRITIQUE_MODEL:-anthropic/claude-sonnet-4-20250514}
+      - MAX_ITERATIONS=${MAX_ITERATIONS:-5}
+      - GENERATION_TEMPERATURE=${GENERATION_TEMPERATURE:-0.7}
+      - CRITIQUE_TEMPERATURE=${CRITIQUE_TEMPERATURE:-0.3}
+      - API_AUTH_KEY=${API_AUTH_KEY:-}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - DATA_DIR=/app/data
+    volumes:
+      - prose-data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  prose-data:
+    driver: local

@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create & Generate - Prose Pipeline</title>
+    <link rel="stylesheet" href="css/main.css">
+    <style>
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text);
+        }
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            background: var(--surface-light);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+        .form-group textarea {
+            min-height: 150px;
+            resize: vertical;
+        }
+        .form-group small {
+            display: block;
+            margin-top: 5px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--surface-light);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--primary);
+            transition: width 0.3s;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        .status-indicator {
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .status-generating { background: #3b82f620; color: var(--primary); border: 1px solid var(--primary); }
+        .status-critiquing { background: #f59e0b20; color: var(--warning); border: 1px solid var(--warning); }
+        .status-done { background: #10b98120; color: var(--success); border: 1px solid var(--success); }
+        .prose-display {
+            background: var(--background);
+            padding: 20px;
+            border-radius: 8px;
+            line-height: 1.8;
+            white-space: pre-wrap;
+            color: var(--text-secondary);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>✍️ Create & Generate Prose</h1>
+            <p class="subtitle">Write a scene outline and watch AI bring it to life</p>
+        </header>
+
+        <nav>
+            <button onclick="window.location.href='/'" class="nav-btn">← Back to Home</button>
+        </nav>
+
+        <main>
+            <!-- Scene Creation Form -->
+            <div id="form-section">
+                <div class="info-card">
+                    <h3>Scene Details</h3>
+
+                    <div class="form-group">
+                        <label for="scene-title">Scene Title *</label>
+                        <input type="text" id="scene-title" placeholder="e.g., The First Encounter" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="scene-outline">Scene Outline *</label>
+                        <textarea id="scene-outline" placeholder="Describe what happens in this scene..." required></textarea>
+                        <small>What happens in this scene? Who is involved? What's the conflict?</small>
+                    </div>
+
+                    <div class="two-column">
+                        <div class="form-group">
+                            <label for="tone">Tone</label>
+                            <input type="text" id="tone" placeholder="e.g., Suspenseful, Humorous, Melancholic">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="pov">Point of View</label>
+                            <input type="text" id="pov" placeholder="e.g., First person, Third person limited">
+                        </div>
+                    </div>
+
+                    <div class="two-column">
+                        <div class="form-group">
+                            <label for="target-length">Target Length</label>
+                            <input type="text" id="target-length" placeholder="e.g., 1500-2000 words">
+                        </div>
+
+                        <div class="form-group">
+                            <label for="max-iterations">Max Revisions</label>
+                            <select id="max-iterations">
+                                <option value="1">1 revision</option>
+                                <option value="2">2 revisions</option>
+                                <option value="3" selected>3 revisions</option>
+                                <option value="4">4 revisions</option>
+                                <option value="5">5 revisions</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="additional-notes">Additional Notes</label>
+                        <textarea id="additional-notes" placeholder="Any specific instructions for the AI..." style="min-height: 80px;"></textarea>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <h3>Model Selection</h3>
+
+                    <div class="form-group">
+                        <label for="generation-model">Generation Model *</label>
+                        <select id="generation-model">
+                            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet (Recommended - Fast & Cheap)</option>
+                            <option value="anthropic/claude-3-opus">Claude 3 Opus (Best Quality)</option>
+                            <option value="openai/gpt-4-turbo">GPT-4 Turbo</option>
+                            <option value="openai/gpt-4o">GPT-4o (Latest)</option>
+                            <option value="google/gemini-pro-1.5">Google Gemini Pro 1.5</option>
+                            <option value="meta-llama/llama-3.1-70b-instruct">Llama 3.1 70B (Cheapest)</option>
+                            <option value="perplexity/llama-3.1-sonar-large-128k-online">Perplexity Sonar (With Web Search)</option>
+                        </select>
+                        <small>Choose the AI model for prose generation</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="critique-model">Critique Model *</label>
+                        <select id="critique-model">
+                            <option value="anthropic/claude-3.5-sonnet" selected>Claude 3.5 Sonnet (Recommended)</option>
+                            <option value="anthropic/claude-3-opus">Claude 3 Opus</option>
+                            <option value="openai/gpt-4-turbo">GPT-4 Turbo</option>
+                            <option value="openai/gpt-4o">GPT-4o</option>
+                        </select>
+                        <small>Choose the AI model for critiquing</small>
+                    </div>
+
+                    <button onclick="startGeneration()" class="btn-success" style="width: 100%; margin-top: 20px;">
+                        🚀 Generate Prose
+                    </button>
+                </div>
+            </div>
+
+            <!-- Generation Progress -->
+            <div id="progress-section" style="display: none;">
+                <div class="info-card">
+                    <h3>Generation in Progress</h3>
+                    <div class="status-indicator" id="status-display">Initializing...</div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill" style="width: 10%;"></div>
+                    </div>
+                    <p id="status-message">Setting up generation...</p>
+                    <p><small>Generation ID: <span id="gen-id-display"></span></small></p>
+                </div>
+            </div>
+
+            <!-- Generated Prose -->
+            <div id="result-section" style="display: none;">
+                <div class="info-card">
+                    <h3>Generated Prose</h3>
+                    <div class="prose-display" id="prose-display"></div>
+                </div>
+
+                <div class="info-card">
+                    <h3>AI Critique</h3>
+                    <div class="prose-display" id="critique-display"></div>
+                </div>
+
+                <div class="info-card">
+                    <h3>What's Next?</h3>
+                    <p id="iteration-info"></p>
+                    <div style="margin-top: 15px;">
+                        <button onclick="approveAndRevise()" class="btn-primary" id="revise-btn">
+                            ✨ Approve & Revise
+                        </button>
+                        <button onclick="acceptFinal()" class="btn-success">
+                            ✅ Accept as Final
+                        </button>
+                        <button onclick="startOver()" class="btn-danger">
+                            🔄 Start Over
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Final Result -->
+            <div id="final-section" style="display: none;">
+                <div class="info-card">
+                    <h3>✅ Generation Complete!</h3>
+                    <p>Your prose has been accepted and a scene summary has been generated.</p>
+
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label>Scene Summary (for continuity)</label>
+                        <div class="prose-display" id="summary-display" style="max-height: 300px;"></div>
+                    </div>
+
+                    <button onclick="startOver()" class="btn-primary" style="margin-top: 20px;">
+                        Create Another Scene
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let currentGenId = null;
+        let pollingInterval = null;
+
+        async function startGeneration() {
+            // Validate
+            const title = document.getElementById('scene-title').value.trim();
+            const outline = document.getElementById('scene-outline').value.trim();
+
+            if (!title) {
+                alert('Please enter a scene title');
+                document.getElementById('scene-title').focus();
+                return;
+            }
+
+            if (!outline) {
+                alert('Please enter a scene outline');
+                document.getElementById('scene-outline').focus();
+                return;
+            }
+
+            if (outline.length < 10) {
+                alert('Scene outline must be at least 10 characters long');
+                document.getElementById('scene-outline').focus();
+                return;
+            }
+
+            // Create scene object
+            const sceneId = 'scene-' + Date.now();
+            const scene = {
+                id: sceneId,
+                title: title,
+                scene_number: null,
+                outline: outline,
+                character_ids: [],
+                world_context_ids: [],
+                previous_scene_ids: [],
+                tags: [],
+                additional_notes: document.getElementById('additional-notes').value.trim(),
+                tone: document.getElementById('tone').value.trim(),
+                pov: document.getElementById('pov').value.trim(),
+                target_length: document.getElementById('target-length').value.trim(),
+                is_canon: false,
+                prose: null,
+                summary: null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+            };
+
+            // Get models and settings
+            const genModel = document.getElementById('generation-model').value;
+            const critiqueModel = document.getElementById('critique-model').value;
+            const maxIterations = parseInt(document.getElementById('max-iterations').value);
+
+            // Show progress
+            document.getElementById('form-section').style.display = 'none';
+            document.getElementById('progress-section').style.display = 'block';
+
+            try {
+                // Save scene to backend first
+                const saveResponse = await fetch('/api/scenes/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(scene)
+                });
+
+                if (!saveResponse.ok) {
+                    throw new Error('Failed to save scene');
+                }
+
+                // Start generation
+                const response = await fetch('/api/generations/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        scene_id: sceneId,
+                        max_iterations: maxIterations,
+                        generation_model: genModel,
+                        critique_model: critiqueModel
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to start generation');
+                }
+
+                const data = await response.json();
+                currentGenId = data.generation_id;
+                document.getElementById('gen-id-display').textContent = currentGenId;
+
+                // Start polling
+                startPolling();
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+                startOver();
+            }
+        }
+
+        function startPolling() {
+            pollingInterval = setInterval(checkProgress, 3000);
+            checkProgress(); // Check immediately
+        }
+
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+            }
+        }
+
+        async function checkProgress() {
+            if (!currentGenId) return;
+
+            try {
+                const response = await fetch(`/api/generations/${currentGenId}`);
+                const data = await response.json();
+
+                updateProgress(data);
+
+                // Stop polling if done
+                if (data.status === 'awaiting_approval' || data.status === 'completed' || data.status === 'error') {
+                    stopPolling();
+                }
+
+                if (data.status === 'awaiting_approval') {
+                    showResults(data);
+                } else if (data.status === 'completed') {
+                    showFinalResult(data);
+                } else if (data.status === 'error') {
+                    alert('Generation failed: ' + (data.error_message || 'Unknown error'));
+                    startOver();
+                }
+
+            } catch (error) {
+                console.error('Error checking progress:', error);
+            }
+        }
+
+        function updateProgress(data) {
+            const statusDisplay = document.getElementById('status-display');
+            const statusMessage = document.getElementById('status-message');
+            const progressFill = document.getElementById('progress-fill');
+
+            let progress = 10;
+            let message = '';
+            let statusClass = 'status-generating';
+
+            switch (data.status) {
+                case 'initialized':
+                    progress = 10;
+                    message = 'Starting generation...';
+                    break;
+                case 'generating':
+                    progress = 30;
+                    message = 'Claude is writing your prose... (30-60 seconds)';
+                    break;
+                case 'generation_complete':
+                    progress = 60;
+                    message = 'Prose generated! Preparing critique...';
+                    statusClass = 'status-critiquing';
+                    break;
+                case 'critiquing':
+                    progress = 80;
+                    message = 'Analyzing the prose... (15-30 seconds)';
+                    statusClass = 'status-critiquing';
+                    break;
+                case 'awaiting_approval':
+                    progress = 100;
+                    message = 'Done! Review your prose below.';
+                    statusClass = 'status-done';
+                    break;
+                case 'revising':
+                    progress = 50;
+                    message = 'Revising based on critique... (30-60 seconds)';
+                    break;
+                case 'generating_summary':
+                    progress = 90;
+                    message = 'Generating scene summary... (10-20 seconds)';
+                    statusClass = 'status-critiquing';
+                    break;
+                case 'completed':
+                    progress = 100;
+                    message = 'Complete!';
+                    statusClass = 'status-done';
+                    break;
+            }
+
+            statusDisplay.textContent = data.status.replace(/_/g, ' ').toUpperCase();
+            statusDisplay.className = 'status-indicator ' + statusClass;
+            statusMessage.textContent = message;
+            progressFill.style.width = progress + '%';
+        }
+
+        function showResults(data) {
+            document.getElementById('progress-section').style.display = 'none';
+            document.getElementById('result-section').style.display = 'block';
+
+            document.getElementById('prose-display').textContent = data.current_prose;
+            document.getElementById('critique-display').textContent = data.current_critique;
+
+            const remaining = data.max_iterations - data.current_iteration;
+            document.getElementById('iteration-info').textContent =
+                `Iteration ${data.current_iteration} of ${data.max_iterations}. ${remaining} revision(s) remaining.`;
+
+            const reviseBtn = document.getElementById('revise-btn');
+            if (data.can_revise) {
+                reviseBtn.style.display = 'inline-block';
+                reviseBtn.textContent = `✨ Approve & Revise (${remaining} left)`;
+            } else {
+                reviseBtn.style.display = 'none';
+            }
+        }
+
+        function showFinalResult(data) {
+            document.getElementById('progress-section').style.display = 'none';
+            document.getElementById('result-section').style.display = 'none';
+            document.getElementById('final-section').style.display = 'block';
+
+            if (data.scene_summary) {
+                document.getElementById('summary-display').textContent = data.scene_summary;
+            }
+        }
+
+        async function approveAndRevise() {
+            if (!currentGenId) return;
+
+            if (!confirm('Start a revision based on the critique?')) return;
+
+            // Hide results, show progress
+            document.getElementById('result-section').style.display = 'none';
+            document.getElementById('progress-section').style.display = 'block';
+
+            try {
+                const response = await fetch(`/api/generations/${currentGenId}/approve`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) throw new Error('Failed to approve');
+
+                // Resume polling
+                startPolling();
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        async function acceptFinal() {
+            if (!currentGenId) return;
+
+            if (!confirm('Accept this prose as final? This will generate a scene summary.')) return;
+
+            // Hide results, show progress
+            document.getElementById('result-section').style.display = 'none';
+            document.getElementById('progress-section').style.display = 'block';
+
+            try {
+                const response = await fetch(`/api/generations/${currentGenId}/accept`, {
+                    method: 'POST'
+                });
+
+                if (!response.ok) throw new Error('Failed to accept');
+
+                // Resume polling to catch summary generation
+                startPolling();
+
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        function startOver() {
+            stopPolling();
+            currentGenId = null;
+            document.getElementById('form-section').style.display = 'block';
+            document.getElementById('progress-section').style.display = 'none';
+            document.getElementById('result-section').style.display = 'none';
+            document.getElementById('final-section').style.display = 'none';
+            window.scrollTo(0, 0);
+        }
+    </script>
+</body>
+</html>
