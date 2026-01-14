@@ -219,7 +219,27 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSeries();
     loadProjects();
     setInterval(checkHealth, 30000);
+
+    // Back to top button scroll listener
+    const backToTopBtn = document.getElementById('back-to-top');
+    if (backToTopBtn) {
+        window.addEventListener('scroll', () => {
+            if (window.scrollY > 300) {
+                backToTopBtn.classList.add('visible');
+            } else {
+                backToTopBtn.classList.remove('visible');
+            }
+        });
+    }
 });
+
+// Scroll to top function
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+}
 
 // ============================================
 // Health Check
@@ -843,9 +863,60 @@ function hideReferenceForm() {
     document.getElementById('ref-description').value = '';
     document.getElementById('ref-type').value = 'other';
     document.getElementById('ref-content').value = '';
+    document.getElementById('ref-file').value = '';
+    document.getElementById('ref-file-name').textContent = '';
+    document.getElementById('ref-word-count').textContent = '';
     document.getElementById('ref-use-generation').checked = true;
     document.getElementById('ref-use-chat').checked = true;
 }
+
+function handleReferenceFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['.txt', '.md', '.markdown'];
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!validTypes.includes(ext)) {
+        alert('Please upload a .txt or .md file');
+        event.target.value = '';
+        return;
+    }
+
+    // Read file content
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const content = e.target.result;
+        document.getElementById('ref-content').value = content;
+        document.getElementById('ref-file-name').textContent = `Loaded: ${file.name}`;
+
+        // Update word count
+        const wordCount = content.split(/\s+/).filter(w => w.length > 0).length;
+        document.getElementById('ref-word-count').textContent = `${wordCount.toLocaleString()} words`;
+
+        // Auto-fill title if empty
+        const titleInput = document.getElementById('ref-title');
+        if (!titleInput.value) {
+            // Use filename without extension as title
+            titleInput.value = file.name.replace(/\.[^/.]+$/, '');
+        }
+    };
+    reader.onerror = function() {
+        alert('Error reading file');
+    };
+    reader.readAsText(file);
+}
+
+// Update word count on paste/type
+document.addEventListener('DOMContentLoaded', function() {
+    const refContent = document.getElementById('ref-content');
+    if (refContent) {
+        refContent.addEventListener('input', function() {
+            const wordCount = this.value.split(/\s+/).filter(w => w.length > 0).length;
+            document.getElementById('ref-word-count').textContent = wordCount > 0 ? `${wordCount.toLocaleString()} words` : '';
+        });
+    }
+});
 
 async function saveReference(e) {
     e.preventDefault();
@@ -1333,21 +1404,70 @@ function renderCharacters() {
     }
 
     list.innerHTML = characters.map(c => `
-        <div class="item">
-            <div class="item-header">
-                <div class="item-title">${escapeHtml(c.metadata?.name || c.id)}</div>
-                <div class="item-actions">
-                    <button class="btn btn-danger" onclick="deleteCharacter('${c.id}')">Delete</button>
+        <div class="item character-item">
+            <div class="character-portrait-thumb" onclick="showCharacterDetail('${c.id}')">
+                ${c.metadata?.portrait
+                    ? `<img src="${apiUrl(`/characters/${c.id}/portrait`)}" alt="${escapeHtml(c.metadata?.name || '')}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                       <div class="portrait-fallback" style="display: none;">${escapeHtml((c.metadata?.name || 'C').charAt(0))}</div>`
+                    : `<div class="portrait-fallback">${escapeHtml((c.metadata?.name || 'C').charAt(0))}</div>`
+                }
+            </div>
+            <div class="character-info">
+                <div class="item-header">
+                    <div class="item-title">${escapeHtml(c.metadata?.name || c.id)}</div>
+                    <div class="item-actions">
+                        <button class="btn btn-sm btn-secondary" onclick="showCharacterDetail('${c.id}')">View</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteCharacter('${c.id}')">Delete</button>
+                    </div>
                 </div>
+                <div class="item-meta">
+                    ${c.metadata?.role ? `<span class="badge">${escapeHtml(c.metadata.role)}</span>` : ''}
+                    ${c.metadata?.age ? `<span class="badge">Age: ${c.metadata.age}</span>` : ''}
+                    ${c.metadata?.occupation ? `<span class="badge">${escapeHtml(c.metadata.occupation)}</span>` : ''}
+                </div>
+                ${c.metadata?.background ? `<div class="item-content">${escapeHtml(c.metadata.background.substring(0, 200))}...</div>` : ''}
             </div>
-            <div class="item-meta">
-                ${c.metadata?.role ? `<span class="badge">${escapeHtml(c.metadata.role)}</span>` : ''}
-                ${c.metadata?.age ? `<span class="badge">Age: ${c.metadata.age}</span>` : ''}
-                ${c.metadata?.occupation ? `<span class="badge">${escapeHtml(c.metadata.occupation)}</span>` : ''}
-            </div>
-            ${c.metadata?.background ? `<div class="item-content">${escapeHtml(c.metadata.background.substring(0, 200))}...</div>` : ''}
         </div>
     `).join('');
+}
+
+async function showCharacterDetail(characterId) {
+    const character = characters.find(c => c.id === characterId);
+    if (!character) {
+        console.error('Character not found:', characterId);
+        return;
+    }
+
+    // Populate form with existing data
+    editingCharacterId = characterId;
+    document.getElementById('character-form-title').textContent = 'Edit Character';
+    document.getElementById('char-name').value = character.metadata?.name || '';
+    document.getElementById('char-role').value = character.metadata?.role || '';
+    document.getElementById('char-age').value = character.metadata?.age || '';
+    document.getElementById('char-occupation').value = character.metadata?.occupation || '';
+    document.getElementById('char-traits').value = (character.metadata?.personality_traits || []).join(', ');
+    document.getElementById('char-background').value = character.metadata?.background || '';
+    document.getElementById('char-content').value = character.content || '';
+
+    // Reset portrait state
+    selectedPortraitFile = null;
+    document.getElementById('portrait-file').value = '';
+
+    // Load existing portrait if any
+    if (character.metadata?.portrait) {
+        const preview = document.getElementById('portrait-preview');
+        preview.src = apiUrl(`/characters/${characterId}/portrait`);
+        preview.style.display = 'block';
+        document.getElementById('portrait-placeholder').style.display = 'none';
+        document.getElementById('remove-portrait-btn').style.display = 'block';
+    } else {
+        document.getElementById('portrait-preview').style.display = 'none';
+        document.getElementById('portrait-placeholder').style.display = 'flex';
+        document.getElementById('remove-portrait-btn').style.display = 'none';
+    }
+
+    // Show modal
+    document.getElementById('character-modal').style.display = 'flex';
 }
 
 function renderWorlds() {
@@ -1665,13 +1785,26 @@ async function deleteChapter(chapterId) {
 // ============================================
 // Character CRUD
 // ============================================
-function showCharacterForm() {
-    document.getElementById('character-form').style.display = 'block';
+let selectedPortraitFile = null;
+let editingCharacterId = null;
+
+function showCharacterForm(characterId = null) {
+    editingCharacterId = characterId;
+    document.getElementById('character-modal').style.display = 'flex';
+    document.getElementById('character-form-title').textContent = characterId ? 'Edit Character' : 'New Character';
+
+    // Reset portrait
+    selectedPortraitFile = null;
+    document.getElementById('portrait-preview').style.display = 'none';
+    document.getElementById('portrait-placeholder').style.display = 'flex';
+    document.getElementById('remove-portrait-btn').style.display = 'none';
+    document.getElementById('portrait-file').value = '';
+
     document.getElementById('char-name').focus();
 }
 
 function hideCharacterForm() {
-    document.getElementById('character-form').style.display = 'none';
+    document.getElementById('character-modal').style.display = 'none';
     document.getElementById('char-name').value = '';
     document.getElementById('char-role').value = '';
     document.getElementById('char-age').value = '';
@@ -1679,6 +1812,90 @@ function hideCharacterForm() {
     document.getElementById('char-traits').value = '';
     document.getElementById('char-background').value = '';
     document.getElementById('char-content').value = '';
+
+    // Reset portrait
+    selectedPortraitFile = null;
+    editingCharacterId = null;
+    document.getElementById('portrait-preview').style.display = 'none';
+    document.getElementById('portrait-preview').src = '';
+    document.getElementById('portrait-placeholder').style.display = 'flex';
+    document.getElementById('remove-portrait-btn').style.display = 'none';
+    document.getElementById('portrait-file').value = '';
+}
+
+function handlePortraitSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+        alert('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+        return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+        alert('Image too large. Maximum size is 5MB.');
+        return;
+    }
+
+    selectedPortraitFile = file;
+
+    // Show preview
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const preview = document.getElementById('portrait-preview');
+        preview.src = e.target.result;
+        preview.style.display = 'block';
+        document.getElementById('portrait-placeholder').style.display = 'none';
+        document.getElementById('remove-portrait-btn').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+}
+
+async function removePortrait() {
+    // If editing existing character with a portrait, delete from server
+    if (editingCharacterId) {
+        const character = characters.find(c => c.id === editingCharacterId);
+        if (character?.metadata?.portrait) {
+            try {
+                await fetch(apiUrl(`/characters/${editingCharacterId}/portrait`), {
+                    method: 'DELETE'
+                });
+            } catch (e) {
+                console.error('Failed to delete portrait:', e);
+            }
+        }
+    }
+
+    selectedPortraitFile = null;
+    document.getElementById('portrait-preview').style.display = 'none';
+    document.getElementById('portrait-preview').src = '';
+    document.getElementById('portrait-placeholder').style.display = 'flex';
+    document.getElementById('remove-portrait-btn').style.display = 'none';
+    document.getElementById('portrait-file').value = '';
+}
+
+async function uploadPortrait(characterId) {
+    if (!selectedPortraitFile) return;
+
+    const formData = new FormData();
+    formData.append('file', selectedPortraitFile);
+
+    try {
+        const response = await fetch(apiUrl(`/characters/${characterId}/portrait`), {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Portrait upload failed:', error.detail);
+        }
+    } catch (e) {
+        console.error('Portrait upload error:', e);
+    }
 }
 
 async function saveCharacter(e) {
@@ -1692,8 +1909,6 @@ async function saveCharacter(e) {
     const background = document.getElementById('char-background').value.trim();
     const content = document.getElementById('char-content').value.trim();
 
-    const filename = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.md';
-
     const metadata = {
         name,
         role: role || undefined,
@@ -1704,15 +1919,43 @@ async function saveCharacter(e) {
     };
 
     try {
-        const response = await fetch(apiUrl('/characters/'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filename, metadata, content })
-        });
+        let characterId;
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Failed to create character');
+        if (editingCharacterId) {
+            // Update existing character
+            const response = await fetch(apiUrl(`/characters/${editingCharacterId}`), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ metadata, content })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to update character');
+            }
+
+            characterId = editingCharacterId;
+        } else {
+            // Create new character
+            const filename = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.md';
+            const response = await fetch(apiUrl('/characters/'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename, metadata, content })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to create character');
+            }
+
+            const character = await response.json();
+            characterId = character.id;
+        }
+
+        // Upload portrait if selected
+        if (selectedPortraitFile) {
+            await uploadPortrait(characterId);
         }
 
         hideCharacterForm();
@@ -2953,9 +3196,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ============================================
-// Outline Import Functions
+// Import Functions (Outline & Characters)
 // ============================================
 let importPreviewData = null;
+let currentImportType = 'outline';
 
 function showImportOutlineModal() {
     document.getElementById('import-outline-modal').style.display = 'block';
@@ -2963,13 +3207,100 @@ function showImportOutlineModal() {
     document.getElementById('import-step-preview').style.display = 'none';
     document.getElementById('import-step-progress').style.display = 'none';
     document.getElementById('import-step-complete').style.display = 'none';
+    selectImportType('outline');
     document.getElementById('import-markdown').focus();
 }
 
 function hideImportOutlineModal() {
     document.getElementById('import-outline-modal').style.display = 'none';
     document.getElementById('import-markdown').value = '';
+    document.getElementById('import-file').value = '';
+    document.getElementById('import-file-name').textContent = '';
     importPreviewData = null;
+    currentImportType = 'outline';
+}
+
+function selectImportType(type) {
+    currentImportType = type;
+
+    // Update active button
+    document.querySelectorAll('.import-type-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === type);
+    });
+
+    // Update help text and placeholder
+    const helpText = document.getElementById('import-help-text');
+    const textarea = document.getElementById('import-markdown');
+
+    if (type === 'outline') {
+        helpText.textContent = 'Paste your outline in Markdown format. Use # for Acts (optional), ## for Chapters, and ### for Scenes.';
+        textarea.placeholder = `# Act I: The Beginning
+
+## Chapter 1: First Steps
+
+### Scene 1: Opening
+The protagonist wakes to find their world changed...`;
+    } else if (type === 'characters') {
+        helpText.textContent = 'Paste characters in YAML format (instant parsing) or free-form text (AI parsing). YAML format recommended for large imports.';
+        textarea.placeholder = `---
+name: Elena Blackwood
+role: Protagonist
+age: 28
+occupation: Archaeologist
+personality_traits: Curious, Determined, Skeptical
+background: Born in London to academics, she discovered her passion for archaeology at age 12.
+---
+
+---
+name: Marcus Chen
+role: Supporting
+age: 32
+occupation: Research Partner
+personality_traits: Analytical, Loyal, Reserved
+background: Elena's trusted partner with expertise in ancient languages.
+---
+
+(Or paste free-form text and AI will extract characters)`;
+    }
+}
+
+function handleImportFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const validTypes = ['.txt', '.md', '.markdown'];
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!validTypes.includes(ext)) {
+        alert('Please upload a .txt or .md file');
+        event.target.value = '';
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        document.getElementById('import-markdown').value = e.target.result;
+        document.getElementById('import-file-name').textContent = `Loaded: ${file.name}`;
+    };
+    reader.onerror = function() {
+        alert('Error reading file');
+    };
+    reader.readAsText(file);
+}
+
+function previewImport() {
+    if (currentImportType === 'outline') {
+        previewOutlineImport();
+    } else if (currentImportType === 'characters') {
+        previewCharactersImport();
+    }
+}
+
+function confirmImport() {
+    if (currentImportType === 'outline') {
+        confirmOutlineImport();
+    } else if (currentImportType === 'characters') {
+        confirmCharactersImport();
+    }
 }
 
 async function previewOutlineImport() {
@@ -3048,6 +3379,8 @@ async function previewOutlineImport() {
         // Switch to preview step
         document.getElementById('import-step-input').style.display = 'none';
         document.getElementById('import-step-preview').style.display = 'block';
+        document.getElementById('import-outline-preview').style.display = 'grid';
+        document.getElementById('import-characters-preview').style.display = 'none';
 
     } catch (e) {
         alert('Error parsing outline: ' + e.message);
@@ -3098,6 +3431,218 @@ async function confirmOutlineImport() {
         document.getElementById('import-step-progress').style.display = 'none';
         document.getElementById('import-step-preview').style.display = 'block';
         alert('Error importing outline: ' + e.message);
+    }
+}
+
+// Character Import Functions - with auto-detect for structured YAML
+
+// Try to parse structured YAML character blocks directly (no AI needed)
+function tryParseStructuredCharacters(text) {
+    const characters = [];
+
+    // Split by --- lines, looking for YAML blocks with name: field
+    const blocks = text.split(/\n---\s*\n/);
+
+    for (const block of blocks) {
+        const trimmed = block.trim();
+        if (!trimmed) continue;
+
+        // Check if this looks like a YAML block (has name: field)
+        const nameMatch = trimmed.match(/^name:\s*(.+)$/m);
+        if (!nameMatch) continue;
+
+        // Parse YAML-like fields
+        const char = { name: nameMatch[1].trim() };
+
+        // Extract common fields
+        const roleMatch = trimmed.match(/^role:\s*(.+)$/m);
+        if (roleMatch) char.role = roleMatch[1].trim();
+
+        const ageMatch = trimmed.match(/^age:\s*(\d+)/m);
+        if (ageMatch) char.age = parseInt(ageMatch[1]);
+
+        const occupationMatch = trimmed.match(/^occupation:\s*(.+)$/m);
+        if (occupationMatch) char.occupation = occupationMatch[1].trim();
+
+        const backgroundMatch = trimmed.match(/^background:\s*(.+)$/m);
+        if (backgroundMatch) char.background = backgroundMatch[1].trim();
+
+        // Parse personality_traits (can be comma-separated or YAML list)
+        const traitsMatch = trimmed.match(/^personality_traits:\s*(.+)$/m);
+        if (traitsMatch) {
+            const traitsStr = traitsMatch[1].trim();
+            // Handle comma-separated format
+            char.personality_traits = traitsStr.split(',').map(t => t.trim()).filter(t => t);
+        } else {
+            // Try YAML list format
+            const traitsListMatch = trimmed.match(/personality_traits:\s*\n((?:\s*-\s*.+\n?)+)/m);
+            if (traitsListMatch) {
+                char.personality_traits = traitsListMatch[1]
+                    .split('\n')
+                    .map(line => line.replace(/^\s*-\s*/, '').trim())
+                    .filter(t => t);
+            }
+        }
+
+        characters.push(char);
+    }
+
+    return characters;
+}
+
+async function previewCharactersImport() {
+    const text = document.getElementById('import-markdown').value.trim();
+
+    if (!text) {
+        alert('Please enter character descriptions');
+        return;
+    }
+
+    if (text.length < 20) {
+        alert('Text is too short. Please enter more detailed character descriptions.');
+        return;
+    }
+
+    const previewBtn = document.querySelector('#import-step-input button[onclick="previewImport()"]');
+    const originalBtnText = previewBtn.textContent;
+
+    try {
+        let characters = [];
+        let warnings = [];
+        let parseMethod = '';
+
+        // First, try structured YAML parsing (fast, no API call)
+        const structuredChars = tryParseStructuredCharacters(text);
+
+        if (structuredChars.length >= 1) {
+            // Structured parsing worked
+            characters = structuredChars;
+            parseMethod = 'structured';
+            console.log(`Parsed ${characters.length} characters using structured YAML format`);
+        } else {
+            // Fall back to AI parsing
+            previewBtn.textContent = 'Parsing with AI...';
+            previewBtn.disabled = true;
+
+            const response = await fetch(apiUrl('/characters/import/parse'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, preview_only: true })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to parse characters');
+            }
+
+            const result = await response.json();
+            characters = result.characters;
+            warnings = result.warnings || [];
+            parseMethod = 'ai';
+        }
+
+        importPreviewData = { characters, warnings };
+
+        if (characters.length === 0) {
+            alert('No characters could be extracted from the text. Try adding more detail or check the warnings.');
+            if (warnings.length > 0) {
+                console.log('Warnings:', warnings);
+            }
+            return;
+        }
+
+        // Show preview UI
+        document.getElementById('import-step-input').style.display = 'none';
+        document.getElementById('import-step-preview').style.display = 'block';
+        document.getElementById('import-outline-preview').style.display = 'none';
+        document.getElementById('import-characters-preview').style.display = 'block';
+
+        // Update character count with parse method indicator
+        const methodLabel = parseMethod === 'structured' ? ' (YAML)' : ' (AI)';
+        document.getElementById('import-char-count').textContent = characters.length + methodLabel;
+
+        // Render character list
+        const listEl = document.getElementById('import-characters-list');
+        listEl.innerHTML = characters.map((char, idx) => `
+            <div class="import-character-item">
+                <h5>${escapeHtml(char.name)}</h5>
+                <div class="char-meta">
+                    ${char.role ? `<span class="char-badge">${escapeHtml(char.role)}</span>` : ''}
+                    ${char.age ? `<span>Age: ${char.age}</span>` : ''}
+                    ${char.occupation ? `<span>${escapeHtml(char.occupation)}</span>` : ''}
+                </div>
+                ${char.personality_traits && char.personality_traits.length > 0 ?
+                    `<div class="char-traits">${char.personality_traits.map(t => `<span class="trait-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
+                ${char.background ? `<div class="char-preview">${escapeHtml(char.background.substring(0, 200))}${char.background.length > 200 ? '...' : ''}</div>` : ''}
+                ${char.goals && char.goals.length > 0 ? `<div class="char-goals"><strong>Goals:</strong> ${char.goals.map(g => escapeHtml(g)).join(', ')}</div>` : ''}
+            </div>
+        `).join('');
+
+        // Show warnings if any
+        if (warnings.length > 0) {
+            const warningsHtml = `<div class="import-warnings"><strong>Warnings:</strong> ${warnings.join('; ')}</div>`;
+            listEl.insertAdjacentHTML('beforebegin', warningsHtml);
+        }
+
+    } catch (e) {
+        alert('Error parsing characters: ' + e.message);
+    } finally {
+        previewBtn.textContent = originalBtnText;
+        previewBtn.disabled = false;
+    }
+}
+
+async function confirmCharactersImport() {
+    if (!importPreviewData || !importPreviewData.characters || importPreviewData.characters.length === 0) {
+        alert('No characters to import');
+        return;
+    }
+
+    // Show progress
+    document.getElementById('import-step-preview').style.display = 'none';
+    document.getElementById('import-step-progress').style.display = 'block';
+
+    try {
+        // Call the confirm endpoint with all parsed characters
+        const response = await fetch(apiUrl('/characters/import/confirm'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(importPreviewData.characters)
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to import characters');
+        }
+
+        const result = await response.json();
+
+        // Show complete step
+        document.getElementById('import-step-progress').style.display = 'none';
+        document.getElementById('import-step-complete').style.display = 'block';
+
+        let message = `Imported ${result.imported} character(s).`;
+        if (result.failed > 0) {
+            message += ` ${result.failed} failed.`;
+        }
+        if (result.errors && result.errors.length > 0) {
+            message += ` Errors: ${result.errors.join(', ')}`;
+        }
+        document.getElementById('import-result-message').textContent = message;
+
+        // Refresh character list
+        await loadCharacters();
+
+        // Auto-close modal after brief delay and switch to Characters tab
+        setTimeout(() => {
+            hideImportOutlineModal();
+            switchView('characters');
+        }, 1500);
+
+    } catch (e) {
+        document.getElementById('import-step-progress').style.display = 'none';
+        document.getElementById('import-step-preview').style.display = 'block';
+        alert('Error importing characters: ' + e.message);
     }
 }
 

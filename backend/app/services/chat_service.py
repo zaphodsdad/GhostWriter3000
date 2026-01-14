@@ -14,6 +14,7 @@ from app.models.chat import (
 from app.models.scene import Scene
 from app.services.llm_service import get_llm_service
 from app.services.markdown_parser import MarkdownParser
+from app.services.series_service import SeriesService
 from app.utils.file_utils import read_json_file, write_json_file, list_files
 from app.utils.logging import get_logger
 from app.config import settings
@@ -27,6 +28,7 @@ class ChatService:
     def __init__(self):
         self.llm = get_llm_service()
         self.parser = MarkdownParser()
+        self.series_service = SeriesService()
 
     def _get_chat_dir(self, project_id: str) -> Path:
         """Get chat storage directory for a project."""
@@ -212,36 +214,51 @@ class ChatService:
             "scenes": [],
             "current_scene": None,
             "current_chapter": None,
-            "style_guide": None
+            "style_guide": None,
+            "references": []
         }
 
-        # Load style guide
-        style_path = settings.project_dir(project_id) / "style.json"
-        if style_path.exists():
-            try:
-                context["style_guide"] = await read_json_file(style_path)
-            except Exception:
-                pass
+        # Load combined context from series service (handles series inheritance)
+        try:
+            combined = await self.series_service.get_combined_context(project_id)
 
-        # Load all characters
-        chars_dir = settings.characters_dir(project_id)
-        if chars_dir.exists():
-            for filepath in chars_dir.glob("*.md"):
-                try:
-                    parsed = self.parser.parse_file(filepath)
-                    context["characters"].append(parsed)
-                except Exception:
-                    continue
+            # Use series+project characters and worlds
+            context["characters"] = combined.get("characters", [])
+            context["worlds"] = combined.get("worlds", [])
+            context["style_guide"] = combined.get("style_guide")
 
-        # Load all world contexts
-        world_dir = settings.world_dir(project_id)
-        if world_dir.exists():
-            for filepath in world_dir.glob("*.md"):
+            # Filter references that have use_in_chat enabled
+            all_refs = combined.get("references", [])
+            context["references"] = [r for r in all_refs if r.get("use_in_chat", True)]
+        except Exception as e:
+            logger.warning(f"Failed to load combined context: {e}")
+            # Fall back to basic loading
+            style_path = settings.project_dir(project_id) / "style.json"
+            if style_path.exists():
                 try:
-                    parsed = self.parser.parse_file(filepath)
-                    context["worlds"].append(parsed)
+                    context["style_guide"] = await read_json_file(style_path)
                 except Exception:
-                    continue
+                    pass
+
+            # Load all characters
+            chars_dir = settings.characters_dir(project_id)
+            if chars_dir.exists():
+                for filepath in chars_dir.glob("*.md"):
+                    try:
+                        parsed = self.parser.parse_file(filepath)
+                        context["characters"].append(parsed)
+                    except Exception:
+                        continue
+
+            # Load all world contexts
+            world_dir = settings.world_dir(project_id)
+            if world_dir.exists():
+                for filepath in world_dir.glob("*.md"):
+                    try:
+                        parsed = self.parser.parse_file(filepath)
+                        context["worlds"].append(parsed)
+                    except Exception:
+                        continue
 
         # Load scenes based on scope
         if scope == ChatScope.PROJECT:
@@ -374,6 +391,21 @@ class ChatService:
                 parts.append(f"- {meta.get('name', world.get('id', 'Unknown'))}")
                 if world.get("content"):
                     parts.append(f"  {world['content'][:300]}...")
+            parts.append("")
+
+        # Add reference documents
+        if context.get("references"):
+            parts.append("REFERENCE DOCUMENTS:")
+            for ref in context["references"]:
+                ref_type = ref.get("doc_type", "reference").replace("_", " ").title()
+                parts.append(f"\n--- {ref_type}: {ref.get('title', 'Untitled')} ---")
+                if ref.get("description"):
+                    parts.append(f"Description: {ref['description']}")
+                content = ref.get("content", "")
+                # Truncate very long references for chat context
+                if len(content) > 5000:
+                    content = content[:5000] + "\n...[truncated - full document available]"
+                parts.append(content)
             parts.append("")
 
         # Add scene summaries

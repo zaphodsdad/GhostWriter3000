@@ -325,22 +325,46 @@
                                 </div>
                             </div>
 
-                            <!-- Character Form (hidden by default) -->
-                            <div id="character-form" class="card" style="display: none;">
-                                <h3 id="character-form-title">New Character</h3>
-                                <form onsubmit="saveCharacter(event)">
-                                    <div class="form-group">
-                                        <label>Character Name *</label>
-                                        <input type="text" id="char-name" required placeholder="e.g., Elena Blackwood">
-                                    </div>
-                                    <div class="form-row">
-                                        <div class="form-group">
-                                            <label>Role</label>
-                                            <input type="text" id="char-role" placeholder="e.g., Protagonist">
+                        </section>
+
+                        <!-- Character Form Modal -->
+                        <div id="character-modal" class="modal-overlay" style="display: none;" onclick="hideCharacterForm()">
+                            <div class="modal-content modal-large" onclick="event.stopPropagation()">
+                                <div class="modal-header">
+                                    <h3 id="character-form-title">New Character</h3>
+                                    <button class="modal-close" onclick="hideCharacterForm()">&times;</button>
+                                </div>
+                                <form id="character-form" onsubmit="saveCharacter(event)">
+                                    <div class="character-form-layout">
+                                        <!-- Portrait Upload Area -->
+                                        <div class="portrait-section">
+                                            <div class="portrait-upload-area" id="portrait-upload-area" onclick="document.getElementById('portrait-file').click()">
+                                                <img id="portrait-preview" src="" alt="" style="display: none;">
+                                                <div id="portrait-placeholder" class="portrait-placeholder">
+                                                    <span class="portrait-icon">+</span>
+                                                    <span>Add Portrait</span>
+                                                </div>
+                                                <input type="file" id="portrait-file" accept="image/jpeg,image/png,image/gif,image/webp" onchange="handlePortraitSelect(event)" style="display: none;">
+                                            </div>
+                                            <button type="button" id="remove-portrait-btn" class="btn btn-sm btn-danger" onclick="removePortrait()" style="display: none;">Remove</button>
                                         </div>
-                                        <div class="form-group">
-                                            <label>Age</label>
-                                            <input type="number" id="char-age" placeholder="e.g., 28">
+
+                                        <!-- Character Details -->
+                                        <div class="character-details-section">
+                                            <div class="form-group">
+                                                <label>Character Name *</label>
+                                                <input type="text" id="char-name" required placeholder="e.g., Elena Blackwood">
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group">
+                                                    <label>Role</label>
+                                                    <input type="text" id="char-role" placeholder="e.g., Protagonist">
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Age</label>
+                                                    <input type="number" id="char-age" placeholder="e.g., 28">
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="form-group">
@@ -366,7 +390,7 @@
                                     </div>
                                 </form>
                             </div>
-                        </section>
+                        </div>
 
                         <!-- Worlds View -->
                         <section id="worlds-view" class="view">
@@ -432,7 +456,7 @@
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                                     <h2>Story Structure</h2>
                                     <div>
-                                        <button class="btn btn-outline" onclick="showImportOutlineModal()">Import Outline</button>
+                                        <button class="btn btn-outline" onclick="showImportOutlineModal()">Import</button>
                                         <button class="btn btn-secondary" onclick="showActForm()">+ Act</button>
                                         <button class="btn btn-primary" onclick="showChapterForm()">+ Chapter</button>
                                     </div>
@@ -564,32 +588,41 @@
                                 </form>
                             </div>
 
-                            <!-- Import Outline Modal -->
+                            <!-- Import Modal -->
                             <div id="import-outline-modal" class="card" style="display: none;">
-                                <h3>Import Outline from Markdown</h3>
-                                <p class="text-muted mb-20">Paste your outline in Markdown format. Use # for Acts (optional), ## for Chapters, and ### for Scenes. Text under scene headings becomes the scene outline.</p>
+                                <h3 id="import-modal-title">Import</h3>
+
+                                <!-- Import Type Selection -->
+                                <div id="import-type-selection" class="import-type-tabs">
+                                    <button class="import-type-btn active" data-type="outline" onclick="selectImportType('outline')">Outline</button>
+                                    <button class="import-type-btn" data-type="characters" onclick="selectImportType('characters')">Characters</button>
+                                </div>
+
+                                <p class="text-muted mb-20" id="import-help-text">Paste your outline in Markdown format. Use # for Acts (optional), ## for Chapters, and ### for Scenes.</p>
 
                                 <!-- Step 1: Input -->
                                 <div id="import-step-input">
+                                    <!-- File upload area -->
                                     <div class="form-group">
-                                        <label>Markdown Outline</label>
-                                        <textarea id="import-markdown" rows="20" placeholder="# Act I: The Beginning
+                                        <label>Upload File</label>
+                                        <div class="file-upload-area" id="import-file-drop">
+                                            <input type="file" id="import-file" accept=".txt,.md,.markdown" onchange="handleImportFileUpload(event)">
+                                            <p>Drop a .txt or .md file here, or click to browse</p>
+                                            <small class="text-muted" id="import-file-name"></small>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Or Paste Content</label>
+                                        <textarea id="import-markdown" rows="15" placeholder="# Act I: The Beginning
 
 ## Chapter 1: First Steps
 
 ### Scene 1: Opening
-The protagonist wakes to find their world changed. They must...
-
-### Scene 2: Discovery
-Exploring the new reality, our hero encounters...
-
-## Chapter 2: Rising Action
-
-### Scene 3: The Challenge
-A major obstacle presents itself..."></textarea>
+The protagonist wakes to find their world changed..."></textarea>
                                     </div>
                                     <div class="action-bar">
-                                        <button class="btn btn-primary" onclick="previewOutlineImport()">Preview Import</button>
+                                        <button class="btn btn-primary" onclick="previewImport()">Preview Import</button>
                                         <button class="btn btn-secondary" onclick="hideImportOutlineModal()">Cancel</button>
                                     </div>
                                 </div>
@@ -598,7 +631,8 @@ A major obstacle presents itself..."></textarea>
                                 <div id="import-step-preview" style="display: none;">
                                     <div id="import-warnings" class="import-warnings" style="display: none;"></div>
 
-                                    <div class="import-preview-grid">
+                                    <!-- Outline Preview -->
+                                    <div id="import-outline-preview" class="import-preview-grid">
                                         <div class="import-preview-section">
                                             <h4>Acts (<span id="import-act-count">0</span>)</h4>
                                             <ul id="import-acts-list"></ul>
@@ -613,8 +647,14 @@ A major obstacle presents itself..."></textarea>
                                         </div>
                                     </div>
 
+                                    <!-- Characters Preview -->
+                                    <div id="import-characters-preview" style="display: none;">
+                                        <h4>Characters to Import (<span id="import-char-count">0</span>)</h4>
+                                        <div id="import-characters-list" class="import-characters-list"></div>
+                                    </div>
+
                                     <div class="action-bar">
-                                        <button class="btn btn-success" onclick="confirmOutlineImport()">Confirm Import</button>
+                                        <button class="btn btn-success" onclick="confirmImport()">Confirm Import</button>
                                         <button class="btn btn-secondary" onclick="backToImportInput()">Back to Edit</button>
                                         <button class="btn btn-secondary" onclick="hideImportOutlineModal()">Cancel</button>
                                     </div>
@@ -757,8 +797,17 @@ This will be included in the AI prompt during generation."></textarea>
                                         </select>
                                     </div>
                                     <div class="form-group">
+                                        <label>Upload File</label>
+                                        <div class="file-upload-area" id="ref-file-drop">
+                                            <input type="file" id="ref-file" accept=".txt,.md,.markdown" onchange="handleReferenceFileUpload(event)">
+                                            <p>Drop a .txt or .md file here, or click to browse</p>
+                                            <small class="text-muted" id="ref-file-name"></small>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
                                         <label>Content *</label>
-                                        <textarea id="ref-content" required placeholder="Paste the full text content here..." style="min-height: 300px;"></textarea>
+                                        <textarea id="ref-content" required placeholder="Upload a file above or paste content here..." style="min-height: 300px;"></textarea>
+                                        <small class="text-muted" id="ref-word-count"></small>
                                     </div>
                                     <div class="form-row">
                                         <div class="form-group">
@@ -1137,6 +1186,11 @@ This will be included in the AI prompt during generation."></textarea>
             </div>
         </div>
     </div>
+
+    <!-- Floating Back to Top Button -->
+    <button id="back-to-top" class="back-to-top-btn" onclick="scrollToTop()" title="Back to top">
+        ↑
+    </button>
 
     <script src="js/app.js"></script>
 </body>
