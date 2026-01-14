@@ -15,6 +15,8 @@
 - [x] Editable generation preview - tweak scene outline before generating
 - [x] Scene form modal - better UX for scene editing
 - [x] OpenRouter credits display - show remaining balance near word count
+- [x] Credit low alerts - configurable threshold, toast notifications
+- [x] UI refresh after Accept as Canon - sidebar/structure updates immediately
 
 ---
 
