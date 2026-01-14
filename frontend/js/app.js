@@ -84,6 +84,9 @@ async function loadSettings() {
             sourceEl.className = 'badge' + (data.data_dir_from === 'config' ? ' canon' : '');
         }
 
+        // Populate default model dropdowns
+        populateSettingsModelDropdowns(data.default_generation_model, data.default_critique_model);
+
         // Clear the input fields (we don't send back actual keys for security)
         document.getElementById('settings-openrouter-key').value = '';
         document.getElementById('settings-anthropic-key').value = '';
@@ -94,6 +97,56 @@ async function loadSettings() {
     } catch (e) {
         console.error('Failed to load settings:', e);
     }
+}
+
+function populateSettingsModelDropdowns(currentGenModel, currentCritiqueModel) {
+    const genSelect = document.getElementById('settings-default-gen-model');
+    const critiqueSelect = document.getElementById('settings-default-critique-model');
+
+    if (!genSelect || !critiqueSelect) return;
+
+    // Use availableModels from the global list (loaded on page load)
+    if (availableModels.length === 0) {
+        genSelect.innerHTML = '<option value="">Models not loaded</option>';
+        critiqueSelect.innerHTML = '<option value="">Models not loaded</option>';
+        return;
+    }
+
+    // Group models by provider
+    const modelsByProvider = {};
+    availableModels.forEach(model => {
+        const provider = model.id.split('/')[0];
+        if (!modelsByProvider[provider]) {
+            modelsByProvider[provider] = [];
+        }
+        modelsByProvider[provider].push(model);
+    });
+
+    const providerNames = {
+        'anthropic': 'Anthropic',
+        'openai': 'OpenAI',
+        'google': 'Google',
+        'meta-llama': 'Meta Llama',
+        'mistralai': 'Mistral AI',
+        'cohere': 'Cohere'
+    };
+
+    let optionsHtml = '<option value="">System Default</option>';
+    for (const [provider, models] of Object.entries(modelsByProvider)) {
+        const providerLabel = providerNames[provider] || provider;
+        optionsHtml += `<optgroup label="${providerLabel}">`;
+        models.forEach(model => {
+            optionsHtml += `<option value="${model.id}">${model.name}</option>`;
+        });
+        optionsHtml += '</optgroup>';
+    }
+
+    genSelect.innerHTML = optionsHtml;
+    critiqueSelect.innerHTML = optionsHtml;
+
+    // Set current values
+    if (currentGenModel) genSelect.value = currentGenModel;
+    if (currentCritiqueModel) critiqueSelect.value = currentCritiqueModel;
 }
 
 function updateKeyStatus(provider, isSet) {
@@ -112,20 +165,19 @@ async function saveSettings() {
     const anthropicKey = document.getElementById('settings-anthropic-key').value.trim();
     const customUrl = document.getElementById('settings-custom-url').value.trim();
     const customKey = document.getElementById('settings-custom-key').value.trim();
+    const defaultGenModel = document.getElementById('settings-default-gen-model').value;
+    const defaultCritiqueModel = document.getElementById('settings-default-critique-model').value;
 
-    // Build update object - only include non-empty values
+    // Build update object - only include non-empty values for keys
     const update = {};
     if (openrouterKey) update.openrouter_api_key = openrouterKey;
     if (anthropicKey) update.anthropic_api_key = anthropicKey;
     if (customUrl) update.custom_endpoint_url = customUrl;
     if (customKey) update.custom_endpoint_key = customKey;
 
-    // Don't send empty request
-    if (Object.keys(update).length === 0) {
-        showToast('Info', 'No changes to save', 'info');
-        toggleSettingsModal();
-        return;
-    }
+    // Always include model settings (empty string means use system default)
+    update.default_generation_model = defaultGenModel || null;
+    update.default_critique_model = defaultCritiqueModel || null;
 
     try {
         const response = await fetch('/api/settings', {
@@ -218,6 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
     checkHealth();
     loadSeries();
     loadProjects();
+    loadAvailableModels();
     setInterval(checkHealth, 30000);
 
     // Back to top button scroll listener
@@ -239,6 +292,75 @@ function scrollToTop() {
         top: 0,
         behavior: 'smooth'
     });
+}
+
+// ============================================
+// Model Selection
+// ============================================
+let availableModels = [];
+
+async function loadAvailableModels() {
+    try {
+        const response = await fetch('/api/settings/models');
+        if (!response.ok) throw new Error('Failed to fetch models');
+        availableModels = await response.json();
+        populateModelDropdowns();
+    } catch (e) {
+        console.warn('Could not load models:', e);
+        // Use fallback models
+        availableModels = [
+            { id: 'anthropic/claude-sonnet-4', name: 'Claude Sonnet 4' },
+            { id: 'anthropic/claude-opus-4', name: 'Claude Opus 4' },
+            { id: 'anthropic/claude-sonnet-4.5', name: 'Claude Sonnet 4.5' },
+            { id: 'anthropic/claude-opus-4.5', name: 'Claude Opus 4.5' },
+            { id: 'openai/gpt-4o', name: 'GPT-4o' },
+        ];
+        populateModelDropdowns();
+    }
+}
+
+function populateModelDropdowns() {
+    const genModelSelect = document.getElementById('gen-model');
+    const critiqueModelSelect = document.getElementById('critique-model');
+
+    if (!genModelSelect || !critiqueModelSelect) return;
+
+    // Group models by provider
+    const modelsByProvider = {};
+    availableModels.forEach(model => {
+        const provider = model.id.split('/')[0];
+        if (!modelsByProvider[provider]) {
+            modelsByProvider[provider] = [];
+        }
+        modelsByProvider[provider].push(model);
+    });
+
+    // Build HTML with optgroups
+    let optionsHtml = '<option value="">Use Default</option>';
+
+    const providerNames = {
+        'anthropic': 'Anthropic',
+        'openai': 'OpenAI',
+        'google': 'Google',
+        'meta-llama': 'Meta Llama',
+        'mistralai': 'Mistral AI',
+        'cohere': 'Cohere'
+    };
+
+    for (const [provider, models] of Object.entries(modelsByProvider)) {
+        const providerLabel = providerNames[provider] || provider;
+        optionsHtml += `<optgroup label="${providerLabel}">`;
+        models.forEach(model => {
+            const priceInfo = model.pricing_prompt
+                ? ` ($${model.pricing_prompt.toFixed(2)}/M)`
+                : '';
+            optionsHtml += `<option value="${model.id}">${model.name}${priceInfo}</option>`;
+        });
+        optionsHtml += '</optgroup>';
+    }
+
+    genModelSelect.innerHTML = optionsHtml;
+    critiqueModelSelect.innerHTML = optionsHtml;
 }
 
 // ============================================
@@ -603,6 +725,61 @@ async function moveProjectToSeries() {
 
     } catch (e) {
         alert('Error moving book: ' + e.message);
+    }
+}
+
+// ============================================
+// WORD COUNT GOAL MODAL
+// ============================================
+
+function showWordCountGoalModal() {
+    const modal = document.getElementById('word-count-goal-modal');
+    const input = document.getElementById('word-count-goal-input');
+
+    // Pre-fill with current goal
+    input.value = currentProject?.word_count_goal || '';
+
+    modal.style.display = 'flex';
+    input.focus();
+}
+
+function hideWordCountGoalModal() {
+    document.getElementById('word-count-goal-modal').style.display = 'none';
+}
+
+function setWordCountGoal(value) {
+    document.getElementById('word-count-goal-input').value = value;
+}
+
+async function saveWordCountGoal() {
+    const input = document.getElementById('word-count-goal-input');
+    const goal = input.value ? parseInt(input.value) : null;
+
+    try {
+        const response = await fetch(apiUrl(''), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ word_count_goal: goal })
+        });
+
+        if (!response.ok) throw new Error('Failed to save word count goal');
+
+        // Update local project data
+        currentProject.word_count_goal = goal;
+
+        // Recalculate and update display
+        const canonScenes = scenes.filter(s => s.is_canon);
+        let wordCount = 0;
+        canonScenes.forEach(s => {
+            if (s.prose) wordCount += s.prose.split(/\s+/).length;
+        });
+        updateWordCountDisplay(wordCount);
+
+        hideWordCountGoalModal();
+        showToast('Success', goal ? `Word count goal set to ${goal.toLocaleString()}` : 'Word count goal cleared', 'success');
+
+    } catch (e) {
+        alert('Error saving word count goal: ' + e.message);
     }
 }
 
@@ -1329,8 +1506,38 @@ function updateStats() {
     console.log('Total word count:', wordCount);
     document.getElementById('stat-words').textContent = wordCount.toLocaleString();
 
-    // Update master word count in header
+    // Update master word count in header with goal progress
+    updateWordCountDisplay(wordCount);
+}
+
+function updateWordCountDisplay(wordCount) {
     document.getElementById('master-word-count').textContent = wordCount.toLocaleString();
+
+    const goal = currentProject?.word_count_goal;
+    const separatorEl = document.getElementById('word-count-separator');
+    const goalEl = document.getElementById('word-count-goal');
+    const progressEl = document.getElementById('word-count-progress');
+    const progressFillEl = document.getElementById('word-count-progress-fill');
+
+    if (goal && goal > 0) {
+        separatorEl.style.display = 'inline';
+        goalEl.style.display = 'inline';
+        goalEl.textContent = goal.toLocaleString();
+        progressEl.style.display = 'block';
+
+        const percentage = Math.min((wordCount / goal) * 100, 100);
+        progressFillEl.style.width = percentage + '%';
+
+        if (wordCount >= goal) {
+            progressFillEl.classList.add('complete');
+        } else {
+            progressFillEl.classList.remove('complete');
+        }
+    } else {
+        separatorEl.style.display = 'none';
+        goalEl.style.display = 'none';
+        progressEl.style.display = 'none';
+    }
 }
 
 function populateFormSelects() {
@@ -2056,9 +2263,9 @@ async function deleteWorld(worldId) {
 // Scene CRUD
 // ============================================
 function showSceneForm() {
-    document.getElementById('scene-form').style.display = 'block';
+    document.getElementById('scene-modal').style.display = 'flex';
+    document.getElementById('scene-form-title').textContent = 'New Scene';
     document.getElementById('scene-chapter').focus();
-    navigateToView('structure');
 }
 
 function showSceneFormForChapter(chapterId) {
@@ -2068,7 +2275,7 @@ function showSceneFormForChapter(chapterId) {
 }
 
 function hideSceneForm() {
-    document.getElementById('scene-form').style.display = 'none';
+    document.getElementById('scene-modal').style.display = 'none';
     document.getElementById('scene-chapter').value = '';
     document.getElementById('scene-title').value = '';
     document.getElementById('scene-outline').value = '';
@@ -2580,7 +2787,7 @@ function onSceneSelected() {
         const scene = scenes.find(s => s.id === select.value);
         if (scene) {
             document.getElementById('gen-preview-title').textContent = scene.title;
-            document.getElementById('gen-preview-outline').textContent = scene.outline;
+            document.getElementById('gen-preview-outline').value = scene.outline || '';
             preview.style.display = 'block';
             startBtn.disabled = false;
         }
@@ -2611,6 +2818,22 @@ async function startGeneration() {
     currentCritiqueModel = critiqueModel || 'Default';
 
     try {
+        // Save outline changes if modified
+        const outlineText = document.getElementById('gen-preview-outline').value;
+        const scene = scenes.find(s => s.id === sceneId);
+        if (scene && outlineText !== scene.outline) {
+            const saveResponse = await fetch(apiUrl(`/scenes/${sceneId}`), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ outline: outlineText })
+            });
+            if (!saveResponse.ok) {
+                throw new Error('Failed to save outline changes');
+            }
+            // Update local scene data
+            scene.outline = outlineText;
+        }
+
         // Show progress step
         document.getElementById('gen-step-select').style.display = 'none';
         document.getElementById('gen-step-progress').style.display = 'block';

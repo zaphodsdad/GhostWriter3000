@@ -11,9 +11,20 @@ from app.models.generation import (
     GenerationStatus
 )
 from app.services.generation_service import get_generation_service
+from app.api.routes.settings import load_user_settings
 from app.config import settings
 
 router = APIRouter()
+
+
+def get_effective_models(gen_model: Optional[str], critique_model: Optional[str]) -> tuple[Optional[str], Optional[str]]:
+    """Get effective models, falling back to user settings if not specified."""
+    user_settings = load_user_settings()
+
+    effective_gen = gen_model or user_settings.get("default_generation_model")
+    effective_critique = critique_model or user_settings.get("default_critique_model")
+
+    return effective_gen, effective_critique
 
 
 def ensure_project_exists(project_id: str):
@@ -39,14 +50,20 @@ async def start_generation(project_id: str, request: GenerationStart, background
     """
     ensure_project_exists(project_id)
 
+    # Get effective models (user settings override if not specified in request)
+    gen_model, critique_model = get_effective_models(
+        request.generation_model,
+        request.critique_model
+    )
+
     try:
         service = get_generation_service()
         state = await service.start_generation(
             project_id=project_id,
             scene_id=request.scene_id,
             max_iterations=request.max_iterations,
-            generation_model=request.generation_model,
-            critique_model=request.critique_model
+            generation_model=gen_model,
+            critique_model=critique_model
         )
 
         return _build_response(state)
@@ -77,14 +94,20 @@ async def start_edit_mode_generation(project_id: str, request: EditModeStart, ba
     """
     ensure_project_exists(project_id)
 
+    # Get effective models (user settings override if not specified in request)
+    gen_model, critique_model = get_effective_models(
+        request.generation_model,
+        request.critique_model
+    )
+
     try:
         service = get_generation_service()
         state = await service.start_edit_mode_generation(
             project_id=project_id,
             scene_id=request.scene_id,
             max_iterations=request.max_iterations,
-            generation_model=request.generation_model,
-            critique_model=request.critique_model
+            generation_model=gen_model,
+            critique_model=critique_model
         )
 
         return _build_response(state)

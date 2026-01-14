@@ -412,6 +412,11 @@ nav {
     padding: 20px 24px;
 }
 
+/* Scene Form Modal */
+#scene-form {
+    padding: 20px 24px;
+}
+
 /* Character Form Portrait Section */
 .character-form-layout {
     display: flex;
@@ -1016,6 +1021,20 @@ nav {
     padding: 8px 16px;
     background: var(--bg-input);
     border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    min-width: 140px;
+}
+
+.master-word-count:hover {
+    background: var(--bg-card);
+}
+
+.word-count-display {
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 2px;
 }
 
 .word-count-value {
@@ -1024,10 +1043,46 @@ nav {
     color: var(--primary);
 }
 
+.word-count-separator {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+}
+
+.word-count-goal {
+    font-size: 1.1rem;
+    color: var(--text-muted);
+}
+
 .word-count-label {
     font-size: 0.85rem;
     color: var(--text-muted);
     margin-left: 4px;
+}
+
+.word-count-progress {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+}
+
+.word-count-progress-fill {
+    height: 100%;
+    background: var(--primary);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.word-count-progress-fill.complete {
+    background: var(--success);
+}
+
+.word-count-presets {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    justify-content: center;
 }
 
 /* Prose Stats */

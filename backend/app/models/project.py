@@ -19,6 +19,9 @@ class Project(BaseModel):
     series_id: Optional[str] = Field(None, description="Series this project belongs to (if any)")
     book_number: Optional[int] = Field(None, ge=1, description="Book number within series (1, 2, 3...)")
 
+    # Word count goal
+    word_count_goal: Optional[int] = Field(None, ge=0, description="Target word count for the project")
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -64,6 +67,9 @@ class ProjectCreate(BaseModel):
     series_id: Optional[str] = Field(None, description="Series to add this project to")
     book_number: Optional[int] = Field(None, ge=1, description="Book number in series")
 
+    # Word count goal
+    word_count_goal: Optional[int] = Field(None, ge=0, description="Target word count")
+
     @field_validator("title")
     @classmethod
     def validate_title(cls, v: str) -> str:
@@ -85,6 +91,9 @@ class ProjectUpdate(BaseModel):
     series_id: Optional[str] = Field(None, description="Series this project belongs to")
     book_number: Optional[int] = Field(None, ge=1, description="Book number in series")
 
+    # Word count goal
+    word_count_goal: Optional[int] = Field(None, ge=0, description="Target word count")
+
 
 class ProjectSummary(BaseModel):
     """Summary of a project for listing."""
@@ -104,6 +113,7 @@ class ProjectSummary(BaseModel):
     scene_count: int = 0
     canon_scene_count: int = 0
     total_word_count: int = 0
+    word_count_goal: Optional[int] = None
 
     created_at: datetime
     updated_at: datetime

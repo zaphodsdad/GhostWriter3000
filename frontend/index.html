@@ -76,6 +76,26 @@
 
                     <hr class="settings-divider">
 
+                    <h3>Default Models</h3>
+                    <p class="text-muted mb-20">Set the default AI models used when "Use Default" is selected.</p>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Generation Model</label>
+                            <select id="settings-default-gen-model">
+                                <option value="">Loading models...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Critique Model</label>
+                            <select id="settings-default-critique-model">
+                                <option value="">Loading models...</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <hr class="settings-divider">
+
                     <h3>Data Storage</h3>
                     <p class="text-muted mb-20">Configure where your projects are stored.</p>
 
@@ -223,9 +243,16 @@
                         </div>
                     </div>
                     <div style="display: flex; align-items: center; gap: 20px;">
-                        <div class="master-word-count">
-                            <span class="word-count-value" id="master-word-count">0</span>
-                            <span class="word-count-label">words</span>
+                        <div class="master-word-count" id="word-count-container" onclick="showWordCountGoalModal()">
+                            <div class="word-count-display">
+                                <span class="word-count-value" id="master-word-count">0</span>
+                                <span class="word-count-separator" id="word-count-separator" style="display: none;"> / </span>
+                                <span class="word-count-goal" id="word-count-goal" style="display: none;">0</span>
+                                <span class="word-count-label">words</span>
+                            </div>
+                            <div class="word-count-progress" id="word-count-progress" style="display: none;">
+                                <div class="word-count-progress-fill" id="word-count-progress-fill"></div>
+                            </div>
                         </div>
                         <div style="display: flex; gap: 10px;">
                             <button class="btn btn-outline" onclick="showMoveToSeriesModal()">Series</button>
@@ -517,10 +544,14 @@
                                 </form>
                             </div>
 
-                            <!-- Scene Form -->
-                            <div id="scene-form" class="card" style="display: none;">
-                                <h3 id="scene-form-title">New Scene</h3>
-                                <form onsubmit="saveScene(event)">
+                            <!-- Scene Form Modal -->
+                            <div id="scene-modal" class="modal-overlay" style="display: none;" onclick="hideSceneForm()">
+                                <div class="modal-content modal-large" onclick="event.stopPropagation()">
+                                    <div class="modal-header">
+                                        <h3 id="scene-form-title">New Scene</h3>
+                                        <button class="modal-close" onclick="hideSceneForm()">&times;</button>
+                                    </div>
+                                    <form id="scene-form" onsubmit="saveScene(event)">
                                     <div class="form-group">
                                         <label>Chapter *</label>
                                         <select id="scene-chapter" required>
@@ -585,7 +616,8 @@
                                         <button type="submit" class="btn btn-success">Save Scene</button>
                                         <button type="button" class="btn btn-secondary" onclick="hideSceneForm()">Cancel</button>
                                     </div>
-                                </form>
+                                    </form>
+                                </div>
                             </div>
 
                             <!-- Import Modal -->
@@ -848,7 +880,10 @@ This will be included in the AI prompt during generation."></textarea>
                                 <div id="gen-scene-preview" style="display: none;">
                                     <div class="item mt-20">
                                         <div class="item-title" id="gen-preview-title"></div>
-                                        <div class="item-content mt-20" id="gen-preview-outline"></div>
+                                        <div class="form-group mt-10">
+                                            <label>Scene Outline <small class="text-muted">(editable)</small></label>
+                                            <textarea id="gen-preview-outline" style="min-height: 120px;" placeholder="Scene outline..."></textarea>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="form-row mt-20">
@@ -1183,6 +1218,34 @@ This will be included in the AI prompt during generation."></textarea>
             <div class="modal-footer">
                 <button class="btn btn-success" onclick="moveProjectToSeries()">Save</button>
                 <button class="btn btn-secondary" onclick="hideMoveToSeriesModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Word Count Goal Modal -->
+    <div id="word-count-goal-modal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="hideWordCountGoalModal()"></div>
+        <div class="modal-content" style="max-width: 350px;">
+            <div class="modal-header">
+                <h2>Word Count Goal</h2>
+                <button class="modal-close" onclick="hideWordCountGoalModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Target Word Count</label>
+                    <input type="number" id="word-count-goal-input" min="0" step="1000" placeholder="e.g., 80000">
+                    <small class="text-muted">Leave empty to hide progress bar</small>
+                </div>
+                <div class="word-count-presets">
+                    <button type="button" class="btn btn-small btn-outline" onclick="setWordCountGoal(50000)">50k</button>
+                    <button type="button" class="btn btn-small btn-outline" onclick="setWordCountGoal(80000)">80k</button>
+                    <button type="button" class="btn btn-small btn-outline" onclick="setWordCountGoal(100000)">100k</button>
+                    <button type="button" class="btn btn-small btn-outline" onclick="setWordCountGoal(120000)">120k</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="saveWordCountGoal()">Save</button>
+                <button class="btn btn-secondary" onclick="hideWordCountGoalModal()">Cancel</button>
             </div>
         </div>
     </div>

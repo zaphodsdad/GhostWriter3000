@@ -2,8 +2,9 @@
 
 import json
 import os
+import httpx
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -219,3 +220,83 @@ async def reset_data_dir():
         "message": "Data directory reset to default. Restart the server for changes to take effect.",
         "restart_required": True
     }
+
+
+class ModelInfo(BaseModel):
+    """Model information for dropdown display."""
+    id: str
+    name: str
+    context_length: Optional[int] = None
+    pricing_prompt: Optional[float] = None  # per million tokens
+    pricing_completion: Optional[float] = None
+
+
+@router.get("/models", response_model=List[ModelInfo])
+async def get_available_models():
+    """
+    Fetch available models from OpenRouter API.
+
+    Returns a curated list of models suitable for prose generation and critique.
+    """
+    api_key = get_api_key("openrouter_api_key")
+
+    if not api_key:
+        # Return a default list if no API key
+        return [
+            ModelInfo(id="anthropic/claude-sonnet-4", name="Claude Sonnet 4"),
+            ModelInfo(id="anthropic/claude-opus-4", name="Claude Opus 4"),
+            ModelInfo(id="anthropic/claude-sonnet-4.5", name="Claude Sonnet 4.5"),
+            ModelInfo(id="anthropic/claude-opus-4.5", name="Claude Opus 4.5"),
+            ModelInfo(id="openai/gpt-4o", name="GPT-4o"),
+            ModelInfo(id="openai/gpt-4-turbo", name="GPT-4 Turbo"),
+            ModelInfo(id="google/gemini-pro-1.5", name="Gemini Pro 1.5"),
+        ]
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://openrouter.ai/api/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=10.0
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        # Filter and format models - focus on capable text generation models
+        models = []
+        preferred_providers = ["anthropic", "openai", "google", "meta-llama", "mistralai", "cohere"]
+
+        for model in data.get("data", []):
+            model_id = model.get("id", "")
+            provider = model_id.split("/")[0] if "/" in model_id else ""
+
+            # Skip models that aren't from preferred providers
+            if provider not in preferred_providers:
+                continue
+
+            # Skip vision-only, embedding, or moderation models
+            if any(x in model_id.lower() for x in ["vision", "embed", "moderat", "whisper", "tts", "dall-e"]):
+                continue
+
+            # Get pricing info
+            pricing = model.get("pricing", {})
+            prompt_price = float(pricing.get("prompt", 0)) * 1_000_000 if pricing.get("prompt") else None
+            completion_price = float(pricing.get("completion", 0)) * 1_000_000 if pricing.get("completion") else None
+
+            models.append(ModelInfo(
+                id=model_id,
+                name=model.get("name", model_id),
+                context_length=model.get("context_length"),
+                pricing_prompt=prompt_price,
+                pricing_completion=completion_price
+            ))
+
+        # Sort by provider, then by name
+        models.sort(key=lambda m: (m.id.split("/")[0], m.name))
+
+        return models
+
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch models from OpenRouter: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error processing models: {str(e)}")
