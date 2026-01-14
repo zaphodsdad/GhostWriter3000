@@ -5,10 +5,16 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 ## Features
 
 - **Web-based Interface**: Clean, modern UI for managing all aspects of prose generation
-- **Character Management**: Store character sheets as markdown files with YAML frontmatter
+- **Character Management**: Store character sheets as markdown files with YAML frontmatter, with portrait support and bulk import
 - **World Building**: Maintain world context files for consistent story elements
 - **Scene-based Generation**: Generate prose from detailed scene outlines
 - **Critique-Revision Loop**: Automatic critique with manual approval for each revision iteration
+- **Series System**: Group related books with shared characters, world-building, and style guides
+- **Reference Library**: Import style guides, published works, or notes as AI context
+- **Edit Mode**: Revise existing prose through the critique loop
+- **Dynamic Model Selection**: Choose from available OpenRouter models with live pricing
+- **Default Model Settings**: Configure preferred generation and critique models
+- **Word Count Goals**: Track progress toward writing targets with visual progress bar
 - **Docker Support**: Easy deployment with Docker and docker-compose
 
 ## Technology Stack

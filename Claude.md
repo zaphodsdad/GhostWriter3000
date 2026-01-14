@@ -159,6 +159,32 @@ PENDING → GENERATING → AWAITING_APPROVAL
                         COMPLETED
 ```
 
+### 8. Dynamic Model Selection
+Models are fetched dynamically from OpenRouter API:
+- **Live model list**: Queries OpenRouter for available models
+- **Filtered selection**: Shows models from preferred providers (Anthropic, OpenAI, Google, Meta, Mistral, Cohere)
+- **Fallback list**: Default models shown if API unavailable
+- **Pricing info**: Model costs displayed for informed selection
+
+### 9. Default Model Settings
+User preferences for AI models:
+- **Settings panel**: Configure default generation and critique models
+- **Per-generation override**: Can still select different models for individual generations
+- **Persistent**: Settings saved to `data/settings.json`
+
+### 10. Word Count Goals
+Track writing progress:
+- **Project goals**: Set target word count per project
+- **Progress bar**: Visual indicator of progress toward goal
+- **Click to edit**: Click word count display to set/update goal
+- **Percentage tracking**: Shows completion percentage
+
+### 11. Generation Preview Editing
+Fine-tune before generating:
+- **Editable outline**: Modify scene outline in generation preview
+- **Last-minute tweaks**: Adjust wording without editing the scene record
+- **Scene modal**: Scene editing now in modal overlay for better UX
+
 ## Scene Summary & Continuity System
 
 ### The Problem
@@ -427,6 +453,10 @@ The project is fully functional with:
 - **Series system** for multi-book projects
 - **Reference library** for importing context documents
 - **Edit mode** for revising existing prose
+- **Dynamic model selection** - Fetches available models from OpenRouter API
+- **Default model settings** - Configure preferred generation/critique models
+- **Word count goals** - Track progress with visual progress bar
+- **Editable generation preview** - Tweak scene outline before generating
 - Docker deployment support
 
 Ready for production use for personal prose generation projects.
