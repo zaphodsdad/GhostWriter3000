@@ -4,12 +4,25 @@
 
 ---
 
+## Roadmap
+
+The full creative workflow: **OUTLINE → GENERATE → EDIT**
+
+| Module | Status | Priority |
+|--------|--------|----------|
+| **Continuity System** | In Progress | **NOW** |
+| **Generation** | Working | Done |
+| **Editing Module** | Basic exists | Next |
+| **Outlining Module** | Not started | Future |
+
+---
+
 ## Completed
 
-- [x] **1.1** Fix generation prompt - add "output only prose, no preamble"
-- [x] **1.2** Post-processing cleanup - `clean_prose_output()` strips AI preambles
-- [x] **2.1** Data directory picker - UI to configure project storage location
-- [x] **6.3** Word count goals and tracking with progress bar
+- [x] Fix generation prompt - add "output only prose, no preamble"
+- [x] Post-processing cleanup - `clean_prose_output()` strips AI preambles
+- [x] Data directory picker - UI to configure project storage location
+- [x] Word count goals and tracking with progress bar
 - [x] Dynamic model selection - fetch available models from OpenRouter API
 - [x] Default model settings - configure preferred generation/critique models
 - [x] Editable generation preview - tweak scene outline before generating
@@ -17,68 +30,88 @@
 - [x] OpenRouter credits display - show remaining balance near word count
 - [x] Credit low alerts - configurable threshold, toast notifications
 - [x] UI refresh after Accept as Canon - sidebar/structure updates immediately
+- [x] Series system - group books, share characters/world
+- [x] Reference library - import documents as AI context
+- [x] Basic edit mode - import prose, run through critique loop
 
 ---
 
-## Phase 1: Quick Wins
+## NOW: Continuity System
 
-- [ ] **1.3** Clean up Scene 2's existing artifact in The Garden project (manual fix)
+*Foundation for multi-scene generation. Without this, scene 50 doesn't know what happened in scenes 1-49.*
 
----
-
-## Phase 2: Structural Improvements
-
-- [ ] **2.2** Startup validation - check API key validity on boot, fail fast with clear error
-- [ ] **2.3** Error recovery - retry logic for LLM failures, stuck-state recovery
+- [ ] Wire up `previous_scene_ids` in scene form (UI exists, needs linking)
+- [ ] Auto-suggest scene linking based on chapter/scene order
+- [ ] Display previous scene summaries in generation context
+- [ ] Verify summaries are being included in prompts
 
 ---
 
-## Phase 3: Frontend Polish
+## NEXT: Editing Module
 
-- [ ] **3.1** Subtle animations/transitions
-- [ ] **3.2** Typography refinement
-- [ ] **3.3** Visual hierarchy improvements
-- [ ] **3.4** Accent color options / theme variants
+*Revise existing prose through the critique loop. Basic edit mode exists, needs enhancement.*
 
----
+**What exists:**
+- Single-scene edit mode (import prose, skip to critique)
+- Critique → revise loop works
 
-## Phase 4: Continuity System Activation
-
-- [ ] **4.1** Wire up `previous_scene_ids` in scene form (UI exists, needs linking)
-- [ ] **4.2** Auto-suggest scene linking based on chapter/scene order
-- [ ] **4.3** Display previous scene summaries in generation context
-- [ ] **4.4** Add characters/world to The Garden project
-
----
-
-## Phase 5: Robustness
-
-- [ ] **5.1** Cost tracking - tokens per generation, running totals (credits balance done, per-gen tracking remaining)
-- [ ] **5.2** Backup system - auto-backup before overwrites
-- [ ] **5.3** Version history for prose iterations
-- [ ] **5.4** Unit tests for services
-- [ ] **5.5** Integration tests for API
+**To add:**
+- [ ] Bulk import - paste a chapter, split into scenes
+- [ ] Side-by-side view - original vs revised
+- [ ] Selective revision - apply some critique points, ignore others
+- [ ] Consistency pass - critique focused on continuity errors across scenes
+- [ ] Polish mode - lighter touch revision (line edits vs structural)
+- [ ] Track changes style diff view
 
 ---
 
-## Phase 6: Additional Features
+## FUTURE: Outlining Module
 
-- [ ] **6.1** Search across scenes/characters/world
-- [ ] **6.2** Export - compile project to markdown/docx/epub
-- [ ] **6.4** Websockets for real-time generation status (currently polling)
-- [ ] **6.5** Undo/redo for prose edits
-- [ ] **6.6** Drag-and-drop scene reordering
+*AI-assisted story planning. Currently outlines are imported manually.*
 
----
-
-## Ideas / Future
-
-*Add new feature ideas here for later consideration*
+**Potential features:**
+- [ ] Synopsis → Structure - expand premise into acts/chapters/scenes
+- [ ] Beat sheet expansion - flesh out plot beats to scene outlines
+- [ ] Pacing analysis - flag pacing issues, suggest beats
+- [ ] POV planning - suggest POV character for each scene
+- [ ] What-if exploration - explore alternate plot paths
+- [ ] Scene card view - visual outline manipulation
 
 ---
 
-## Notes
+## Backlog: Infrastructure & Polish
 
-- The Garden: Test project with 6 scenes, 2 canon
-- The Crimson Rites: Book 2 in "On Storms and Tides" series, 160+ scenes imported, no prose yet
-- Continuity system (Phase 4) is key for generating prose with proper context
+*Nice to have, not blocking main workflow.*
+
+### Structural
+- [ ] Startup validation - check API key on boot, fail fast
+- [ ] Error recovery - retry logic, stuck-state recovery
+- [ ] Cost tracking - tokens per generation, running totals
+
+### Robustness
+- [ ] Backup system - auto-backup before overwrites
+- [ ] Version history for prose iterations
+- [ ] Unit tests for services
+- [ ] Integration tests for API
+
+### Frontend Polish
+- [ ] Subtle animations/transitions
+- [ ] Typography refinement
+- [ ] Visual hierarchy improvements
+- [ ] Accent color options / theme variants
+
+### Additional Features
+- [ ] Search across scenes/characters/world
+- [ ] Export - compile project to markdown/docx/epub
+- [ ] Websockets for real-time generation status
+- [ ] Undo/redo for prose edits
+- [ ] Drag-and-drop scene reordering
+
+---
+
+## Project Notes
+
+- **The Jade Vow** - Book 1, published on KDP
+- **The Crimson Rites** - Book 2, 160+ scenes imported, ready for generation
+- **On Storms and Tides** - Series name
+- **Magnet novella** - needs to be uploaded to reference materials
