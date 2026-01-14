@@ -97,11 +97,18 @@ age: 30
 role: protagonist
 personality_traits: [Brave, Curious]
 skills: [Sword fighting, Ancient languages]
+portrait: jane-doe.jpg
 ---
 
 # Background
 Jane grew up in...
 ```
+
+**Portrait Support**: Characters can have portrait images (JPEG, PNG, GIF, WebP, max 5MB). Portraits are stored alongside character files and served via API.
+
+**Bulk Import**: Import multiple characters at once:
+- **YAML format** (auto-detected): Instant local parsing, 100% accurate
+- **Free-form text**: AI-powered extraction via Claude
 
 ### 5. World Building
 World context stored similarly to characters:
@@ -245,6 +252,11 @@ Remaining for output:         ~181,000 tokens ✅
 - `POST /api/projects/{project_id}/characters/` - Create
 - `PUT /api/projects/{project_id}/characters/{id}` - Update
 - `DELETE /api/projects/{project_id}/characters/{id}` - Delete
+- `POST /api/projects/{project_id}/characters/{id}/portrait` - Upload portrait
+- `GET /api/projects/{project_id}/characters/{id}/portrait` - Get portrait image
+- `DELETE /api/projects/{project_id}/characters/{id}/portrait` - Remove portrait
+- `POST /api/projects/{project_id}/characters/import/parse` - Parse characters from text (AI)
+- `POST /api/projects/{project_id}/characters/import/confirm` - Confirm and create parsed characters
 
 ### World Contexts (Project-scoped)
 - `GET /api/projects/{project_id}/world/` - List all
