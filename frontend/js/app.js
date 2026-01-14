@@ -271,7 +271,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSeries();
     loadProjects();
     loadAvailableModels();
+    loadCredits();
     setInterval(checkHealth, 30000);
+    setInterval(loadCredits, 300000); // Refresh credits every 5 minutes
 
     // Back to top button scroll listener
     const backToTopBtn = document.getElementById('back-to-top');
@@ -4357,4 +4359,57 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// ============================================
+// OpenRouter Credits
+// ============================================
+async function loadCredits() {
+    const valueEl = document.getElementById('credits-remaining');
+    if (!valueEl) return;
+
+    try {
+        const response = await fetch('/api/settings/credits');
+        if (!response.ok) {
+            if (response.status === 400) {
+                // No API key configured
+                valueEl.textContent = '--';
+                valueEl.className = 'credits-value';
+                return;
+            }
+            throw new Error('Failed to fetch credits');
+        }
+
+        const data = await response.json();
+        const remaining = data.remaining;
+
+        // Format the display value
+        if (remaining >= 1) {
+            valueEl.textContent = '$' + remaining.toFixed(2);
+        } else {
+            valueEl.textContent = '$' + remaining.toFixed(3);
+        }
+
+        // Color based on remaining amount
+        valueEl.className = 'credits-value';
+        if (remaining < 1) {
+            valueEl.classList.add('critical');
+        } else if (remaining < 5) {
+            valueEl.classList.add('low');
+        }
+
+    } catch (e) {
+        console.error('Failed to load credits:', e);
+        valueEl.textContent = '--';
+        valueEl.className = 'credits-value';
+    }
+}
+
+async function refreshCredits() {
+    const valueEl = document.getElementById('credits-remaining');
+    if (valueEl) {
+        valueEl.textContent = '...';
+    }
+    await loadCredits();
+    showToast('Credits', 'Balance refreshed', 'success');
 }

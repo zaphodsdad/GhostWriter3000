@@ -254,6 +254,10 @@
                                 <div class="word-count-progress-fill" id="word-count-progress-fill"></div>
                             </div>
                         </div>
+                        <div class="credits-display" id="credits-container" onclick="refreshCredits()" title="Click to refresh">
+                            <span class="credits-value" id="credits-remaining">--</span>
+                            <span class="credits-label">credits</span>
+                        </div>
                         <div style="display: flex; gap: 10px;">
                             <button class="btn btn-outline" onclick="showMoveToSeriesModal()">Series</button>
                             <button class="btn btn-outline btn-danger-outline" onclick="confirmClearStructure()">Clear</button>

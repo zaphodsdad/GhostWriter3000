@@ -300,3 +300,51 @@ async def get_available_models():
         raise HTTPException(status_code=502, detail=f"Failed to fetch models from OpenRouter: {str(e)}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error processing models: {str(e)}")
+
+
+class CreditsInfo(BaseModel):
+    """OpenRouter credits information."""
+    total_credits: float
+    total_usage: float
+    remaining: float
+    currency: str = "USD"
+
+
+@router.get("/credits", response_model=CreditsInfo)
+async def get_openrouter_credits():
+    """
+    Fetch current credit balance from OpenRouter API.
+
+    Returns total credits, usage, and remaining balance.
+    """
+    api_key = get_api_key("openrouter_api_key")
+
+    if not api_key:
+        raise HTTPException(status_code=400, detail="OpenRouter API key not configured")
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(
+                "https://openrouter.ai/api/v1/credits",
+                headers={"Authorization": f"Bearer {api_key}"},
+                timeout=10.0
+            )
+            response.raise_for_status()
+            data = response.json()
+
+        # Extract credits data
+        credits_data = data.get("data", {})
+        total_credits = float(credits_data.get("total_credits", 0))
+        total_usage = float(credits_data.get("total_usage", 0))
+        remaining = total_credits - total_usage
+
+        return CreditsInfo(
+            total_credits=total_credits,
+            total_usage=total_usage,
+            remaining=remaining
+        )
+
+    except httpx.HTTPError as e:
+        raise HTTPException(status_code=502, detail=f"Failed to fetch credits from OpenRouter: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching credits: {str(e)}")

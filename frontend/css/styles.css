@@ -1085,6 +1085,41 @@ nav {
     justify-content: center;
 }
 
+/* Credits Display */
+.credits-display {
+    text-align: center;
+    padding: 8px 16px;
+    background: var(--bg-input);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    min-width: 100px;
+}
+
+.credits-display:hover {
+    background: var(--bg-card);
+}
+
+.credits-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: var(--success);
+}
+
+.credits-value.low {
+    color: var(--warning);
+}
+
+.credits-value.critical {
+    color: var(--danger);
+}
+
+.credits-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-left: 4px;
+}
+
 /* Prose Stats */
 .prose-stats {
     display: flex;
