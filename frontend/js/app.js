@@ -2983,12 +2983,18 @@ function showReviewStep(data) {
     reviseBtn.textContent = 'Approve & Revise';
 }
 
-function showCompleteStep(data) {
+async function showCompleteStep(data) {
     document.getElementById('gen-step-progress').style.display = 'none';
     document.getElementById('gen-step-review').style.display = 'none';
     document.getElementById('gen-step-complete').style.display = 'block';
 
     document.getElementById('gen-summary').textContent = data.scene_summary || 'Summary not generated';
+
+    // Refresh UI to show canon status in sidebar, structure, and dropdown
+    await loadAllData();
+
+    // Refresh credits since we just used tokens
+    loadCredits();
 }
 
 async function approveAndRevise() {
