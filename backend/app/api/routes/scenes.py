@@ -444,3 +444,205 @@ async def disable_edit_mode(project_id: str, scene_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Direct Selection Revision (for reading view)
+
+class SelectionRevisionRequest(BaseModel):
+    """Request to revise a selection of prose directly."""
+    selection_start: int
+    selection_end: int
+    selection_text: str
+    instructions: Optional[str] = None
+    model: Optional[str] = None
+    quick_action: Optional[str] = None  # e.g., "shorten", "lengthen", "rephrase"
+
+
+class SelectionRevisionResponse(BaseModel):
+    """Response after revising selection (not saved until explicit save)."""
+    scene_id: str
+    revised_selection: str  # Just the revised portion
+    merged_prose: str  # Full prose with revision spliced in
+    word_count: int
+    message: str
+
+
+class SaveProseRequest(BaseModel):
+    """Request to save prose changes."""
+    prose: str = Field(..., description="The full prose to save")
+
+
+class SaveProseResponse(BaseModel):
+    """Response after saving prose."""
+    scene_id: str
+    word_count: int
+    backup_created: bool
+    message: str
+
+
+# Quick action mappings to instructions
+QUICK_ACTION_INSTRUCTIONS = {
+    "shorten": "Make this more concise. Reduce word count while preserving the essential meaning and impact.",
+    "lengthen": "Expand this with more detail, description, or nuance. Add depth without padding.",
+    "rephrase": "Rewrite this with different wording while keeping the same meaning and tone.",
+    "more_vivid": "Make this more vivid with stronger sensory details and more evocative language.",
+    "more_tension": "Increase the tension and suspense. Make it more gripping and urgent.",
+    "simplify": "Simplify the language. Make it clearer and more accessible without losing meaning.",
+}
+
+
+@router.post("/{scene_id}/revise-selection", response_model=SelectionRevisionResponse)
+async def revise_scene_selection(project_id: str, scene_id: str, request: SelectionRevisionRequest):
+    """
+    Revise a selected portion of scene prose directly using AI.
+
+    Returns the revised text WITHOUT saving. Use save-prose endpoint to persist.
+    This allows multiple revisions before committing changes.
+
+    Args:
+        project_id: Project ID
+        scene_id: Scene ID
+        request: Selection details, optional instructions/model/quick_action
+
+    Returns:
+        Revised selection and merged prose (not saved)
+
+    Raises:
+        HTTPException: If scene not found, is canon, or revision fails
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
+        data = await read_json_file(filepath)
+
+        # Check if scene is canon - require explicit un-marking first
+        if data.get("is_canon"):
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot edit canon prose. Un-mark as canon first to enable editing."
+            )
+
+        current_prose = data.get("prose") or data.get("original_prose")
+        if not current_prose:
+            raise HTTPException(status_code=400, detail="Scene has no prose to revise")
+
+        # NO backup here - backup happens on explicit save
+
+        # Get LLM service
+        from app.services.llm_service import get_llm_service
+
+        llm = get_llm_service()
+
+        # Build a simple system prompt for direct revision
+        system_prompt = "You are a skilled prose editor. Revise the selected text while maintaining consistency with the surrounding context, narrative voice, and style."
+
+        # Combine quick_action with custom instructions
+        instructions = request.instructions or ""
+        if request.quick_action and request.quick_action in QUICK_ACTION_INSTRUCTIONS:
+            action_instruction = QUICK_ACTION_INSTRUCTIONS[request.quick_action]
+            if instructions:
+                instructions = f"{action_instruction} Additionally: {instructions}"
+            else:
+                instructions = action_instruction
+
+        # Revise the selection
+        revised_selection = await llm.revise_selection(
+            full_prose=current_prose,
+            selection=request.selection_text,
+            selection_start=request.selection_start,
+            selection_end=request.selection_end,
+            system_prompt=system_prompt,
+            critique=None,
+            instructions=instructions if instructions else None,
+            model=request.model
+        )
+
+        # Clean any AI preambles
+        from app.utils.prompt_templates import clean_prose_output
+        revised_selection = clean_prose_output(revised_selection)
+
+        # Splice revised selection back into prose
+        merged_prose = current_prose[:request.selection_start] + revised_selection + current_prose[request.selection_end:]
+
+        # DO NOT save - return for preview only
+        word_count = len(merged_prose.split())
+
+        return SelectionRevisionResponse(
+            scene_id=scene_id,
+            revised_selection=revised_selection,
+            merged_prose=merged_prose,
+            word_count=word_count,
+            message=f"Selection revised. Use Save to commit changes."
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Scene not found: {scene_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{scene_id}/save-prose", response_model=SaveProseResponse)
+async def save_scene_prose(project_id: str, scene_id: str, request: SaveProseRequest):
+    """
+    Save prose changes to a scene with automatic backup.
+
+    This is the commit point after making revisions. Creates a backup
+    of the previous version before saving.
+
+    Args:
+        project_id: Project ID
+        scene_id: Scene ID
+        request: The prose to save
+
+    Returns:
+        Confirmation with word count
+
+    Raises:
+        HTTPException: If scene not found or is canon
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
+        data = await read_json_file(filepath)
+
+        # Check if scene is canon - shouldn't happen but double-check
+        if data.get("is_canon"):
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot save to canon scene. Un-mark as canon first."
+            )
+
+        # Check if there's existing prose to backup
+        current_prose = data.get("prose") or data.get("original_prose")
+        backup_created = False
+
+        if current_prose and current_prose != request.prose:
+            # Backup before overwriting
+            await backup_scene(project_id, scene_id, reason="pre-edit")
+            backup_created = True
+
+        # Save the new prose
+        data["prose"] = request.prose
+        data["updated_at"] = datetime.utcnow().isoformat()
+
+        await write_json_file(filepath, data)
+
+        word_count = len(request.prose.split())
+
+        return SaveProseResponse(
+            scene_id=scene_id,
+            word_count=word_count,
+            backup_created=backup_created,
+            message=f"Prose saved successfully. {word_count} words."
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Scene not found: {scene_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -23,6 +23,14 @@ class ApproveRequest(BaseModel):
     instructions: Optional[str] = None  # Optional revision guidance from user
 
 
+class SelectionRevisionRequest(BaseModel):
+    """Request body for selection-based revision."""
+    selection_start: int  # Start character index in prose
+    selection_end: int    # End character index in prose
+    selection_text: str   # The selected text (for verification)
+    instructions: Optional[str] = None  # Optional revision guidance
+
+
 def get_effective_models(gen_model: Optional[str], critique_model: Optional[str]) -> tuple[Optional[str], Optional[str]]:
     """Get effective models, falling back to user settings if not specified."""
     user_settings = load_user_settings()
@@ -203,6 +211,44 @@ async def approve_and_revise(project_id: str, generation_id: str, request: Appro
     try:
         service = get_generation_service()
         state = await service.approve_and_revise(project_id, generation_id, instructions=instructions)
+        return _build_response(state)
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Generation not found: {generation_id}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{generation_id}/revise-selection", response_model=GenerationResponse)
+async def revise_selection(project_id: str, generation_id: str, request: SelectionRevisionRequest):
+    """
+    Revise only a selected portion of the prose.
+
+    Args:
+        project_id: Project ID
+        generation_id: Unique generation identifier
+        request: Selection details and optional instructions
+
+    Returns:
+        Updated generation state
+
+    Raises:
+        HTTPException: If generation not found or not awaiting approval
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        service = get_generation_service()
+        state = await service.revise_selection(
+            project_id,
+            generation_id,
+            selection_start=request.selection_start,
+            selection_end=request.selection_end,
+            selection_text=request.selection_text,
+            instructions=request.instructions
+        )
         return _build_response(state)
 
     except FileNotFoundError:

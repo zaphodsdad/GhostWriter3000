@@ -323,6 +323,88 @@ Revise the prose to address the critique's suggestions while maintaining:
 Focus on improving the specific areas mentioned in the critique. Output only the revised prose, without commentary."""
 
 
+def build_selection_revision_prompt(
+    full_prose: str,
+    selection: str,
+    selection_start: int,
+    selection_end: int,
+    critique: str = None,
+    user_instructions: str = None
+) -> str:
+    """
+    Build prompt for revising only a selected portion of prose.
+
+    Args:
+        full_prose: The complete prose text
+        selection: The selected text to revise
+        selection_start: Start index of selection
+        selection_end: End index of selection
+        critique: Optional critique context
+        user_instructions: Optional user guidance for revision
+
+    Returns:
+        Formatted selection revision prompt
+    """
+    # Get context around the selection (1-2 paragraphs before and after)
+    before_text = full_prose[:selection_start]
+    after_text = full_prose[selection_end:]
+
+    # Find paragraph boundaries for context
+    para_before = before_text.rfind('\n\n')
+    context_before = before_text[para_before+2:] if para_before != -1 else before_text[-500:]
+
+    para_after = after_text.find('\n\n')
+    context_after = after_text[:para_after] if para_after != -1 else after_text[:500]
+
+    # Build critique section if provided
+    critique_section = ""
+    if critique:
+        critique_section = f"""
+# Relevant Critique
+The AI critique of the full scene included:
+---
+{critique}
+---
+Consider these points when revising the selection.
+"""
+
+    # Build user instructions section if provided
+    user_guidance = ""
+    if user_instructions and user_instructions.strip():
+        user_guidance = f"""
+# Author's Guidance
+{user_instructions.strip()}
+
+Prioritize the author's specific instructions for this revision.
+"""
+
+    return f"""Revise ONLY the selected portion of prose below. Keep the surrounding context in mind for flow and consistency.
+
+# Context Before Selection
+---
+...{context_before}
+---
+
+# SELECTED TEXT TO REVISE
+---
+{selection}
+---
+
+# Context After Selection
+---
+{context_after}...
+---
+{critique_section}{user_guidance}
+# Instructions
+Rewrite ONLY the selected text. Your output should:
+1. Flow naturally from the context before
+2. Lead smoothly into the context after
+3. Maintain the same POV, tense, and narrative voice
+4. Be approximately the same length (unless instructed otherwise)
+
+Output ONLY the revised selection text, nothing else. Do not include the surrounding context."""
+
+
 def build_summary_prompt(scene_title: str, prose: str) -> str:
     """
     Build prompt for generating a scene summary.

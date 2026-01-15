@@ -2394,3 +2394,193 @@ nav {
     color: white;
     border-color: var(--primary);
 }
+
+/* ============================================
+   Selection-Based Revision Styles
+   ============================================ */
+
+.prose-box.selectable {
+    user-select: text;
+    cursor: text;
+}
+
+.prose-box.selectable::selection {
+    background: rgba(56, 139, 253, 0.3);
+}
+
+.selection-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 15px;
+    margin-top: 10px;
+    background: rgba(56, 139, 253, 0.1);
+    border: 1px solid var(--primary);
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.selection-icon {
+    font-size: 1.1rem;
+}
+
+#selection-word-count {
+    flex: 1;
+    color: var(--text-muted);
+}
+
+/* ============================================
+   AI Revision Floating Bubble
+   ============================================ */
+
+.revision-bubble {
+    position: fixed;
+    z-index: 10000;
+    width: 280px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+.revision-bubble-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background: var(--bg-input);
+    border-bottom: 1px solid var(--border);
+    font-weight: 500;
+}
+
+.bubble-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.bubble-close:hover {
+    color: var(--text);
+}
+
+.revision-bubble-body {
+    padding: 15px;
+}
+
+.bubble-field {
+    margin-bottom: 12px;
+}
+
+.bubble-field:last-of-type {
+    margin-bottom: 15px;
+}
+
+.bubble-field label {
+    display: block;
+    font-size: 0.85rem;
+    margin-bottom: 5px;
+    color: var(--text-muted);
+}
+
+.bubble-field select,
+.bubble-field textarea {
+    width: 100%;
+    font-size: 0.9rem;
+}
+
+.bubble-field textarea {
+    resize: vertical;
+    min-height: 50px;
+}
+
+.bubble-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.bubble-quick-actions {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+.quick-action-btn {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.quick-action-btn:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+}
+
+.quick-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.bubble-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 12px 0;
+}
+
+/* Dirty state indicator in reading view */
+.reading-dirty-indicator {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 15px;
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.3);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.reading-dirty-indicator.visible {
+    display: flex;
+}
+
+.reading-dirty-indicator .dirty-text {
+    flex: 1;
+    font-size: 0.9rem;
+    color: #ffc107;
+}
+
+.reading-dirty-indicator .save-btn {
+    padding: 6px 16px;
+    font-size: 0.85rem;
+}
+
+/* Modal small variant */
+.modal-small {
+    max-width: 400px;
+}
+
+/* Reading content selectable */
+.reading-content {
+    user-select: text;
+    cursor: text;
+}
+
+.reading-content::selection {
+    background: rgba(56, 139, 253, 0.3);
+}
+
+/* Prose editor selectable */
+.prose-editor::selection {
+    background: rgba(56, 139, 253, 0.3);
+}

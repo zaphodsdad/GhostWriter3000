@@ -16,6 +16,7 @@ let currentGenModel = null;
 let currentCritiqueModel = null;
 let previousProse = null;  // For diff view
 let showingDiff = false;   // Diff view toggle state
+let currentSelection = null;  // For selection-based revision {text, start, end}
 let sidebarCollapsed = false;
 let currentReadingData = null;
 let previousView = null;
@@ -50,6 +51,12 @@ let currentSeries = null;
 // Reference library state
 let projectReferences = [];
 let seriesReferences = [];
+
+// Reading view editing state
+let readingDirty = false;           // Has unsaved changes
+let readingOriginalProse = null;    // Original prose before edits
+let readingCurrentProse = null;     // Current edited prose
+let pendingNavigation = null;       // Navigation to perform after save/discard
 
 // ============================================
 // Settings Modal
@@ -294,6 +301,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadProjects();
     loadAvailableModels();
     loadCredits();
+    setupSelectionTracking();
+    setupReadingSelectionTracking();
     setInterval(checkHealth, 30000);
     setInterval(loadCredits, 300000); // Refresh credits every 5 minutes
 
@@ -308,6 +317,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Check for recovery data from previous session
+    checkForRecovery();
 });
 
 // Scroll to top function
@@ -2403,6 +2415,22 @@ async function deleteScene(sceneId) {
 // Reading View
 // ============================================
 async function showReadingView(type, id) {
+    // Check for unsaved AI revision changes before switching
+    if (readingDirty && currentReadingData && currentReadingData.id !== id) {
+        showUnsavedChangesModal(() => {
+            // Reset dirty state and recursively call after save/discard
+            showReadingView(type, id);
+        });
+        return;
+    }
+
+    // Clear dirty state when loading new content
+    if (currentReadingData && currentReadingData.id !== id) {
+        setReadingDirty(false);
+        readingOriginalProse = null;
+        readingCurrentProse = null;
+    }
+
     // Save current view to return to
     const activeNav = document.querySelector('.nav-btn.active');
     if (activeNav) {
@@ -2540,6 +2568,16 @@ function closeReadingView() {
         cleanupProseEditor();
     }
 
+    // Check for unsaved AI revision changes
+    if (readingDirty) {
+        showUnsavedChangesModal(() => {
+            const viewToShow = previousView || 'dashboard';
+            navigateToView(viewToShow);
+            currentReadingData = null;
+        });
+        return;
+    }
+
     const viewToShow = previousView || 'dashboard';
     navigateToView(viewToShow);
     currentReadingData = null;
@@ -2547,7 +2585,7 @@ function closeReadingView() {
 
 // Warn before closing browser tab with unsaved changes
 window.addEventListener('beforeunload', (e) => {
-    if (hasUnsavedChanges) {
+    if (hasUnsavedChanges || readingDirty) {
         e.preventDefault();
         e.returnValue = '';
         return '';
@@ -3146,6 +3184,577 @@ function clearRevisionInstructions() {
     const toggle = document.getElementById('revision-instructions-toggle');
     if (body) body.style.display = 'none';
     if (toggle) toggle.classList.remove('open');
+}
+
+// ============================================
+// Selection-Based Revision Functions
+// ============================================
+function setupSelectionTracking() {
+    const proseEl = document.getElementById('gen-prose');
+    if (!proseEl) return;
+
+    // Track selection changes
+    document.addEventListener('selectionchange', () => {
+        // Only track if we're in the review step
+        const reviewStep = document.getElementById('gen-step-review');
+        if (!reviewStep || reviewStep.style.display === 'none') return;
+
+        const selection = window.getSelection();
+        const selectionInfo = document.getElementById('selection-info');
+
+        // Check if selection is within the prose box
+        if (selection.rangeCount > 0 && selection.toString().trim()) {
+            const range = selection.getRangeAt(0);
+            const proseBox = document.getElementById('gen-prose');
+
+            if (proseBox && proseBox.contains(range.commonAncestorContainer)) {
+                const selectedText = selection.toString().trim();
+
+                if (selectedText.length > 0) {
+                    // Calculate position within prose text
+                    const fullText = proseBox.textContent;
+                    const startOffset = getTextOffset(proseBox, range.startContainer, range.startOffset);
+                    const endOffset = getTextOffset(proseBox, range.endContainer, range.endOffset);
+
+                    currentSelection = {
+                        text: selectedText,
+                        start: startOffset,
+                        end: endOffset
+                    };
+
+                    // Update UI
+                    const wordCount = selectedText.split(/\s+/).filter(w => w).length;
+                    document.getElementById('selection-word-count').textContent =
+                        `${wordCount} word${wordCount !== 1 ? 's' : ''} selected`;
+                    selectionInfo.style.display = 'flex';
+                    return;
+                }
+            }
+        }
+
+        // No valid selection
+        if (currentSelection) {
+            currentSelection = null;
+            selectionInfo.style.display = 'none';
+        }
+    });
+}
+
+function getTextOffset(root, node, offset) {
+    // Calculate the character offset from the start of root to the position
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+    let charCount = 0;
+
+    while (walker.nextNode()) {
+        if (walker.currentNode === node) {
+            return charCount + offset;
+        }
+        charCount += walker.currentNode.textContent.length;
+    }
+
+    return charCount + offset;
+}
+
+function clearSelection() {
+    window.getSelection().removeAllRanges();
+    currentSelection = null;
+    const selectionInfo = document.getElementById('selection-info');
+    if (selectionInfo) selectionInfo.style.display = 'none';
+}
+
+async function reviseSelection() {
+    if (!currentGenId || !currentSelection) return;
+
+    // Get optional instructions
+    const instructionsEl = document.getElementById('revision-instructions');
+    const instructions = instructionsEl ? instructionsEl.value.trim() : '';
+
+    try {
+        document.getElementById('gen-step-review').style.display = 'none';
+        document.getElementById('gen-step-progress').style.display = 'block';
+        updateProgress('revising', 'Revising selected text...');
+
+        const response = await fetch(apiUrl(`/generations/${currentGenId}/revise-selection`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                selection_start: currentSelection.start,
+                selection_end: currentSelection.end,
+                selection_text: currentSelection.text,
+                instructions: instructions || null
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to revise selection');
+        }
+
+        // Clear selection and instructions
+        clearSelection();
+        clearRevisionInstructions();
+
+        startPolling();
+    } catch (e) {
+        alert('Error: ' + e.message);
+        document.getElementById('gen-step-progress').style.display = 'none';
+        document.getElementById('gen-step-review').style.display = 'block';
+    }
+}
+
+// ============================================
+// Floating AI Revision Bubble (Reading View)
+// ============================================
+let readingSelection = null;  // {text, start, end} for reading view selection
+
+function setupReadingSelectionTracking() {
+    document.addEventListener('mouseup', (e) => {
+        // Only track in reading view
+        const readingView = document.getElementById('reading-view');
+        const readingContent = document.getElementById('reading-content');
+        if (!readingView || readingView.style.display === 'none' || !readingContent) return;
+
+        // Check if we're in reading mode (not editing mode)
+        const readingMode = document.getElementById('reading-mode');
+        if (!readingMode || readingMode.style.display === 'none') return;
+
+        // Only allow revision on individual scenes (not chapters/manuscripts)
+        if (!currentReadingData || currentReadingData.type !== 'scene') {
+            const bubble = document.getElementById('revision-bubble');
+            if (bubble && !bubble.contains(e.target)) {
+                hideRevisionBubble();
+            }
+            return;
+        }
+
+        // Check if scene is canon - don't allow revision
+        if (currentReadingData.is_canon) {
+            // Still hide bubble if clicking outside
+            const bubble = document.getElementById('revision-bubble');
+            if (bubble && !bubble.contains(e.target)) {
+                hideRevisionBubble();
+            }
+            return;  // Don't show bubble for canon scenes
+        }
+
+        const selection = window.getSelection();
+
+        if (selection.rangeCount > 0 && selection.toString().trim()) {
+            const range = selection.getRangeAt(0);
+
+            if (readingContent.contains(range.commonAncestorContainer)) {
+                const selectedText = selection.toString().trim();
+
+                if (selectedText.length > 10) {  // Minimum selection length
+                    const fullText = readingContent.textContent;
+                    const startOffset = getTextOffsetInElement(readingContent, range.startContainer, range.startOffset);
+                    const endOffset = getTextOffsetInElement(readingContent, range.endContainer, range.endOffset);
+
+                    readingSelection = {
+                        text: selectedText,
+                        start: startOffset,
+                        end: endOffset
+                    };
+
+                    // Position and show bubble
+                    const rect = range.getBoundingClientRect();
+                    showRevisionBubble(rect);
+                    return;
+                }
+            }
+        }
+
+        // If clicking outside bubble and no valid selection, hide it
+        // But don't hide if clicking on buttons or other UI elements
+        const bubble = document.getElementById('revision-bubble');
+        if (bubble && !bubble.contains(e.target)) {
+            // Don't hide if clicking on buttons, links, or other interactive elements
+            const clickedElement = e.target;
+            const isInteractive = clickedElement.closest('button, a, .btn, .nav-btn, #back-to-top');
+            if (!isInteractive) {
+                hideRevisionBubble();
+            }
+        }
+    });
+}
+
+function getTextOffsetInElement(root, node, offset) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null, false);
+    let charCount = 0;
+
+    while (walker.nextNode()) {
+        if (walker.currentNode === node) {
+            return charCount + offset;
+        }
+        charCount += walker.currentNode.textContent.length;
+    }
+
+    return charCount + offset;
+}
+
+function showRevisionBubble(selectionRect) {
+    const bubble = document.getElementById('revision-bubble');
+    if (!bubble) return;
+
+    // Populate model dropdown
+    populateBubbleModelSelect();
+
+    // Position bubble near selection
+    const bubbleWidth = 280;
+    const bubbleHeight = 340;  // Increased for quick action buttons
+
+    let left = selectionRect.left + (selectionRect.width / 2) - (bubbleWidth / 2);
+    let top = selectionRect.bottom + 10;
+
+    // Keep within viewport horizontally
+    if (left < 10) left = 10;
+    if (left + bubbleWidth > window.innerWidth - 10) {
+        left = window.innerWidth - bubbleWidth - 10;
+    }
+
+    // Keep within viewport vertically
+    if (top + bubbleHeight > window.innerHeight - 10) {
+        // Try showing above selection
+        top = selectionRect.top - bubbleHeight - 10;
+    }
+    // If still off-screen (above viewport), clamp to top
+    if (top < 10) {
+        top = 10;
+    }
+
+    bubble.style.left = left + 'px';
+    bubble.style.top = top + 'px';
+    bubble.style.display = 'block';
+
+    // Clear previous instructions
+    document.getElementById('bubble-instructions').value = '';
+}
+
+function hideRevisionBubble() {
+    const bubble = document.getElementById('revision-bubble');
+    if (bubble) bubble.style.display = 'none';
+    readingSelection = null;
+    window.getSelection().removeAllRanges();
+}
+
+function populateBubbleModelSelect() {
+    const select = document.getElementById('bubble-model-select');
+    if (!select) return;
+
+    // Keep "Use Default" option
+    select.innerHTML = '<option value="">Use Default</option>';
+
+    // Add available models (reuse the availableModels from the app)
+    if (typeof availableModels !== 'undefined' && availableModels.length > 0) {
+        availableModels.forEach(model => {
+            const option = document.createElement('option');
+            option.value = model.id;
+            option.textContent = model.name || model.id.split('/').pop();
+            select.appendChild(option);
+        });
+    }
+}
+
+async function applyBubbleRevision(quickAction = null) {
+    if (!readingSelection || !currentReadingData) {
+        alert('No text selected');
+        return;
+    }
+
+    const model = document.getElementById('bubble-model-select').value || null;
+    const instructions = document.getElementById('bubble-instructions').value.trim() || null;
+    const sceneId = currentReadingData.id;
+
+    if (!sceneId) {
+        alert('No scene context available');
+        return;
+    }
+
+    // Show loading state on all buttons
+    const bubble = document.getElementById('revision-bubble');
+    const allBtns = bubble.querySelectorAll('button');
+    allBtns.forEach(btn => btn.disabled = true);
+    const reviseBtn = bubble.querySelector('.bubble-actions button');
+    const originalText = reviseBtn.textContent;
+    reviseBtn.textContent = 'Revising...';
+
+    try {
+        const url = apiUrl(`/scenes/${sceneId}/revise-selection`);
+        console.log('Revise selection URL:', url);
+        console.log('Request body:', {
+            selection_start: readingSelection.start,
+            selection_end: readingSelection.end,
+            selection_text: readingSelection.text.substring(0, 50) + '...',
+            quick_action: quickAction
+        });
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                selection_start: readingSelection.start,
+                selection_end: readingSelection.end,
+                selection_text: readingSelection.text,
+                instructions: instructions,
+                model: model,
+                quick_action: quickAction
+            })
+        });
+
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error response:', errorText);
+            let errorDetail = 'Failed to revise selection';
+            try {
+                const error = JSON.parse(errorText);
+                errorDetail = error.detail || errorDetail;
+            } catch (e) {
+                errorDetail = errorText || errorDetail;
+            }
+            throw new Error(errorDetail);
+        }
+
+        const result = await response.json();
+
+        // Store original prose on first edit
+        if (!readingDirty && !readingOriginalProse) {
+            readingOriginalProse = currentReadingData.prose;
+        }
+
+        // Update reading content with new prose (NOT saved yet)
+        readingCurrentProse = result.merged_prose;
+        document.getElementById('reading-content').textContent = result.merged_prose;
+
+        // Update current reading data (local state only)
+        currentReadingData.prose = result.merged_prose;
+
+        // Update word count
+        document.getElementById('reading-stats').textContent = `${result.word_count.toLocaleString()} words`;
+
+        // Mark as dirty and show save indicator
+        setReadingDirty(true);
+
+        // Autosave to localStorage
+        autosaveToLocalStorage();
+
+        showToast('Selection Revised', 'Changes pending - remember to save', 'info');
+        hideRevisionBubble();
+
+    } catch (e) {
+        alert('Error: ' + e.message);
+    } finally {
+        allBtns.forEach(btn => btn.disabled = false);
+        reviseBtn.textContent = originalText;
+    }
+}
+
+async function applyQuickAction(action) {
+    await applyBubbleRevision(action);
+}
+
+function setReadingDirty(dirty) {
+    readingDirty = dirty;
+    const indicator = document.getElementById('reading-dirty-indicator');
+    if (indicator) {
+        if (dirty) {
+            indicator.classList.add('visible');
+        } else {
+            indicator.classList.remove('visible');
+        }
+    }
+}
+
+function autosaveToLocalStorage() {
+    if (!currentReadingData || !readingCurrentProse) return;
+
+    const recoveryData = {
+        projectId: currentProject,
+        sceneId: currentReadingData.id,
+        sceneTitle: currentReadingData.title,
+        originalProse: readingOriginalProse,
+        currentProse: readingCurrentProse,
+        timestamp: Date.now()
+    };
+
+    localStorage.setItem('prose_recovery', JSON.stringify(recoveryData));
+}
+
+function clearLocalStorageRecovery() {
+    localStorage.removeItem('prose_recovery');
+}
+
+async function saveReadingProse() {
+    if (!currentReadingData || !readingCurrentProse) return;
+
+    const sceneId = currentReadingData.id;
+    const saveBtn = document.querySelector('#reading-dirty-indicator .save-btn');
+
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+    }
+
+    try {
+        const response = await fetch(apiUrl(`/scenes/${sceneId}/save-prose`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prose: readingCurrentProse })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to save');
+        }
+
+        const result = await response.json();
+
+        // Clear dirty state
+        setReadingDirty(false);
+        readingOriginalProse = null;
+        readingCurrentProse = null;
+        clearLocalStorageRecovery();
+
+        // Reload scenes to update sidebar
+        await loadScenes();
+
+        showToast('Saved', result.message, 'success');
+
+    } catch (e) {
+        alert('Error saving: ' + e.message);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save';
+        }
+    }
+}
+
+function checkForRecovery() {
+    const recoveryJson = localStorage.getItem('prose_recovery');
+    if (!recoveryJson) return;
+
+    try {
+        const recovery = JSON.parse(recoveryJson);
+
+        // Check if recovery is recent (within 24 hours)
+        const hoursSinceRecovery = (Date.now() - recovery.timestamp) / (1000 * 60 * 60);
+        if (hoursSinceRecovery > 24) {
+            clearLocalStorageRecovery();
+            return;
+        }
+
+        // Show recovery modal
+        const modal = document.getElementById('recovery-modal');
+        const info = document.getElementById('recovery-info');
+        if (modal && info) {
+            const timeAgo = formatTimeAgo(recovery.timestamp);
+            info.textContent = `Found unsaved changes to "${recovery.sceneTitle}" from ${timeAgo}.`;
+            modal.style.display = 'flex';
+        }
+    } catch (e) {
+        console.error('Error checking recovery:', e);
+        clearLocalStorageRecovery();
+    }
+}
+
+function formatTimeAgo(timestamp) {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 60) return 'just now';
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
+    return 'yesterday';
+}
+
+async function restoreRecovery() {
+    const recoveryJson = localStorage.getItem('prose_recovery');
+    if (!recoveryJson) return;
+
+    try {
+        const recovery = JSON.parse(recoveryJson);
+
+        // Navigate to the scene's project if needed
+        if (currentProject !== recovery.projectId) {
+            await selectProject(recovery.projectId);
+        }
+
+        // Open the scene in reading view
+        await showSceneProse(recovery.sceneId);
+
+        // Apply recovered prose
+        readingOriginalProse = recovery.originalProse;
+        readingCurrentProse = recovery.currentProse;
+        document.getElementById('reading-content').textContent = recovery.currentProse;
+        currentReadingData.prose = recovery.currentProse;
+
+        // Update word count
+        const wordCount = recovery.currentProse.trim().split(/\s+/).length;
+        document.getElementById('reading-stats').textContent = `${wordCount.toLocaleString()} words`;
+
+        // Mark as dirty
+        setReadingDirty(true);
+
+        showToast('Recovered', 'Unsaved changes restored', 'success');
+
+    } catch (e) {
+        console.error('Error restoring recovery:', e);
+        alert('Failed to restore changes');
+    }
+
+    // Hide modal
+    document.getElementById('recovery-modal').style.display = 'none';
+}
+
+function discardRecovery() {
+    clearLocalStorageRecovery();
+    document.getElementById('recovery-modal').style.display = 'none';
+    showToast('Discarded', 'Unsaved changes cleared', 'info');
+}
+
+function showUnsavedChangesModal(navigationCallback) {
+    pendingNavigation = navigationCallback;
+    document.getElementById('unsaved-changes-modal').style.display = 'flex';
+}
+
+function discardUnsavedChanges() {
+    // Clear dirty state
+    setReadingDirty(false);
+    readingOriginalProse = null;
+    readingCurrentProse = null;
+    clearLocalStorageRecovery();
+
+    // Hide modal
+    document.getElementById('unsaved-changes-modal').style.display = 'none';
+
+    // Execute pending navigation
+    if (pendingNavigation) {
+        pendingNavigation();
+        pendingNavigation = null;
+    }
+}
+
+async function saveAndContinue() {
+    await saveReadingProse();
+
+    // Hide modal
+    document.getElementById('unsaved-changes-modal').style.display = 'none';
+
+    // Execute pending navigation
+    if (pendingNavigation) {
+        pendingNavigation();
+        pendingNavigation = null;
+    }
+}
+
+function checkUnsavedBeforeNavigation(callback) {
+    if (readingDirty) {
+        showUnsavedChangesModal(callback);
+        return false;  // Navigation blocked
+    }
+    return true;  // OK to navigate
 }
 
 async function showCompleteStep(data) {

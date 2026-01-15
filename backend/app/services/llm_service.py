@@ -230,6 +230,74 @@ class LLMService:
             except Exception as e:
                 raise Exception(f"LLM API revision failed: {str(e)}")
 
+    async def revise_selection(
+        self,
+        full_prose: str,
+        selection: str,
+        selection_start: int,
+        selection_end: int,
+        system_prompt: str,
+        critique: str = None,
+        instructions: str = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        model: Optional[str] = None
+    ) -> str:
+        """
+        Revise only a selected portion of prose.
+
+        Args:
+            full_prose: Complete prose text
+            selection: Selected text to revise
+            selection_start: Start index of selection
+            selection_end: End index of selection
+            system_prompt: System prompt with context
+            critique: Optional critique context
+            instructions: Optional user guidance
+            temperature: Optional temperature override
+            max_tokens: Optional max tokens override
+            model: Optional model override
+
+        Returns:
+            Revised selection text only
+
+        Raises:
+            Exception: If API call fails
+        """
+        self._check_and_refresh_client()
+        async with self.semaphore:
+            try:
+                from app.utils.prompt_templates import build_selection_revision_prompt
+
+                user_prompt = build_selection_revision_prompt(
+                    full_prose, selection, selection_start, selection_end, critique, instructions
+                )
+                use_model = model or settings.generation_model
+
+                if self.provider == "anthropic":
+                    response = await self.client.messages.create(
+                        model=use_model,
+                        max_tokens=max_tokens or settings.generation_max_tokens,
+                        temperature=temperature or settings.generation_temperature,
+                        system=system_prompt,
+                        messages=[{"role": "user", "content": user_prompt}]
+                    )
+                    return response.content[0].text
+                else:  # openrouter
+                    response = await self.client.chat.completions.create(
+                        model=use_model,
+                        max_tokens=max_tokens or settings.generation_max_tokens,
+                        temperature=temperature or settings.generation_temperature,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ]
+                    )
+                    return response.choices[0].message.content
+
+            except Exception as e:
+                raise Exception(f"LLM API selection revision failed: {str(e)}")
+
     async def generate_summary(
         self,
         scene_title: str,

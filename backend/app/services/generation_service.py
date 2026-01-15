@@ -443,6 +443,135 @@ class GenerationService:
             state.updated_at = datetime.utcnow()
             await self.state_manager.save_state(state)
 
+    async def revise_selection(
+        self,
+        project_id: str,
+        generation_id: str,
+        selection_start: int,
+        selection_end: int,
+        selection_text: str,
+        instructions: str = None
+    ) -> GenerationState:
+        """
+        Revise only a selected portion of the prose.
+
+        Args:
+            project_id: Project ID
+            generation_id: Generation ID
+            selection_start: Start index of selection in prose
+            selection_end: End index of selection in prose
+            selection_text: The selected text (for verification)
+            instructions: Optional user guidance for revision
+
+        Returns:
+            Updated generation state
+
+        Raises:
+            ValueError: If generation not awaiting approval
+        """
+        state = await self.state_manager.load_state(project_id, generation_id)
+
+        if state.status != GenerationStatus.AWAITING_APPROVAL:
+            raise ValueError(f"Generation not awaiting approval (status: {state.status})")
+
+        # Mark current iteration as approved
+        state.iterations[-1].approved = True
+        await self.state_manager.save_state(state)
+
+        # Start selection revision in background
+        import asyncio
+        asyncio.create_task(self._run_selection_revision(
+            project_id, generation_id, selection_start, selection_end, selection_text, instructions
+        ))
+
+        return state
+
+    async def _run_selection_revision(
+        self,
+        project_id: str,
+        generation_id: str,
+        selection_start: int,
+        selection_end: int,
+        selection_text: str,
+        instructions: str = None
+    ) -> None:
+        """
+        Run selection-based revision.
+
+        Args:
+            project_id: Project ID
+            generation_id: Generation ID
+            selection_start: Start index of selection
+            selection_end: End index of selection
+            selection_text: Selected text to revise
+            instructions: Optional user guidance
+        """
+        try:
+            # Load state
+            state = await self.state_manager.load_state(project_id, generation_id)
+            state.status = GenerationStatus.REVISING
+            state.updated_at = datetime.utcnow()
+            await self.state_manager.save_state(state)
+
+            # Load context
+            scene = await self._load_scene(project_id, state.scene_id)
+            characters = await self._load_characters(project_id, state.character_ids)
+            world_contexts = await self._load_world_contexts(project_id, state.world_context_ids)
+            previous_summaries = await self._load_previous_summaries(project_id, state.previous_scene_ids)
+            style_guide = await self._load_style_guide(project_id)
+
+            # Build system prompt
+            system_prompt = build_system_prompt(characters, world_contexts, previous_summaries, style_guide)
+
+            # Get current prose and critique
+            current_prose = state.iterations[-1].prose
+            critique = state.iterations[-1].critique
+
+            # Revise only the selection
+            revised_selection = await self.llm.revise_selection(
+                full_prose=current_prose,
+                selection=selection_text,
+                selection_start=selection_start,
+                selection_end=selection_end,
+                system_prompt=system_prompt,
+                critique=critique,
+                instructions=instructions,
+                model=state.generation_model
+            )
+
+            # Clean any AI preambles
+            revised_selection = clean_prose_output(revised_selection)
+
+            # Splice the revised selection back into the full prose
+            merged_prose = current_prose[:selection_start] + revised_selection + current_prose[selection_end:]
+
+            # Create new iteration
+            iteration = Iteration(
+                iteration_number=state.current_iteration + 1,
+                prose=merged_prose,
+                critique=None,
+                approved=None,
+                timestamp=datetime.utcnow()
+            )
+
+            # Update state
+            state.current_iteration += 1
+            state.iterations.append(iteration)
+            state.status = GenerationStatus.GENERATION_COMPLETE
+            state.updated_at = datetime.utcnow()
+            await self.state_manager.save_state(state)
+
+            # Auto-run critique
+            await self._run_critique(project_id, generation_id)
+
+        except Exception as e:
+            # Update state with error
+            state = await self.state_manager.load_state(project_id, generation_id)
+            state.status = GenerationStatus.ERROR
+            state.error_message = str(e)
+            state.updated_at = datetime.utcnow()
+            await self.state_manager.save_state(state)
+
     async def accept_final(self, project_id: str, generation_id: str) -> GenerationState:
         """
         Accept current prose as final and generate summary.
