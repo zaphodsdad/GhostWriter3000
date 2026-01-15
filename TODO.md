@@ -47,6 +47,13 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 
 ---
 
+## BUGS: Fix First
+
+- [ ] Floating AI bubble inconsistent - sometimes appears, mostly doesn't
+- [ ] Sidebar not updating after canon toggle - requires full page reload
+
+---
+
 ## NOW: Editing Module
 
 *Revise existing prose through the critique loop.*
