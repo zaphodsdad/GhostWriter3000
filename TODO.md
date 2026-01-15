@@ -36,6 +36,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Continuity system - auto-include last 10 scene summaries
 - [x] Manuscript import - upload .docx/.txt/.md, auto-split chapters, create scenes in edit mode
 - [x] Floating AI revision bubble - select text in reading view for inline AI editing
+- [x] Canon toggle from reading view - mark/unmark scenes as canon without entering edit mode
 
 ---
 

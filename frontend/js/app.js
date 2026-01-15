@@ -2461,6 +2461,22 @@ async function showReadingView(type, id) {
             currentReadingData = { type, id, title, prose, is_canon: data.is_canon, edit_mode: data.edit_mode };
             document.getElementById('reference-btn').style.display = 'inline-flex';
             document.getElementById('edit-prose-btn').style.display = 'inline-flex';
+            // Show canon toggle button if scene has prose
+            const markCanonBtn = document.getElementById('mark-canon-btn');
+            if (markCanonBtn) {
+                if (prose && prose.trim()) {
+                    markCanonBtn.style.display = 'inline-flex';
+                    if (data.is_canon) {
+                        markCanonBtn.textContent = 'Remove from Canon';
+                        markCanonBtn.className = 'btn btn-warning';
+                    } else {
+                        markCanonBtn.textContent = 'Mark as Canon';
+                        markCanonBtn.className = 'btn btn-success';
+                    }
+                } else {
+                    markCanonBtn.style.display = 'none';
+                }
+            }
 
         } else if (type === 'chapter') {
             const response = await fetch(apiUrl(`/chapters/${id}/prose`));
@@ -2474,6 +2490,7 @@ async function showReadingView(type, id) {
             currentReadingData = { type, id, title, prose };
             document.getElementById('reference-btn').style.display = 'inline-flex';
             document.getElementById('edit-prose-btn').style.display = 'none';
+            document.getElementById('mark-canon-btn').style.display = 'none';
 
         } else if (type === 'manuscript') {
             title = currentProject.title;
@@ -2503,6 +2520,7 @@ async function showReadingView(type, id) {
             currentReadingData = { type, id: null, title, prose };
             document.getElementById('reference-btn').style.display = 'none';
             document.getElementById('edit-prose-btn').style.display = 'none';
+            document.getElementById('mark-canon-btn').style.display = 'none';
 
         } else if (type === 'act') {
             const act = acts.find(a => a.id === id);
@@ -2536,6 +2554,7 @@ async function showReadingView(type, id) {
             currentReadingData = { type, id, title, prose };
             document.getElementById('reference-btn').style.display = 'inline-flex';
             document.getElementById('edit-prose-btn').style.display = 'none';
+            document.getElementById('mark-canon-btn').style.display = 'none';
         }
 
     } catch (e) {
@@ -2827,6 +2846,68 @@ async function saveProseEdit() {
     } catch (e) {
         updateSaveStatus('error');
         alert('Error saving prose: ' + e.message);
+    }
+}
+
+async function toggleCanonFromReading() {
+    if (!currentReadingData || currentReadingData.type !== 'scene') return;
+    if (!currentReadingData.prose || !currentReadingData.prose.trim()) {
+        alert('Cannot change canon status: scene has no prose content.');
+        return;
+    }
+
+    const newCanonStatus = !currentReadingData.is_canon;
+    const confirmMsg = newCanonStatus
+        ? 'Mark this scene as canon? Canon scenes are included in the manuscript and used for continuity.'
+        : 'Remove this scene from canon? It will no longer be included in the manuscript.';
+
+    if (!confirm(confirmMsg)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(apiUrl(`/scenes/${currentReadingData.id}`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                is_canon: newCanonStatus
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to update canon status');
+        }
+
+        // Update current data
+        currentReadingData.is_canon = newCanonStatus;
+
+        // Update button text and style
+        const markCanonBtn = document.getElementById('mark-canon-btn');
+        if (newCanonStatus) {
+            markCanonBtn.textContent = 'Remove from Canon';
+            markCanonBtn.className = 'btn btn-warning';
+        } else {
+            markCanonBtn.textContent = 'Mark as Canon';
+            markCanonBtn.className = 'btn btn-success';
+        }
+
+        // Update subtitle
+        if (newCanonStatus) {
+            document.getElementById('reading-subtitle').textContent = currentReadingData.edit_mode ? 'Canon Scene (Edit Mode)' : 'Canon Scene';
+        } else {
+            document.getElementById('reading-subtitle').textContent = currentReadingData.edit_mode ? 'Edit Mode - Ready for Critique' : 'Not yet canon';
+        }
+
+        // Refresh data to update stats
+        await loadScenes();
+        await loadChapters();
+        updateStats();
+        renderOutlineTree();
+        renderStructureTree();
+
+    } catch (e) {
+        alert('Error updating canon status: ' + e.message);
     }
 }
 

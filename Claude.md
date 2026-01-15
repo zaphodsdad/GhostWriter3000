@@ -499,10 +499,11 @@ docker-compose -f docker/docker-compose.yml up -d
 - Include all relevant previous scenes
 
 ### Canon Status
-- Only mark canon when truly final
-- Once canon, summary is generated
-- Other scenes may reference it
-- Changing canon scenes breaks continuity
+- Toggle canon directly from reading view (green "Mark as Canon" / yellow "Remove from Canon" button)
+- Only visible for scenes with prose content
+- Once canon, summary is generated for continuity
+- Canon scenes cannot be edited with floating AI bubble (must remove from canon first)
+- Other scenes may reference canon scenes for context
 
 ### Token Budget
 - Monitor total context usage
