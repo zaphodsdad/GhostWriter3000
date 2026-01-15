@@ -4038,7 +4038,7 @@ async function previewManuscriptImport() {
         // Populate chapter dropdown
         const chapterSelect = document.getElementById('manuscript-target-chapter');
         chapterSelect.innerHTML = '<option value="">-- Select Chapter --</option>';
-        chaptersData.forEach(ch => {
+        chapters.forEach(ch => {
             chapterSelect.innerHTML += `<option value="${ch.id}">${ch.title}</option>`;
         });
 
