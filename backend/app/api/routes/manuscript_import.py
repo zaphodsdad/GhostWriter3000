@@ -2,6 +2,7 @@
 
 import io
 import re
+import logging
 from datetime import datetime
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form
 from pydantic import BaseModel, Field
@@ -11,6 +12,7 @@ from app.config import settings
 from app.utils.file_utils import write_json_file, read_json_file
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class ManuscriptPreview(BaseModel):
@@ -58,10 +60,10 @@ class ImportResult(BaseModel):
 class BulkImportRequest(BaseModel):
     """Request to import multiple chapters as scenes."""
     chapters: List[ChapterSplit]
-    chapter_id: Optional[str] = Field(None, description="Chapter to create scenes in (legacy)")
-    act_id: Optional[str] = Field(None, description="Act to create chapters in (optional)")
-    enable_edit_mode: bool = Field(True, description="Enable edit mode for each scene")
-    create_chapters: bool = Field(True, description="Create chapters from manuscript structure")
+    chapter_id: str | None = None  # Chapter to create scenes in (legacy)
+    act_id: str | None = None  # Act to create chapters in (optional)
+    enable_edit_mode: bool = True  # Enable edit mode for each scene
+    create_chapters: bool = True  # Create chapters from manuscript structure
 
 
 class BulkImportResult(BaseModel):

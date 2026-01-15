@@ -4089,6 +4089,14 @@ async function confirmManuscriptImport() {
         let result;
 
         if (splitByChapters) {
+            // Validate manuscript data exists
+            if (!manuscriptPreviewData || !manuscriptPreviewData.chapters) {
+                throw new Error('No manuscript data available. Please preview first.');
+            }
+            if (!Array.isArray(manuscriptPreviewData.chapters) || manuscriptPreviewData.chapters.length === 0) {
+                throw new Error('No chapters found in manuscript data.');
+            }
+
             // Bulk import - create chapters and scenes
             const response = await fetch(apiUrl('/manuscript/import-bulk'), {
                 method: 'POST',
@@ -4103,7 +4111,15 @@ async function confirmManuscriptImport() {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.detail || 'Failed to import manuscript');
+                console.error('Import bulk error:', error);
+                // Handle FastAPI validation errors (detail is an array)
+                let errorMsg = 'Failed to import manuscript';
+                if (Array.isArray(error.detail)) {
+                    errorMsg = error.detail.map(e => `${e.loc?.join('.')}: ${e.msg}`).join('; ');
+                } else if (typeof error.detail === 'string') {
+                    errorMsg = error.detail;
+                }
+                throw new Error(errorMsg);
             }
 
             result = await response.json();
@@ -4132,7 +4148,14 @@ async function confirmManuscriptImport() {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.detail || 'Failed to import manuscript');
+                console.error('Import bulk error:', error);
+                let errorMsg = 'Failed to import manuscript';
+                if (Array.isArray(error.detail)) {
+                    errorMsg = error.detail.map(e => `${e.loc?.join('.')}: ${e.msg}`).join('; ');
+                } else if (typeof error.detail === 'string') {
+                    errorMsg = error.detail;
+                }
+                throw new Error(errorMsg);
             }
 
             result = await response.json();

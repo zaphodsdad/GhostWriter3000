@@ -1,6 +1,15 @@
 # Prose Pipeline - TODO
 
-**Last Updated:** 2026-01-14
+**Last Updated:** 2026-01-15
+
+---
+
+## KNOWN ISSUES - FIX FIRST
+
+**Mammoth library not installed**: .docx import fails. Fix with:
+```bash
+cd backend && pip install --target=./venv/lib/python3.12/site-packages mammoth
+```
 
 ---
 
