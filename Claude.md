@@ -92,16 +92,18 @@ Revise existing manuscripts instead of generating from scratch:
 Bulk import existing prose for revision:
 - **File formats**: .docx (via mammoth), .txt, .md
 - **Chapter detection**: Auto-detects "Chapter 1", "CHAPTER ONE", "Chapter One: Title", etc.
-- **Bulk creation**: Each detected chapter becomes a scene in edit mode
-- **Single import**: Import entire text as one scene if preferred
+- **Bulk creation**: Each detected chapter becomes a Chapter + Scene in edit mode
+- **Single import**: Import entire text as one chapter/scene if preferred
+- **Edit mode display**: Imported prose shown in reading pane with "Edit Mode - Ready for Critique" status
 
 **Workflow**:
 1. Structure → Import → Manuscript tab
 2. Upload file or paste text
 3. Preview detected chapters
-4. Select target chapter for scenes
-5. Confirm import → scenes created in edit mode
-6. Run critique/revise loop on each scene
+4. Optionally select target Act
+5. Confirm import → chapters and scenes created in edit mode
+6. Click any scene to view imported prose
+7. Run critique/revise loop on each scene
 
 ### 5. Character Management
 Characters stored as markdown files with YAML frontmatter:

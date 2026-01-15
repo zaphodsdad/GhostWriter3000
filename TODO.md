@@ -56,9 +56,10 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 **What exists:**
 - Single-scene edit mode (import prose, skip to critique)
 - Critique → revise loop works
-- **Manuscript import** - upload .docx/.txt/.md files
+- **Manuscript import** - upload .docx/.txt/.md files (mammoth for .docx)
 - **Auto chapter detection** - splits by "Chapter 1", "CHAPTER ONE", etc.
-- **Bulk scene creation** - each chapter becomes a scene in edit mode
+- **Bulk scene creation** - each chapter becomes a Chapter + Scene in edit mode
+- **Edit mode display** - imported prose visible in reading pane with "Edit Mode - Ready for Critique" status
 
 **To add:**
 - [ ] Side-by-side view - original vs revised

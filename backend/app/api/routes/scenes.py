@@ -286,14 +286,23 @@ async def get_scene_prose(project_id: str, scene_id: str):
         data = await read_json_file(filepath)
 
         word_count = 0
-        if data.get("prose"):
-            word_count = len(data["prose"].split())
+        prose = data.get("prose")
+        original_prose = data.get("original_prose")
+        edit_mode = data.get("edit_mode", False)
+
+        # Count words from prose, or original_prose if in edit mode
+        if prose:
+            word_count = len(prose.split())
+        elif original_prose:
+            word_count = len(original_prose.split())
 
         return {
             "scene_id": scene_id,
             "title": data.get("title", "Untitled"),
             "is_canon": data.get("is_canon", False),
-            "prose": data.get("prose"),
+            "prose": prose,
+            "original_prose": original_prose,
+            "edit_mode": edit_mode,
             "summary": data.get("summary"),
             "word_count": word_count
         }

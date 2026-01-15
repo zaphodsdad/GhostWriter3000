@@ -2413,11 +2413,17 @@ async function showReadingView(type, id) {
             const data = await response.json();
 
             title = data.title;
-            subtitle = data.is_canon ? 'Canon Scene' : 'Not yet canon';
-            prose = data.prose || '';
+            // Show edit mode status in subtitle
+            if (data.edit_mode) {
+                subtitle = data.is_canon ? 'Canon Scene (Edit Mode)' : 'Edit Mode - Ready for Critique';
+            } else {
+                subtitle = data.is_canon ? 'Canon Scene' : 'Not yet canon';
+            }
+            // Use original_prose if in edit mode and prose is empty
+            prose = data.prose || data.original_prose || '';
             wordCount = data.word_count || 0;
 
-            currentReadingData = { type, id, title, prose, is_canon: data.is_canon };
+            currentReadingData = { type, id, title, prose, is_canon: data.is_canon, edit_mode: data.edit_mode };
             document.getElementById('reference-btn').style.display = 'inline-flex';
             document.getElementById('edit-prose-btn').style.display = 'inline-flex';
 
@@ -4167,9 +4173,9 @@ async function confirmManuscriptImport() {
         document.getElementById('import-step-progress').style.display = 'none';
         document.getElementById('import-step-complete').style.display = 'block';
 
-        // Refresh scenes
+        // Refresh data after import
+        await loadChapters();
         await loadScenes();
-        await loadStructure();
 
         // Auto-close modal after brief delay
         setTimeout(() => {
