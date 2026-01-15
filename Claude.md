@@ -241,6 +241,29 @@ Comprehensive data protection with automatic and manual backups:
 - Scene versions: Last 10 per scene
 - Auto-snapshots: Last 5 (checkpoints exempt)
 
+### 16. Floating AI Revision Bubble
+Inline text editing in reading view:
+- **Text Selection**: Select any text in reading view to trigger revision bubble
+- **Quick Actions**: One-click buttons for common edits (Shorten, Lengthen, Rephrase, More Vivid, More Tension, Simplify)
+- **Custom Instructions**: Free-form text field for specific revision guidance
+- **Model Selection**: Override default model for individual revisions
+- **Dirty State**: Visual indicator when unsaved changes exist
+- **Autosave**: Changes saved to localStorage for crash recovery
+- **Save Flow**: Changes are NOT auto-saved to backend; user must explicitly save
+
+**Workflow**:
+1. Open a scene in reading view (must not be canon)
+2. Select text (minimum 10 characters)
+3. Bubble appears near selection
+4. Click quick action or enter custom instructions
+5. AI revises only the selected portion
+6. Full prose updated in reading view
+7. Save when satisfied (or changes auto-recover if browser closes)
+
+**API Endpoints**:
+- `POST /scenes/{id}/revise-selection` - Revise selected text
+- `POST /scenes/{id}/save-prose` - Persist changes to backend
+
 ## Scene Summary & Continuity System
 
 ### The Problem
@@ -527,6 +550,7 @@ The project is fully functional with:
 - **Word count goals** - Track progress with visual progress bar
 - **Credit alerts** - Notifications when OpenRouter balance is low
 - **Editable generation preview** - Tweak scene outline before generating
+- **Floating AI revision bubble** - Select text for inline AI editing with quick actions
 - Docker deployment support
 
 Ready for production use for personal prose generation projects.

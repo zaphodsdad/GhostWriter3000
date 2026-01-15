@@ -35,6 +35,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Basic edit mode - import prose, run through critique loop
 - [x] Continuity system - auto-include last 10 scene summaries
 - [x] Manuscript import - upload .docx/.txt/.md, auto-split chapters, create scenes in edit mode
+- [x] Floating AI revision bubble - select text in reading view for inline AI editing
 
 ---
 
@@ -80,12 +81,14 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Pass instructions to revision prompt
 - [x] Quick-add hint chips for common instructions
 
-**Phase 3: Selection-Based Revision**
-- [ ] Track text selection in prose panel
-- [ ] "Revise Selection" button - revise only highlighted portion
-- [ ] New API endpoint: `POST /generations/{id}/revise-selection`
-- [ ] Send selection + surrounding context to Claude
-- [ ] Splice revised selection back into full prose
+**Phase 3: Selection-Based Revision** *(Complete)*
+- [x] Track text selection in prose panel
+- [x] Floating AI revision bubble with quick actions
+- [x] New API endpoint: `POST /scenes/{id}/revise-selection`
+- [x] Send selection + surrounding context to Claude
+- [x] Splice revised selection back into full prose
+- [x] Dirty state tracking with save indicator
+- [x] Autosave to localStorage for crash recovery
 
 **Phase 4: Inline Accept/Reject**
 - [ ] Click individual changes to toggle accept/reject
