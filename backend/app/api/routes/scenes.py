@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from app.models.scene import Scene, SceneCreate, SceneUpdate
 from app.config import settings
 from app.utils.file_utils import write_json_file, read_json_file, delete_file
+from app.utils.backup import backup_scene
 
 router = APIRouter()
 
@@ -252,6 +253,9 @@ async def delete_scene(project_id: str, scene_id: str):
     ensure_project_exists(project_id)
 
     try:
+        # Backup before delete
+        await backup_scene(project_id, scene_id, reason="pre-delete")
+
         filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
         await delete_file(filepath)
         return {"message": f"Scene {scene_id} deleted successfully"}

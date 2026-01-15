@@ -9,6 +9,7 @@ from typing import List
 from app.models.project import Project, ProjectCreate, ProjectUpdate, ProjectSummary
 from app.config import settings
 from app.utils.file_utils import read_json_file, write_json_file
+from app.utils.backup import create_snapshot
 from typing import Optional
 
 router = APIRouter()
@@ -287,6 +288,9 @@ async def clear_project_structure(project_id: str):
     project_path = settings.project_dir(project_id)
     if not project_path.exists():
         raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+    # Create snapshot before clearing structure
+    await create_snapshot(project_id, "pre-clear-structure", reason="pre-clear")
 
     deleted = {"acts": 0, "chapters": 0, "scenes": 0, "generations": 0}
 

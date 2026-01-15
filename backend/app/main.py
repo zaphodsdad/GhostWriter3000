@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.config import settings
-from app.api.routes import health, generation, scenes, characters, world, projects, acts, chapters, chat, style, outline_import, series, references, manuscript_import
+from app.api.routes import health, generation, scenes, characters, world, projects, acts, chapters, chat, style, outline_import, series, references, manuscript_import, backups
 from app.api.routes import settings as settings_routes
 from app.middleware.auth import APIKeyAuthMiddleware
 from app.utils.logging import setup_logging, get_logger
@@ -58,6 +58,7 @@ project_router.include_router(style.router, prefix="/style", tags=["style"])
 project_router.include_router(outline_import.router, prefix="/outline", tags=["outline"])
 project_router.include_router(references.router, prefix="/references", tags=["references"])
 project_router.include_router(manuscript_import.router, prefix="/manuscript", tags=["manuscript"])
+project_router.include_router(backups.router, prefix="/backups", tags=["backups"])
 app.include_router(project_router)
 
 # Serve frontend static files

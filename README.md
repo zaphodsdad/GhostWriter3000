@@ -14,6 +14,7 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **Edit Mode**: Revise existing prose through the critique loop
 - **Manuscript Import**: Upload .docx/.txt/.md files, auto-detect chapters, create scenes in edit mode
 - **Continuity System**: Automatically includes summaries from last 10 scenes for context
+- **Backup System**: Auto-backup before destructive operations, scene version history, project snapshots, and manual checkpoints
 - **Dynamic Model Selection**: Choose from available OpenRouter models with live pricing
 - **Default Model Settings**: Configure preferred generation and critique models
 - **Word Count Goals**: Track progress toward writing targets with visual progress bar
@@ -234,6 +235,16 @@ GET    /api/generations/{id}               # Get generation state
 POST   /api/generations/{id}/approve       # Approve & revise
 POST   /api/generations/{id}/accept        # Accept final
 POST   /api/generations/{id}/reject        # Reject generation
+```
+
+#### Backups
+```
+GET    /api/projects/{id}/backups/scenes/{scene_id}/versions   # List scene backup versions
+POST   /api/projects/{id}/backups/scenes/{scene_id}/backup     # Create manual scene backup
+POST   /api/projects/{id}/backups/scenes/{scene_id}/restore    # Restore scene from version
+GET    /api/projects/{id}/backups/snapshots                    # List project snapshots
+POST   /api/projects/{id}/backups/snapshots/restore            # Restore from snapshot
+POST   /api/projects/{id}/backups/checkpoint                   # Create manual checkpoint
 ```
 
 ## Configuration

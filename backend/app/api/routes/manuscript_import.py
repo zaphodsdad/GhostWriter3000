@@ -10,6 +10,7 @@ from typing import List, Optional
 
 from app.config import settings
 from app.utils.file_utils import write_json_file, read_json_file
+from app.utils.backup import create_snapshot
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -370,6 +371,9 @@ async def import_bulk_scenes(
 
     if not request.chapters:
         raise HTTPException(status_code=400, detail="No chapters provided")
+
+    # Create snapshot before bulk import
+    await create_snapshot(project_id, f"pre-import-{len(request.chapters)}-chapters", reason="pre-import")
 
     try:
         chapters_dir = settings.project_dir(project_id) / "chapters"

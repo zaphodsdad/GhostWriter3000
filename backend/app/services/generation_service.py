@@ -14,6 +14,7 @@ from app.services.series_service import get_series_service
 from app.utils.prompt_templates import build_system_prompt, build_generation_prompt, clean_prose_output
 from app.utils.file_utils import read_json_file, write_json_file
 from app.utils.logging import get_logger
+from app.utils.backup import backup_scene
 from app.config import settings
 
 logger = get_logger(__name__)
@@ -724,6 +725,9 @@ class GenerationService:
             prose: Final prose text
             summary: Generated summary
         """
+        # Backup scene before overwriting
+        await backup_scene(project_id, scene_id, reason="pre-accept-canon")
+
         filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
         data = await read_json_file(filepath)
 

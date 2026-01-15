@@ -8,6 +8,7 @@ from typing import List, Optional
 
 from app.models.chapter import Chapter, ChapterCreate, ChapterUpdate, ChapterSummary
 from app.config import settings
+from app.utils.backup import backup_chapter
 
 router = APIRouter()
 
@@ -312,6 +313,9 @@ async def delete_chapter(project_id: str, chapter_id: str):
                 status_code=400,
                 detail=f"Cannot delete chapter with {scene_count} scene(s). Move or delete scenes first."
             )
+
+        # Backup before delete
+        await backup_chapter(project_id, chapter_id, reason="pre-delete")
 
         filepath.unlink()
         return {"message": f"Chapter {chapter_id} deleted successfully"}

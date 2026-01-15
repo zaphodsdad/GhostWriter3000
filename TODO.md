@@ -94,8 +94,8 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [ ] Cost tracking - tokens per generation, running totals
 
 ### Robustness
-- [ ] Backup system - auto-backup before overwrites
-- [ ] Version history for prose iterations
+- [x] Backup system - auto-backup before overwrites (auto-backup on accept, delete, import; manual backups; checkpoints)
+- [x] Version history for prose iterations (last 10 versions per scene, full project snapshots)
 - [ ] Unit tests for services
 - [ ] Integration tests for API
 
