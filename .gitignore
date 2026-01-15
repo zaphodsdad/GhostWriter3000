@@ -52,16 +52,14 @@ htmlcov/
 *.log
 logs/
 
-# Data (except examples)
+# Data - NEVER commit user projects
+# All project data should stay local
+backend/data/
+data/projects/
+data/series/
+data/settings.json
 data/generations/*
 !data/generations/.gitkeep
-# Uncomment if you want to ignore all user data
-# data/characters/*
-# !data/characters/*.md
-# data/world/*
-# !data/world/*.md
-# data/scenes/*
-# !data/scenes/scene-001.json
 
 # Temporary files
 *.tmp
