@@ -11,9 +11,6 @@
         <header>
             <div class="header-content">
                 <div class="header-left">
-                    <button class="hamburger-btn" id="hamburger-btn" onclick="toggleSettingsModal()" title="Settings">
-                        <span class="hamburger-icon">&#9776;</span>
-                    </button>
                     <div class="header-title">
                         <h1>Prose Pipeline</h1>
                         <p>AI-powered prose generation with critique and revision</p>
@@ -23,132 +20,103 @@
             </div>
         </header>
 
-        <!-- Settings Modal -->
-        <div id="settings-modal" class="modal" style="display: none;">
-            <div class="modal-backdrop" onclick="toggleSettingsModal()"></div>
-            <div class="modal-content settings-modal">
-                <div class="modal-header">
-                    <h2>Settings</h2>
-                    <button class="modal-close" onclick="toggleSettingsModal()">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <h3>API Keys</h3>
-                    <p class="text-muted mb-20">Configure your LLM API keys. Keys are stored locally and never shared.</p>
-
-                    <div class="form-group">
-                        <label>OpenRouter API Key</label>
-                        <div class="api-key-input">
-                            <input type="password" id="settings-openrouter-key" placeholder="sk-or-v1-...">
-                            <button class="btn btn-small" onclick="togglePasswordVisibility('settings-openrouter-key')">Show</button>
-                        </div>
-                        <small class="text-muted">Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></small>
-                        <div id="openrouter-key-status" class="key-status"></div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Anthropic API Key (Direct)</label>
-                        <div class="api-key-input">
-                            <input type="password" id="settings-anthropic-key" placeholder="sk-ant-...">
-                            <button class="btn btn-small" onclick="togglePasswordVisibility('settings-anthropic-key')">Show</button>
-                        </div>
-                        <small class="text-muted">Optional. Only needed if using Anthropic directly instead of OpenRouter.</small>
-                        <div id="anthropic-key-status" class="key-status"></div>
-                    </div>
-
-                    <hr class="settings-divider">
-
-                    <h3>Custom LLM Endpoint</h3>
-                    <p class="text-muted mb-20">For self-hosted models (Ollama, vLLM, etc.) using OpenAI-compatible API.</p>
-
-                    <div class="form-group">
-                        <label>Endpoint URL</label>
-                        <input type="text" id="settings-custom-url" placeholder="http://localhost:11434/v1">
-                        <small class="text-muted">Must be OpenAI-compatible (e.g., Ollama, vLLM, text-generation-webui)</small>
-                    </div>
-
-                    <div class="form-group">
-                        <label>API Key (if required)</label>
-                        <div class="api-key-input">
-                            <input type="password" id="settings-custom-key" placeholder="Optional API key">
-                            <button class="btn btn-small" onclick="togglePasswordVisibility('settings-custom-key')">Show</button>
-                        </div>
-                    </div>
-
-                    <hr class="settings-divider">
-
-                    <h3>Default Models</h3>
-                    <p class="text-muted mb-20">Set the default AI models used when "Use Default" is selected.</p>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Generation Model</label>
-                            <select id="settings-default-gen-model">
-                                <option value="">Loading models...</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>Critique Model</label>
-                            <select id="settings-default-critique-model">
-                                <option value="">Loading models...</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <hr class="settings-divider">
-
-                    <h3>Credit Alerts</h3>
-                    <p class="text-muted mb-20">Get notified when your OpenRouter credits are running low.</p>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Low Credit Threshold</label>
-                            <div class="input-with-prefix">
-                                <span class="input-prefix">$</span>
-                                <input type="number" id="settings-credit-threshold" min="0" step="0.5" value="5" placeholder="5.00">
-                            </div>
-                            <small class="text-muted">Warn when credits fall below this amount</small>
-                        </div>
-                        <div class="form-group">
-                            <label>Enable Alerts</label>
-                            <label class="toggle">
-                                <input type="checkbox" id="settings-credit-alerts-enabled" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <hr class="settings-divider">
-
-                    <h3>Data Storage</h3>
-                    <p class="text-muted mb-20">Configure where your projects are stored.</p>
-
-                    <div class="form-group">
-                        <label>Current Data Directory</label>
-                        <div class="data-dir-display">
-                            <code id="settings-data-dir-current">/path/to/data</code>
-                            <span class="badge" id="settings-data-dir-source">default</span>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label>Change Data Directory</label>
-                        <div class="api-key-input">
-                            <input type="text" id="settings-data-dir" placeholder="Enter new path (e.g., /home/user/my-projects)">
-                            <button class="btn btn-small btn-primary" onclick="saveDataDir()">Apply</button>
-                        </div>
-                        <small class="text-muted">Server restart required after changing. Leave empty to keep current.</small>
-                        <div id="data-dir-status" class="key-status"></div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-success" onclick="saveSettings()">Save Settings</button>
-                    <button class="btn btn-secondary" onclick="toggleSettingsModal()">Cancel</button>
-                </div>
-            </div>
-        </div>
-
         <!-- Series and Project Selector (shown when no project selected) -->
         <section id="project-selector" class="view active">
+            <!-- Global Settings Panel -->
+            <div class="card settings-card" id="start-settings-panel">
+                <div class="settings-card-header" onclick="toggleStartSettings()">
+                    <div>
+                        <h2>Settings</h2>
+                        <p class="text-muted">API configuration, default models, and credits</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div class="start-credits-display" id="start-credits-container">
+                            <span class="credits-value" id="start-credits-remaining">--</span>
+                            <span class="credits-label">credits</span>
+                        </div>
+                        <span class="settings-toggle-icon" id="settings-toggle-icon">&#9660;</span>
+                    </div>
+                </div>
+                <div class="settings-card-body" id="start-settings-body" style="display: none;">
+                    <div class="settings-grid">
+                        <!-- API Keys Column -->
+                        <div class="settings-column">
+                            <h3>API Keys</h3>
+                            <div class="form-group">
+                                <label>OpenRouter API Key</label>
+                                <div class="api-key-input">
+                                    <input type="password" id="start-openrouter-key" placeholder="sk-or-v1-...">
+                                    <button class="btn btn-small" onclick="togglePasswordVisibility('start-openrouter-key')">Show</button>
+                                </div>
+                                <small class="text-muted">Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></small>
+                                <div id="start-openrouter-key-status" class="key-status"></div>
+                            </div>
+                            <div class="form-group">
+                                <label>Anthropic API Key (Direct)</label>
+                                <div class="api-key-input">
+                                    <input type="password" id="start-anthropic-key" placeholder="sk-ant-...">
+                                    <button class="btn btn-small" onclick="togglePasswordVisibility('start-anthropic-key')">Show</button>
+                                </div>
+                                <small class="text-muted">Optional. Only for direct Anthropic API.</small>
+                                <div id="start-anthropic-key-status" class="key-status"></div>
+                            </div>
+                        </div>
+                        <!-- Default Models Column -->
+                        <div class="settings-column">
+                            <h3>Default Models</h3>
+                            <div class="form-group">
+                                <label>Generation Model</label>
+                                <select id="start-default-gen-model">
+                                    <option value="">Loading models...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Critique Model</label>
+                                <select id="start-default-critique-model">
+                                    <option value="">Loading models...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Credit Alerts</label>
+                                <div style="display: flex; gap: 12px; align-items: center;">
+                                    <label class="toggle">
+                                        <input type="checkbox" id="start-credit-alerts-enabled" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                    <span class="text-muted">Warn below</span>
+                                    <div class="input-with-prefix" style="width: 80px;">
+                                        <span class="input-prefix">$</span>
+                                        <input type="number" id="start-credit-threshold" min="0" step="0.5" value="5" style="padding-left: 24px;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Data Directory Column -->
+                        <div class="settings-column">
+                            <h3>Data Storage</h3>
+                            <div class="form-group">
+                                <label>Current Location</label>
+                                <div class="data-dir-display">
+                                    <code id="start-data-dir-current">/path/to/data</code>
+                                    <span class="badge" id="start-data-dir-source">default</span>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Change Directory</label>
+                                <div class="api-key-input">
+                                    <input type="text" id="start-data-dir" placeholder="/new/path">
+                                    <button class="btn btn-small btn-primary" onclick="saveStartDataDir()">Apply</button>
+                                </div>
+                                <small class="text-muted">Server restart required.</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="settings-card-footer">
+                        <button class="btn btn-success" onclick="saveStartSettings()">Save Settings</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Library Section -->
             <div class="card">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
@@ -316,7 +284,6 @@
                         <button class="nav-btn" data-view="structure">Structure</button>
                         <button class="nav-btn" data-view="style">Style</button>
                         <button class="nav-btn" data-view="references">References</button>
-                        <button class="nav-btn" data-view="generate">Generate</button>
                         <button class="nav-btn" data-view="queue" id="queue-nav-btn">Queue <span class="queue-badge" id="queue-badge" style="display: none;">0</span></button>
                         <button class="nav-btn" data-view="chat">Chat</button>
                         <button class="nav-btn" data-view="backups">Backups</button>
@@ -362,7 +329,8 @@
                                     <li>Build <strong>World</strong> context for your story</li>
                                     <li>Set up your <strong>Structure</strong> with chapters (and optionally acts)</li>
                                     <li>Create <strong>Scenes</strong> within chapters</li>
-                                    <li><strong>Generate</strong> prose and iterate with AI critique</li>
+                                    <li>Click a scene in the <strong>Outline sidebar</strong> to open it</li>
+                                    <li><strong>Generate</strong> or <strong>Import</strong> prose, then iterate with AI critique</li>
                                     <li>Accept scenes as <strong>Canon</strong> to build your manuscript</li>
                                 </ol>
                             </div>
@@ -954,210 +922,225 @@ This will be included in the AI prompt during generation."></textarea>
                             </div>
                         </section>
 
-                        <!-- Generate View -->
-                        <section id="generate-view" class="view">
-                            <!-- Step 1: Select Scene -->
-                            <div id="gen-step-select" class="card">
-                                <h2>Generate Prose</h2>
-                                <div class="form-group">
-                                    <label>Select a Scene to Generate</label>
-                                    <select id="gen-scene-select" onchange="onSceneSelected()">
-                                        <option value="">-- Choose a Scene --</option>
-                                        <!-- Populated by JS -->
-                                    </select>
+                        <!-- Unified Scene Workspace -->
+                        <section id="scene-workspace" class="view">
+                            <div class="card workspace-card">
+                                <!-- Workspace Header -->
+                                <div class="workspace-header">
+                                    <div class="workspace-title-area">
+                                        <h2 id="ws-title">Select a Scene</h2>
+                                        <p class="text-muted" id="ws-subtitle"></p>
+                                    </div>
+                                    <div class="workspace-badges">
+                                        <span class="badge" id="ws-status-badge" style="display: none;">Draft</span>
+                                        <span class="badge canon" id="ws-canon-badge" style="display: none;">Canon</span>
+                                        <span class="badge edit-mode" id="ws-edit-mode-badge" style="display: none;">Edit Mode</span>
+                                    </div>
                                 </div>
-                                <div id="gen-scene-preview" style="display: none;">
-                                    <div class="item mt-20">
-                                        <div class="item-title" id="gen-preview-title"></div>
-                                        <div class="form-group mt-10">
-                                            <label>Scene Outline <small class="text-muted">(editable)</small></label>
-                                            <textarea id="gen-preview-outline" style="min-height: 120px;" placeholder="Scene outline..."></textarea>
+
+                                <!-- State: Empty (no prose yet) -->
+                                <div id="ws-empty" class="workspace-state" style="display: none;">
+                                    <div class="ws-outline-section">
+                                        <h3>Scene Outline</h3>
+                                        <div class="prose-box" id="ws-outline-display"></div>
+                                    </div>
+
+                                    <!-- Generation Settings (collapsible) -->
+                                    <div class="ws-settings-section">
+                                        <div class="ws-settings-header" onclick="toggleWorkspaceSettings()">
+                                            <span>Generation Settings</span>
+                                            <span id="ws-settings-toggle" class="toggle-icon">▶</span>
+                                        </div>
+                                        <div id="ws-settings-body" class="ws-settings-body" style="display: none;">
+                                            <div class="form-row">
+                                                <div class="form-group">
+                                                    <label>Generation Model</label>
+                                                    <select id="ws-gen-model">
+                                                        <option value="">Use Default</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label>Critique Model</label>
+                                                    <select id="ws-critique-model">
+                                                        <option value="">Use Default</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="form-group">
+                                                <label>Revision Approach</label>
+                                                <div class="revision-mode-options">
+                                                    <label class="radio-option">
+                                                        <input type="radio" name="ws-revision-mode" value="full" checked>
+                                                        <span class="radio-label">Full Revision</span>
+                                                        <span class="radio-desc">AI may restructure paragraphs and make significant changes</span>
+                                                    </label>
+                                                    <label class="radio-option">
+                                                        <input type="radio" name="ws-revision-mode" value="polish">
+                                                        <span class="radio-label">Polish Mode</span>
+                                                        <span class="radio-desc">Light touch - word choice, rhythm, and clarity only</span>
+                                                    </label>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                                <div class="form-row mt-20">
-                                    <div class="form-group">
-                                        <label>Generation Model</label>
-                                        <select id="gen-model">
-                                            <option value="">Use Default</option>
-                                            <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
-                                            <option value="anthropic/claude-opus-4">Claude Opus 4</option>
-                                            <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</option>
-                                            <option value="openai/gpt-4o">GPT-4o</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label>Critique Model</label>
-                                        <select id="critique-model">
-                                            <option value="">Use Default</option>
-                                            <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
-                                            <option value="anthropic/claude-opus-4">Claude Opus 4</option>
-                                            <option value="anthropic/claude-sonnet-4.5">Claude Sonnet 4.5</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="form-group mt-20">
-                                    <label>Revision Approach</label>
-                                    <div class="revision-mode-options">
-                                        <label class="radio-option">
-                                            <input type="radio" name="revision-mode" value="full" checked>
-                                            <span class="radio-label">Full Revision</span>
-                                            <span class="radio-desc">AI may restructure paragraphs and make significant changes</span>
-                                        </label>
-                                        <label class="radio-option">
-                                            <input type="radio" name="revision-mode" value="polish">
-                                            <span class="radio-label">Polish Mode</span>
-                                            <span class="radio-desc">Light touch - word choice, rhythm, and clarity only</span>
-                                        </label>
-                                    </div>
-                                </div>
-                                <button class="btn btn-success mt-20" id="gen-start-btn" onclick="startGeneration()" disabled>
-                                    Start Generation
-                                </button>
-                            </div>
 
-                            <!-- Step 2: Progress -->
-                            <div id="gen-step-progress" class="card" style="display: none;">
-                                <h2>Generating...</h2>
-                                <div class="progress-container">
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" id="gen-progress-fill" style="width: 10%;"></div>
+                                    <div class="action-bar">
+                                        <button class="btn btn-success" onclick="startWorkspaceGeneration()">Generate Prose</button>
+                                        <button class="btn btn-secondary" onclick="showWorkspaceImport()">Import Existing Prose</button>
                                     </div>
-                                    <div class="progress-status generating" id="gen-status">Initializing...</div>
                                 </div>
-                                <p class="text-muted text-center" id="gen-status-detail">Setting up generation pipeline...</p>
-                            </div>
 
-                            <!-- Step 3: Review -->
-                            <div id="gen-step-review" class="card" style="display: none;">
-                                <h2>Review Generated Prose</h2>
-                                <p class="text-muted mb-20">Revision <span id="gen-iteration">1</span> <span class="badge" id="revision-mode-badge">Full</span></p>
-
-                                <div class="two-col">
-                                    <div>
-                                        <div class="prose-header">
-                                            <h3>Generated Prose <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="gen-model-used"></span></h3>
-                                            <button class="btn btn-small" id="diff-toggle-btn" onclick="toggleDiffView()" style="display: none;">
-                                                Show Changes
-                                            </button>
+                                <!-- State: Generating -->
+                                <div id="ws-generating" class="workspace-state" style="display: none;">
+                                    <div class="progress-container">
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" id="ws-progress-fill" style="width: 10%;"></div>
                                         </div>
-                                        <div class="prose-box selectable" id="gen-prose"></div>
-                                        <div class="prose-box diff-view" id="gen-diff" style="display: none;"></div>
-                                        <div class="selection-info" id="selection-info" style="display: none;">
-                                            <span class="selection-icon">✂</span>
-                                            <span id="selection-word-count">0 words selected</span>
-                                            <button class="btn btn-small btn-primary" onclick="reviseSelection()">Revise Selection</button>
-                                            <button class="btn btn-small" onclick="clearSelection()">Clear</button>
+                                        <div class="progress-status generating" id="ws-progress-status">Initializing...</div>
+                                    </div>
+                                    <p class="text-muted text-center" id="ws-progress-detail">Setting up generation pipeline...</p>
+                                </div>
+
+                                <!-- State: Review (awaiting approval) -->
+                                <div id="ws-review" class="workspace-state" style="display: none;">
+                                    <p class="text-muted mb-20">Revision <span id="ws-iteration">1</span> <span class="badge" id="ws-revision-mode-badge">Full</span></p>
+
+                                    <div class="two-col">
+                                        <div>
+                                            <div class="prose-header">
+                                                <h3>Generated Prose <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="ws-gen-model-used"></span></h3>
+                                                <button class="btn btn-small" id="ws-diff-toggle-btn" onclick="toggleWorkspaceDiff()" style="display: none;">
+                                                    Show Changes
+                                                </button>
+                                            </div>
+                                            <div class="prose-box selectable" id="ws-review-prose"></div>
+                                            <div class="prose-box diff-view" id="ws-review-diff" style="display: none;"></div>
+                                            <div class="prose-stats mt-20">
+                                                <span id="ws-review-word-count">0 words</span>
+                                                <span id="ws-diff-stats" class="diff-stats" style="display: none;"></span>
+                                            </div>
                                         </div>
-                                        <div class="prose-stats mt-20">
-                                            <span id="gen-prose-word-count">0 words</span>
-                                            <span id="gen-diff-stats" class="diff-stats" style="display: none;"></span>
+                                        <div>
+                                            <h3>AI Critique <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="ws-critique-model-used"></span></h3>
+                                            <div class="prose-box" id="ws-critique"></div>
                                         </div>
                                     </div>
-                                    <div>
-                                        <h3>AI Critique <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="critique-model-used"></span></h3>
-                                        <div class="prose-box" id="gen-critique"></div>
-                                    </div>
-                                </div>
 
-                                <!-- Revision Instructions -->
-                                <div class="revision-instructions-section">
-                                    <div class="revision-instructions-header" onclick="toggleRevisionInstructions()">
-                                        <span>Revision Instructions</span>
-                                        <span class="text-muted">(optional - guide the AI's revision)</span>
-                                        <span id="revision-instructions-toggle" class="toggle-icon">▶</span>
-                                    </div>
-                                    <div id="revision-instructions-body" class="revision-instructions-body" style="display: none;">
-                                        <textarea
-                                            id="revision-instructions"
-                                            placeholder="e.g., Focus on the dialogue, make it feel more tense. Keep the description of the forest but add more sensory details..."
-                                            rows="3"
-                                        ></textarea>
-                                        <div class="revision-instructions-hints">
-                                            <span class="hint" onclick="addRevisionHint('Make the pacing faster')">faster pacing</span>
-                                            <span class="hint" onclick="addRevisionHint('Add more sensory details')">more sensory</span>
-                                            <span class="hint" onclick="addRevisionHint('Improve the dialogue')">better dialogue</span>
-                                            <span class="hint" onclick="addRevisionHint('Make it less cliché')">less cliché</span>
-                                            <span class="hint" onclick="addRevisionHint('Shorten this section')">shorten</span>
+                                    <!-- Revision Instructions -->
+                                    <div class="revision-instructions-section">
+                                        <div class="revision-instructions-header" onclick="toggleWorkspaceRevisionInstructions()">
+                                            <span>Revision Instructions</span>
+                                            <span class="text-muted">(optional - guide the AI's revision)</span>
+                                            <span id="ws-revision-instructions-toggle" class="toggle-icon">▶</span>
+                                        </div>
+                                        <div id="ws-revision-instructions-body" class="revision-instructions-body" style="display: none;">
+                                            <textarea
+                                                id="ws-revision-instructions"
+                                                placeholder="e.g., Focus on the dialogue, make it feel more tense..."
+                                                rows="3"
+                                            ></textarea>
+                                            <div class="revision-instructions-hints">
+                                                <span class="hint" onclick="addWorkspaceRevisionHint('Make the pacing faster')">faster pacing</span>
+                                                <span class="hint" onclick="addWorkspaceRevisionHint('Add more sensory details')">more sensory</span>
+                                                <span class="hint" onclick="addWorkspaceRevisionHint('Improve the dialogue')">better dialogue</span>
+                                                <span class="hint" onclick="addWorkspaceRevisionHint('Make it less cliché')">less cliché</span>
+                                                <span class="hint" onclick="addWorkspaceRevisionHint('Shorten this section')">shorten</span>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div class="action-bar">
-                                    <button class="btn btn-primary" id="gen-revise-btn" onclick="approveAndRevise()">
-                                        Approve & Revise
-                                    </button>
-                                    <button class="btn btn-success" onclick="acceptFinal()">
-                                        Accept as Canon
-                                    </button>
-                                    <button class="btn btn-danger" onclick="rejectGeneration()">
-                                        Reject & Start Over
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Step 4: Complete -->
-                            <div id="gen-step-complete" class="card" style="display: none;">
-                                <h2>Generation Complete!</h2>
-                                <p class="text-muted mb-20">Your scene has been saved as canon with a summary for continuity.</p>
-
-                                <h3>Scene Summary</h3>
-                                <div class="prose-box" id="gen-summary"></div>
-
-                                <div class="action-bar">
-                                    <button class="btn btn-primary" onclick="resetGeneration()">Generate Another Scene</button>
-                                </div>
-                            </div>
-                        </section>
-
-                        <!-- Reading View (Modal-like overlay) -->
-                        <section id="reading-view" class="view">
-                            <div class="card">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                                    <div>
-                                        <h2 id="reading-title">Reading</h2>
-                                        <p class="text-muted" id="reading-subtitle"></p>
-                                    </div>
-                                    <div id="reading-actions">
-                                        <button class="btn btn-success" onclick="toggleCanonFromReading()" id="mark-canon-btn" style="display: none;">Mark as Canon</button>
-                                        <button class="btn btn-primary" onclick="startEditingProse()" id="edit-prose-btn" style="display: none;">Edit Prose</button>
-                                        <button class="btn btn-secondary" onclick="openReferencePanel()" id="reference-btn" style="display: none;">Open as Reference</button>
-                                        <button class="btn btn-secondary" onclick="closeReadingView()">Close</button>
+                                    <div class="action-bar">
+                                        <button class="btn btn-primary" id="ws-revise-btn" onclick="workspaceApproveAndRevise()">
+                                            Approve & Revise
+                                        </button>
+                                        <button class="btn btn-success" onclick="workspaceAcceptFinal()">
+                                            Accept as Canon
+                                        </button>
+                                        <button class="btn btn-danger" onclick="workspaceReject()">
+                                            Reject & Start Over
+                                        </button>
                                     </div>
                                 </div>
 
-                                <!-- Read Mode -->
-                                <div id="reading-mode">
+                                <!-- State: Has Prose (editable, not canon) -->
+                                <div id="ws-prose" class="workspace-state" style="display: none;">
                                     <!-- Unsaved Changes Indicator -->
-                                    <div id="reading-dirty-indicator" class="reading-dirty-indicator">
+                                    <div id="ws-dirty-indicator" class="reading-dirty-indicator">
                                         <span class="dirty-text">You have unsaved changes</span>
-                                        <button class="btn btn-primary save-btn" onclick="saveReadingProse()">Save</button>
+                                        <button class="btn btn-primary save-btn" onclick="saveWorkspaceProse()">Save</button>
                                     </div>
-                                    <div id="reading-content" class="reading-content">
-                                        <!-- Prose content goes here -->
+                                    <div id="ws-prose-content" class="reading-content">
+                                        <!-- Prose content with floating bubble support -->
                                     </div>
-                                    <div id="reading-stats" class="text-muted mt-20" style="text-align: right;"></div>
+                                    <div id="ws-prose-stats" class="text-muted mt-20" style="text-align: right;"></div>
+
+                                    <div class="action-bar">
+                                        <button class="btn btn-primary" onclick="workspaceEvaluate()">Evaluate</button>
+                                        <button class="btn btn-success" onclick="workspaceMarkCanon()">Mark as Canon</button>
+                                        <button class="btn btn-secondary" onclick="workspaceEditProse()">Edit Prose</button>
+                                    </div>
                                 </div>
 
-                                <!-- Edit Mode -->
-                                <div id="editing-mode" style="display: none;">
+                                <!-- State: Canon (read-only) -->
+                                <div id="ws-canon" class="workspace-state" style="display: none;">
+                                    <div id="ws-canon-content" class="reading-content">
+                                        <!-- Canon prose content (read-only) -->
+                                    </div>
+                                    <div id="ws-canon-stats" class="text-muted mt-20" style="text-align: right;"></div>
+
+                                    <div class="action-bar">
+                                        <button class="btn btn-warning" onclick="workspaceRemoveCanon()">Remove from Canon</button>
+                                    </div>
+                                </div>
+
+                                <!-- State: Editing (textarea mode) -->
+                                <div id="ws-editing" class="workspace-state" style="display: none;">
                                     <div class="form-group">
                                         <label>Edit Prose</label>
-                                        <textarea id="prose-editor" class="prose-editor" rows="25" placeholder="Write or edit your prose here..."></textarea>
+                                        <textarea id="ws-prose-editor" class="prose-editor" rows="25" placeholder="Write or edit your prose here..."></textarea>
                                     </div>
                                     <div class="editing-stats">
-                                        <span id="editing-word-count">0 words</span>
-                                    </div>
-                                    <div class="form-group mt-20">
-                                        <label>
-                                            <input type="checkbox" id="mark-as-canon" />
-                                            Mark as Canon
-                                        </label>
-                                        <small class="text-muted">Canon scenes are included in the manuscript and used for continuity.</small>
+                                        <span id="ws-editing-word-count">0 words</span>
                                     </div>
                                     <div class="action-bar">
-                                        <button class="btn btn-success" onclick="saveProseEdit()">Save Changes</button>
-                                        <button class="btn btn-secondary" onclick="cancelProseEdit()">Cancel</button>
+                                        <button class="btn btn-success" onclick="saveWorkspaceProseEdit()">Save Changes</button>
+                                        <button class="btn btn-secondary" onclick="cancelWorkspaceEdit()">Cancel</button>
+                                    </div>
+                                </div>
+
+                                <!-- State: Import Prose -->
+                                <div id="ws-import" class="workspace-state" style="display: none;">
+                                    <div class="form-group">
+                                        <label>Paste or Type Existing Prose</label>
+                                        <textarea id="ws-import-prose" class="prose-editor" rows="20" placeholder="Paste your existing prose here..."></textarea>
+                                    </div>
+                                    <div class="editing-stats">
+                                        <span id="ws-import-word-count">0 words</span>
+                                    </div>
+                                    <div class="action-bar">
+                                        <button class="btn btn-success" onclick="confirmWorkspaceImport()">Import & Start Critique</button>
+                                        <button class="btn btn-secondary" onclick="cancelWorkspaceImport()">Cancel</button>
+                                    </div>
+                                </div>
+
+                                <!-- State: Complete -->
+                                <div id="ws-complete" class="workspace-state" style="display: none;">
+                                    <div class="complete-message">
+                                        <h3>Scene Saved as Canon!</h3>
+                                        <p class="text-muted">Summary generated for continuity tracking.</p>
+                                    </div>
+                                    <h4>Scene Summary</h4>
+                                    <div class="prose-box" id="ws-summary"></div>
+                                    <div class="action-bar">
+                                        <button class="btn btn-secondary" onclick="closeWorkspace()">Close</button>
+                                    </div>
+                                </div>
+
+                                <!-- No Scene Selected State -->
+                                <div id="ws-no-scene" class="workspace-state">
+                                    <div class="empty-state">
+                                        <p>Click a scene in the sidebar to open it here.</p>
+                                        <p class="text-muted">You can generate new prose, import existing text, or revise your manuscript.</p>
                                     </div>
                                 </div>
                             </div>

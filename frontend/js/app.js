@@ -286,6 +286,235 @@ async function saveDataDir() {
 }
 
 // ============================================
+// Start Page Settings Panel
+// ============================================
+let startSettingsExpanded = false;
+
+function toggleStartSettings() {
+    const panel = document.getElementById('start-settings-panel');
+    const body = document.getElementById('start-settings-body');
+    startSettingsExpanded = !startSettingsExpanded;
+
+    if (startSettingsExpanded) {
+        body.style.display = 'block';
+        panel.classList.add('expanded');
+        loadStartSettings();
+    } else {
+        body.style.display = 'none';
+        panel.classList.remove('expanded');
+    }
+}
+
+async function loadStartSettings() {
+    try {
+        const response = await fetch('/api/settings');
+        const data = await response.json();
+
+        // Update status indicators
+        updateStartKeyStatus('openrouter', data.openrouter_api_key_set);
+        updateStartKeyStatus('anthropic', data.anthropic_api_key_set);
+
+        // Load data directory info
+        if (data.data_dir) {
+            document.getElementById('start-data-dir-current').textContent = data.data_dir;
+        }
+        if (data.data_dir_from) {
+            const sourceEl = document.getElementById('start-data-dir-source');
+            sourceEl.textContent = data.data_dir_from;
+            sourceEl.className = 'badge' + (data.data_dir_from === 'config' ? ' canon' : '');
+        }
+
+        // Populate default model dropdowns
+        populateStartModelDropdowns(data.default_generation_model, data.default_critique_model);
+
+        // Load credit alert settings
+        const thresholdInput = document.getElementById('start-credit-threshold');
+        const alertsEnabledInput = document.getElementById('start-credit-alerts-enabled');
+        if (thresholdInput) thresholdInput.value = data.credit_alert_threshold || 5;
+        if (alertsEnabledInput) alertsEnabledInput.checked = data.credit_alerts_enabled !== false;
+
+        // Clear the input fields (we don't send back actual keys for security)
+        document.getElementById('start-openrouter-key').value = '';
+        document.getElementById('start-anthropic-key').value = '';
+        document.getElementById('start-data-dir').value = '';
+
+    } catch (e) {
+        console.error('Failed to load start settings:', e);
+    }
+}
+
+function updateStartKeyStatus(provider, isSet) {
+    const statusEl = document.getElementById(`start-${provider}-key-status`);
+    if (!statusEl) return;
+
+    if (isSet) {
+        statusEl.textContent = 'Key is configured';
+        statusEl.className = 'key-status set';
+    } else {
+        statusEl.textContent = 'No key set';
+        statusEl.className = 'key-status not-set';
+    }
+}
+
+function populateStartModelDropdowns(currentGenModel, currentCritiqueModel) {
+    const genSelect = document.getElementById('start-default-gen-model');
+    const critiqueSelect = document.getElementById('start-default-critique-model');
+
+    if (!genSelect || !critiqueSelect) return;
+
+    // Use availableModels from the global list (loaded on page load)
+    if (availableModels.length === 0) {
+        genSelect.innerHTML = '<option value="">Models not loaded</option>';
+        critiqueSelect.innerHTML = '<option value="">Models not loaded</option>';
+        return;
+    }
+
+    // Group models by provider
+    const modelsByProvider = {};
+    availableModels.forEach(model => {
+        const provider = model.id.split('/')[0];
+        if (!modelsByProvider[provider]) {
+            modelsByProvider[provider] = [];
+        }
+        modelsByProvider[provider].push(model);
+    });
+
+    const providerNames = {
+        'anthropic': 'Anthropic',
+        'openai': 'OpenAI',
+        'google': 'Google',
+        'meta-llama': 'Meta Llama',
+        'mistralai': 'Mistral AI',
+        'cohere': 'Cohere'
+    };
+
+    let optionsHtml = '<option value="">System Default</option>';
+    for (const [provider, models] of Object.entries(modelsByProvider)) {
+        const providerLabel = providerNames[provider] || provider;
+        optionsHtml += `<optgroup label="${providerLabel}">`;
+        models.forEach(model => {
+            optionsHtml += `<option value="${model.id}">${model.name}</option>`;
+        });
+        optionsHtml += '</optgroup>';
+    }
+
+    genSelect.innerHTML = optionsHtml;
+    critiqueSelect.innerHTML = optionsHtml;
+
+    // Set current values
+    if (currentGenModel) genSelect.value = currentGenModel;
+    if (currentCritiqueModel) critiqueSelect.value = currentCritiqueModel;
+}
+
+async function saveStartSettings() {
+    const openrouterKey = document.getElementById('start-openrouter-key').value.trim();
+    const anthropicKey = document.getElementById('start-anthropic-key').value.trim();
+    const defaultGenModel = document.getElementById('start-default-gen-model').value;
+    const defaultCritiqueModel = document.getElementById('start-default-critique-model').value;
+    const creditThreshold = parseFloat(document.getElementById('start-credit-threshold').value) || 5;
+    const creditAlertsEnabled = document.getElementById('start-credit-alerts-enabled').checked;
+
+    // Build update object - only include non-empty values for keys
+    const update = {};
+    if (openrouterKey) update.openrouter_api_key = openrouterKey;
+    if (anthropicKey) update.anthropic_api_key = anthropicKey;
+
+    // Always include model settings (empty string means use system default)
+    update.default_generation_model = defaultGenModel || null;
+    update.default_critique_model = defaultCritiqueModel || null;
+
+    // Always include credit alert settings
+    update.credit_alert_threshold = creditThreshold;
+    update.credit_alerts_enabled = creditAlertsEnabled;
+
+    try {
+        const response = await fetch('/api/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(update)
+        });
+
+        if (response.ok) {
+            showToast('Success', 'Settings saved successfully', 'success');
+            // Reload settings to show updated status
+            loadStartSettings();
+            // Reload credits display
+            loadStartCredits();
+            // Reload models if API key was added
+            if (openrouterKey) {
+                loadAvailableModels();
+            }
+        } else {
+            const error = await response.json();
+            showToast('Error', `Failed to save: ${error.detail || 'Unknown error'}`, 'error');
+        }
+    } catch (e) {
+        console.error('Failed to save settings:', e);
+        showToast('Error', 'Failed to save settings', 'error');
+    }
+}
+
+async function saveStartDataDir() {
+    const newPath = document.getElementById('start-data-dir').value.trim();
+
+    if (!newPath) {
+        showToast('Error', 'Please enter a path', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/settings/data-dir', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data_dir: newPath })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            showToast('Success', 'Data directory saved. Restart server to apply.', 'success');
+
+            // Update the display
+            document.getElementById('start-data-dir-current').textContent = data.data_dir;
+            document.getElementById('start-data-dir-source').textContent = 'config (pending restart)';
+            document.getElementById('start-data-dir').value = '';
+        } else {
+            showToast('Error', data.detail || 'Failed to save data directory', 'error');
+        }
+    } catch (e) {
+        console.error('Failed to save data directory:', e);
+        showToast('Error', 'Failed to save data directory', 'error');
+    }
+}
+
+async function loadStartCredits() {
+    const container = document.getElementById('start-credits-container');
+    const valueEl = document.getElementById('start-credits-remaining');
+
+    if (!container || !valueEl) return;
+
+    try {
+        const response = await fetch('/api/settings/credits');
+        if (response.ok) {
+            const data = await response.json();
+            const remaining = data.remaining.toFixed(2);
+            valueEl.textContent = `$${remaining}`;
+
+            // Color based on threshold
+            if (data.remaining < creditAlertSettings.threshold) {
+                valueEl.style.color = 'var(--danger)';
+            } else {
+                valueEl.style.color = 'var(--success)';
+            }
+        } else {
+            valueEl.textContent = '--';
+        }
+    } catch (e) {
+        valueEl.textContent = '--';
+    }
+}
+
+// ============================================
 // API Base URL Helper
 // ============================================
 function apiUrl(path) {
@@ -304,6 +533,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadProjects();
     loadAvailableModels();
     loadCredits();
+    loadStartCredits();
     setupSelectionTracking();
     setupReadingSelectionTracking();
     setInterval(checkHealth, 30000);
@@ -1352,7 +1582,7 @@ function renderOutlineChapter(chapter) {
             </div>
             <div class="outline-scenes">
                 ${chapterScenes.map(s => `
-                    <div class="outline-scene ${s.is_canon ? 'canon' : ''}" onclick="showReadingView('scene', '${s.id}')">
+                    <div class="outline-scene ${s.is_canon ? 'canon' : ''}" onclick="openSceneWorkspace('${s.id}')">
                         ${!s.is_canon ? `<input type="checkbox" class="batch-checkbox" ${selectedScenes.has(s.id) ? 'checked' : ''} onclick="toggleSceneSelection('${s.id}', event)">` : ''}
                         ${escapeHtml(s.title)}
                     </div>
@@ -1890,7 +2120,7 @@ function renderStructureChapter(chapter) {
                         : '';
 
                     return `
-                        <div class="structure-scene ${s.is_canon ? 'canon' : ''} ${isEditMode ? 'edit-mode' : ''}" onclick="showReadingView('scene', '${s.id}')">
+                        <div class="structure-scene ${s.is_canon ? 'canon' : ''} ${isEditMode ? 'edit-mode' : ''}" onclick="openSceneWorkspace('${s.id}')">
                             <span>${escapeHtml(s.title)}</span>
                             <div class="item-actions">
                                 ${badges.join('')}
@@ -2949,6 +3179,631 @@ function closeReferencePanel() {
 }
 
 // ============================================
+// Unified Scene Workspace
+// ============================================
+let currentWorkspaceScene = null;
+let workspaceGenId = null;
+let workspacePollingInterval = null;
+let workspacePreviousProse = null;
+
+async function openSceneWorkspace(sceneId) {
+    // Fetch scene data
+    try {
+        const response = await fetch(apiUrl(`/scenes/${sceneId}`));
+        if (!response.ok) throw new Error('Failed to load scene');
+        const scene = await response.json();
+
+        currentWorkspaceScene = scene;
+
+        // Update header
+        const chapter = chapters.find(c => c.id === scene.chapter_id);
+        document.getElementById('ws-title').textContent = scene.title;
+        document.getElementById('ws-subtitle').textContent = chapter ? `Chapter ${chapter.chapter_number}` : '';
+
+        // Update badges
+        document.getElementById('ws-status-badge').style.display = scene.prose ? 'inline-flex' : 'none';
+        document.getElementById('ws-canon-badge').style.display = scene.is_canon ? 'inline-flex' : 'none';
+        document.getElementById('ws-edit-mode-badge').style.display = scene.edit_mode ? 'inline-flex' : 'none';
+
+        // Determine state and show appropriate UI
+        hideAllWorkspaceStates();
+
+        if (scene.is_canon) {
+            showWorkspaceCanon(scene);
+        } else if (scene.prose || scene.original_prose) {
+            showWorkspaceProse(scene);
+        } else {
+            showWorkspaceEmpty(scene);
+        }
+
+        // Navigate to workspace
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.main-content .view').forEach(v => v.classList.remove('active'));
+        document.getElementById('scene-workspace').classList.add('active');
+
+        // Populate model dropdowns
+        populateWorkspaceModelDropdowns();
+
+    } catch (e) {
+        console.error('Error opening workspace:', e);
+        showToast('Error', 'Failed to load scene: ' + e.message, 'error');
+    }
+}
+
+function hideAllWorkspaceStates() {
+    const states = ['ws-empty', 'ws-generating', 'ws-review', 'ws-prose', 'ws-canon', 'ws-editing', 'ws-import', 'ws-complete', 'ws-no-scene'];
+    states.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+}
+
+function showWorkspaceEmpty(scene) {
+    document.getElementById('ws-outline-display').textContent = scene.outline || 'No outline yet.';
+    document.getElementById('ws-empty').style.display = 'block';
+}
+
+function showWorkspaceProse(scene) {
+    const prose = scene.prose || scene.original_prose || '';
+    document.getElementById('ws-prose-content').textContent = prose;
+    const wordCount = prose.trim() ? prose.trim().split(/\s+/).length : 0;
+    document.getElementById('ws-prose-stats').textContent = `${wordCount.toLocaleString()} words`;
+    document.getElementById('ws-dirty-indicator').style.display = 'none';
+    document.getElementById('ws-prose').style.display = 'block';
+}
+
+function showWorkspaceCanon(scene) {
+    document.getElementById('ws-canon-content').textContent = scene.prose || '';
+    const wordCount = scene.prose ? scene.prose.trim().split(/\s+/).length : 0;
+    document.getElementById('ws-canon-stats').textContent = `${wordCount.toLocaleString()} words`;
+    document.getElementById('ws-canon').style.display = 'block';
+}
+
+function populateWorkspaceModelDropdowns() {
+    const genSelect = document.getElementById('ws-gen-model');
+    const critiqueSelect = document.getElementById('ws-critique-model');
+
+    if (!genSelect || !critiqueSelect || availableModels.length === 0) return;
+
+    // Group models by provider
+    const modelsByProvider = {};
+    availableModels.forEach(model => {
+        const provider = model.id.split('/')[0];
+        if (!modelsByProvider[provider]) {
+            modelsByProvider[provider] = [];
+        }
+        modelsByProvider[provider].push(model);
+    });
+
+    const providerNames = {
+        'anthropic': 'Anthropic',
+        'openai': 'OpenAI',
+        'google': 'Google',
+        'meta-llama': 'Meta Llama',
+        'mistralai': 'Mistral AI',
+        'cohere': 'Cohere'
+    };
+
+    let optionsHtml = '<option value="">Use Default</option>';
+    for (const [provider, models] of Object.entries(modelsByProvider)) {
+        const providerLabel = providerNames[provider] || provider;
+        optionsHtml += `<optgroup label="${providerLabel}">`;
+        models.forEach(model => {
+            optionsHtml += `<option value="${model.id}">${model.name}</option>`;
+        });
+        optionsHtml += '</optgroup>';
+    }
+
+    genSelect.innerHTML = optionsHtml;
+    critiqueSelect.innerHTML = optionsHtml;
+}
+
+function toggleWorkspaceSettings() {
+    const body = document.getElementById('ws-settings-body');
+    const toggle = document.getElementById('ws-settings-toggle');
+    const isHidden = body.style.display === 'none';
+    body.style.display = isHidden ? 'block' : 'none';
+    toggle.textContent = isHidden ? '▼' : '▶';
+}
+
+async function startWorkspaceGeneration() {
+    if (!currentWorkspaceScene) return;
+
+    const genModel = document.getElementById('ws-gen-model').value || undefined;
+    const critiqueModel = document.getElementById('ws-critique-model').value || undefined;
+    const revisionMode = document.querySelector('input[name="ws-revision-mode"]:checked')?.value || 'full';
+
+    // Validate models
+    if (genModel && critiqueModel && genModel === critiqueModel) {
+        showToast('Error', 'Generation and Critique models must be different', 'error');
+        return;
+    }
+
+    try {
+        hideAllWorkspaceStates();
+        document.getElementById('ws-generating').style.display = 'block';
+        updateWorkspaceProgress('initialized', 'Starting generation...');
+
+        const response = await fetch(apiUrl('/generations/start'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                scene_id: currentWorkspaceScene.id,
+                max_iterations: 99,
+                generation_model: genModel,
+                critique_model: critiqueModel,
+                revision_mode: revisionMode
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to start generation');
+        }
+
+        const data = await response.json();
+        workspaceGenId = data.generation_id;
+        workspacePreviousProse = null;
+
+        // Start polling
+        startWorkspacePolling();
+
+    } catch (e) {
+        showToast('Error', 'Generation failed: ' + e.message, 'error');
+        showWorkspaceEmpty(currentWorkspaceScene);
+    }
+}
+
+function startWorkspacePolling() {
+    workspacePollingInterval = setInterval(checkWorkspaceProgress, 2000);
+}
+
+function stopWorkspacePolling() {
+    if (workspacePollingInterval) {
+        clearInterval(workspacePollingInterval);
+        workspacePollingInterval = null;
+    }
+}
+
+async function checkWorkspaceProgress() {
+    if (!workspaceGenId) return;
+
+    try {
+        const response = await fetch(apiUrl(`/generations/${workspaceGenId}`));
+        const data = await response.json();
+
+        updateWorkspaceProgress(data.status, getWorkspaceStatusMessage(data.status));
+
+        if (data.status === 'awaiting_approval') {
+            stopWorkspacePolling();
+            showWorkspaceReview(data);
+        } else if (data.status === 'completed') {
+            stopWorkspacePolling();
+            showWorkspaceComplete(data);
+        } else if (data.status === 'error') {
+            stopWorkspacePolling();
+            showToast('Error', data.error_message || 'Generation failed', 'error');
+            await refreshWorkspaceScene();
+        } else if (data.status === 'rejected') {
+            stopWorkspacePolling();
+            await refreshWorkspaceScene();
+        }
+    } catch (e) {
+        console.error('Error checking progress:', e);
+    }
+}
+
+function updateWorkspaceProgress(status, message) {
+    const statusEl = document.getElementById('ws-progress-status');
+    const detailEl = document.getElementById('ws-progress-detail');
+    const fillEl = document.getElementById('ws-progress-fill');
+
+    if (statusEl) statusEl.textContent = message;
+    if (detailEl) detailEl.textContent = getWorkspaceStatusDetail(status);
+
+    const progressMap = {
+        'initialized': 10, 'generating': 30, 'generation_complete': 50,
+        'critiquing': 70, 'awaiting_approval': 90, 'revising': 50,
+        'generating_summary': 95, 'completed': 100
+    };
+    if (fillEl) fillEl.style.width = (progressMap[status] || 10) + '%';
+}
+
+function getWorkspaceStatusMessage(status) {
+    const messages = {
+        'initialized': 'Initializing...', 'generating': 'Generating prose...',
+        'generation_complete': 'Generation complete', 'critiquing': 'Running AI critique...',
+        'awaiting_approval': 'Ready for review', 'revising': 'Revising based on critique...',
+        'generating_summary': 'Generating summary...', 'completed': 'Complete!'
+    };
+    return messages[status] || status;
+}
+
+function getWorkspaceStatusDetail(status) {
+    const details = {
+        'initialized': 'Setting up generation pipeline...',
+        'generating': 'AI is writing your scene based on the outline...',
+        'critiquing': 'AI is analyzing the prose for improvements...',
+        'revising': 'AI is revising based on the critique...',
+        'generating_summary': 'Creating continuity summary...'
+    };
+    return details[status] || '';
+}
+
+function showWorkspaceReview(data) {
+    hideAllWorkspaceStates();
+
+    document.getElementById('ws-iteration').textContent = data.current_iteration || data.iteration || 1;
+    document.getElementById('ws-revision-mode-badge').textContent = data.revision_mode === 'polish' ? 'Polish' : 'Full';
+    document.getElementById('ws-review-prose').textContent = data.current_prose || '';
+    document.getElementById('ws-critique').textContent = data.current_critique || data.critique || '';
+
+    const wordCount = data.current_prose ? data.current_prose.trim().split(/\s+/).length : 0;
+    document.getElementById('ws-review-word-count').textContent = `${wordCount.toLocaleString()} words`;
+
+    // Show diff button if we have previous prose
+    const diffBtn = document.getElementById('ws-diff-toggle-btn');
+    if (diffBtn) {
+        diffBtn.style.display = workspacePreviousProse ? 'inline-flex' : 'none';
+    }
+
+    document.getElementById('ws-review').style.display = 'block';
+    workspacePreviousProse = data.current_prose;
+}
+
+function showWorkspaceComplete(data) {
+    hideAllWorkspaceStates();
+
+    document.getElementById('ws-summary').textContent = data.summary || 'Summary generated.';
+    document.getElementById('ws-complete').style.display = 'block';
+
+    // Refresh scene data and sidebar
+    refreshWorkspaceScene();
+    loadScenes();
+    updateWordCount();
+}
+
+async function workspaceApproveAndRevise() {
+    if (!workspaceGenId) return;
+
+    const instructions = document.getElementById('ws-revision-instructions')?.value || '';
+
+    try {
+        document.getElementById('ws-revise-btn').disabled = true;
+
+        hideAllWorkspaceStates();
+        document.getElementById('ws-generating').style.display = 'block';
+        updateWorkspaceProgress('revising', 'Revising based on critique...');
+
+        const response = await fetch(apiUrl(`/generations/${workspaceGenId}/approve`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_instructions: instructions || null })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to approve');
+        }
+
+        // Clear instructions
+        const instructionsEl = document.getElementById('ws-revision-instructions');
+        if (instructionsEl) instructionsEl.value = '';
+
+        startWorkspacePolling();
+
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+        showWorkspaceReview({ current_prose: workspacePreviousProse });
+    } finally {
+        document.getElementById('ws-revise-btn').disabled = false;
+    }
+}
+
+async function workspaceAcceptFinal() {
+    if (!workspaceGenId) return;
+
+    try {
+        const response = await fetch(apiUrl(`/generations/${workspaceGenId}/accept`), {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to accept');
+        }
+
+        hideAllWorkspaceStates();
+        document.getElementById('ws-generating').style.display = 'block';
+        updateWorkspaceProgress('generating_summary', 'Generating summary...');
+
+        startWorkspacePolling();
+
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+    }
+}
+
+async function workspaceReject() {
+    if (!workspaceGenId) return;
+
+    try {
+        await fetch(apiUrl(`/generations/${workspaceGenId}/reject`), { method: 'POST' });
+        workspaceGenId = null;
+        workspacePreviousProse = null;
+        await refreshWorkspaceScene();
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+    }
+}
+
+async function refreshWorkspaceScene() {
+    if (!currentWorkspaceScene) return;
+    await openSceneWorkspace(currentWorkspaceScene.id);
+}
+
+function showWorkspaceImport() {
+    hideAllWorkspaceStates();
+    document.getElementById('ws-import-prose').value = '';
+    document.getElementById('ws-import-word-count').textContent = '0 words';
+    document.getElementById('ws-import').style.display = 'block';
+
+    // Add word count tracking
+    document.getElementById('ws-import-prose').oninput = function() {
+        const words = this.value.trim() ? this.value.trim().split(/\s+/).length : 0;
+        document.getElementById('ws-import-word-count').textContent = `${words.toLocaleString()} words`;
+    };
+}
+
+async function confirmWorkspaceImport() {
+    if (!currentWorkspaceScene) return;
+
+    const prose = document.getElementById('ws-import-prose').value.trim();
+    if (!prose) {
+        showToast('Error', 'Please enter some prose to import', 'error');
+        return;
+    }
+
+    try {
+        // Enable edit mode and save prose
+        const response = await fetch(apiUrl(`/scenes/${currentWorkspaceScene.id}/edit-mode`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ original_prose: prose })
+        });
+
+        if (!response.ok) throw new Error('Failed to import prose');
+
+        showToast('Success', 'Prose imported. Ready for critique.', 'success');
+        await refreshWorkspaceScene();
+
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+    }
+}
+
+function cancelWorkspaceImport() {
+    refreshWorkspaceScene();
+}
+
+async function workspaceEvaluate() {
+    if (!currentWorkspaceScene) return;
+
+    // Start generation in edit mode (skip prose generation, go straight to critique)
+    const genModel = document.getElementById('ws-gen-model')?.value || undefined;
+    const critiqueModel = document.getElementById('ws-critique-model')?.value || undefined;
+    const revisionMode = document.querySelector('input[name="ws-revision-mode"]:checked')?.value || 'full';
+
+    try {
+        hideAllWorkspaceStates();
+        document.getElementById('ws-generating').style.display = 'block';
+        updateWorkspaceProgress('critiquing', 'Running AI critique...');
+
+        const response = await fetch(apiUrl('/generations/start-edit'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                scene_id: currentWorkspaceScene.id,
+                max_iterations: 99,
+                generation_model: genModel,
+                critique_model: critiqueModel,
+                revision_mode: revisionMode
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to start evaluation');
+        }
+
+        const data = await response.json();
+        workspaceGenId = data.generation_id;
+        workspacePreviousProse = currentWorkspaceScene.prose || currentWorkspaceScene.original_prose;
+
+        startWorkspacePolling();
+
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+        showWorkspaceProse(currentWorkspaceScene);
+    }
+}
+
+async function workspaceMarkCanon() {
+    if (!currentWorkspaceScene) return;
+
+    const prose = currentWorkspaceScene.prose || currentWorkspaceScene.original_prose;
+    if (!prose || !prose.trim()) {
+        showToast('Error', 'Cannot mark as canon: scene has no prose content.', 'error');
+        return;
+    }
+
+    if (!confirm('Mark this scene as canon? Canon scenes are included in the manuscript and used for continuity.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(apiUrl(`/scenes/${currentWorkspaceScene.id}`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_canon: true })
+        });
+
+        if (!response.ok) throw new Error('Failed to mark as canon');
+
+        showToast('Success', 'Scene marked as canon', 'success');
+        loadScenes();
+        updateWordCount();
+        await refreshWorkspaceScene();
+
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+    }
+}
+
+async function workspaceRemoveCanon() {
+    if (!currentWorkspaceScene) return;
+
+    if (!confirm('Remove this scene from canon? It will no longer be included in the manuscript.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(apiUrl(`/scenes/${currentWorkspaceScene.id}`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_canon: false })
+        });
+
+        if (!response.ok) throw new Error('Failed to remove from canon');
+
+        showToast('Success', 'Scene removed from canon', 'success');
+        loadScenes();
+        updateWordCount();
+        await refreshWorkspaceScene();
+
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+    }
+}
+
+function workspaceEditProse() {
+    if (!currentWorkspaceScene) return;
+
+    hideAllWorkspaceStates();
+
+    const prose = currentWorkspaceScene.prose || currentWorkspaceScene.original_prose || '';
+    document.getElementById('ws-prose-editor').value = prose;
+
+    const words = prose.trim() ? prose.trim().split(/\s+/).length : 0;
+    document.getElementById('ws-editing-word-count').textContent = `${words.toLocaleString()} words`;
+
+    // Track word count changes
+    document.getElementById('ws-prose-editor').oninput = function() {
+        const w = this.value.trim() ? this.value.trim().split(/\s+/).length : 0;
+        document.getElementById('ws-editing-word-count').textContent = `${w.toLocaleString()} words`;
+    };
+
+    document.getElementById('ws-editing').style.display = 'block';
+}
+
+async function saveWorkspaceProseEdit() {
+    if (!currentWorkspaceScene) return;
+
+    const prose = document.getElementById('ws-prose-editor').value;
+
+    try {
+        const response = await fetch(apiUrl(`/scenes/${currentWorkspaceScene.id}`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prose: prose })
+        });
+
+        if (!response.ok) throw new Error('Failed to save prose');
+
+        showToast('Success', 'Prose saved', 'success');
+        loadScenes();
+        await refreshWorkspaceScene();
+
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+    }
+}
+
+function cancelWorkspaceEdit() {
+    refreshWorkspaceScene();
+}
+
+async function saveWorkspaceProse() {
+    // For saving AI revision changes (from floating bubble)
+    if (!currentWorkspaceScene) return;
+
+    const prose = document.getElementById('ws-prose-content').textContent;
+
+    try {
+        const response = await fetch(apiUrl(`/scenes/${currentWorkspaceScene.id}/save-prose`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prose: prose })
+        });
+
+        if (!response.ok) throw new Error('Failed to save prose');
+
+        document.getElementById('ws-dirty-indicator').style.display = 'none';
+        showToast('Success', 'Prose saved', 'success');
+        loadScenes();
+
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+    }
+}
+
+function closeWorkspace() {
+    hideAllWorkspaceStates();
+    document.getElementById('ws-no-scene').style.display = 'block';
+    document.getElementById('ws-title').textContent = 'Select a Scene';
+    document.getElementById('ws-subtitle').textContent = '';
+    document.getElementById('ws-status-badge').style.display = 'none';
+    document.getElementById('ws-canon-badge').style.display = 'none';
+    document.getElementById('ws-edit-mode-badge').style.display = 'none';
+    currentWorkspaceScene = null;
+}
+
+function toggleWorkspaceRevisionInstructions() {
+    const body = document.getElementById('ws-revision-instructions-body');
+    const toggle = document.getElementById('ws-revision-instructions-toggle');
+    const isHidden = body.style.display === 'none';
+    body.style.display = isHidden ? 'block' : 'none';
+    toggle.textContent = isHidden ? '▼' : '▶';
+}
+
+function addWorkspaceRevisionHint(hint) {
+    const textarea = document.getElementById('ws-revision-instructions');
+    if (textarea.value) {
+        textarea.value += '. ' + hint;
+    } else {
+        textarea.value = hint;
+    }
+}
+
+function toggleWorkspaceDiff() {
+    // Simplified diff toggle for workspace
+    const proseEl = document.getElementById('ws-review-prose');
+    const diffEl = document.getElementById('ws-review-diff');
+    const btn = document.getElementById('ws-diff-toggle-btn');
+
+    if (diffEl.style.display === 'none') {
+        diffEl.style.display = 'block';
+        proseEl.style.display = 'none';
+        btn.textContent = 'Hide Changes';
+        // Would need diff computation here
+    } else {
+        diffEl.style.display = 'none';
+        proseEl.style.display = 'block';
+        btn.textContent = 'Show Changes';
+    }
+}
+
+// ============================================
 // Generation Pipeline
 // ============================================
 function onSceneSelected() {
@@ -3547,10 +4402,63 @@ let readingSelection = null;  // {text, start, end} for reading view selection
 
 function setupReadingSelectionTracking() {
     document.addEventListener('mouseup', (e) => {
-        // Only track in reading view
+        const bubble = document.getElementById('revision-bubble');
+
+        // Check workspace first (new unified workspace)
+        const workspace = document.getElementById('scene-workspace');
+        const wsProseContent = document.getElementById('ws-prose-content');
+        const wsProseState = document.getElementById('ws-prose');
+
+        if (workspace && workspace.classList.contains('active') && wsProseContent && wsProseState && wsProseState.style.display !== 'none') {
+            // We're in workspace prose view
+            if (!currentWorkspaceScene) {
+                if (bubble && !bubble.contains(e.target)) hideRevisionBubble();
+                return;
+            }
+
+            // Don't allow revision on canon scenes
+            if (currentWorkspaceScene.is_canon) {
+                if (bubble && !bubble.contains(e.target)) hideRevisionBubble();
+                return;
+            }
+
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0 && selection.toString().trim()) {
+                const range = selection.getRangeAt(0);
+                if (wsProseContent.contains(range.commonAncestorContainer)) {
+                    const selectedText = selection.toString().trim();
+                    if (selectedText.length > 10) {
+                        const startOffset = getTextOffsetInElement(wsProseContent, range.startContainer, range.startOffset);
+                        const endOffset = getTextOffsetInElement(wsProseContent, range.endContainer, range.endOffset);
+
+                        readingSelection = {
+                            text: selectedText,
+                            start: startOffset,
+                            end: endOffset,
+                            isWorkspace: true  // Flag to know we're in workspace
+                        };
+
+                        const rect = range.getBoundingClientRect();
+                        showRevisionBubble(rect);
+                        return;
+                    }
+                }
+            }
+
+            if (bubble && !bubble.contains(e.target)) {
+                const isInteractive = e.target.closest('button, a, .btn, .nav-btn, #back-to-top');
+                if (!isInteractive) hideRevisionBubble();
+            }
+            return;
+        }
+
+        // Fall back to old reading view logic (for chapters/manuscripts/acts)
         const readingView = document.getElementById('reading-view');
         const readingContent = document.getElementById('reading-content');
-        if (!readingView || readingView.style.display === 'none' || !readingContent) return;
+        if (!readingView || !readingView.classList.contains('active') || !readingContent) {
+            if (bubble && !bubble.contains(e.target)) hideRevisionBubble();
+            return;
+        }
 
         // Check if we're in reading mode (not editing mode)
         const readingMode = document.getElementById('reading-mode');
@@ -3558,7 +4466,6 @@ function setupReadingSelectionTracking() {
 
         // Only allow revision on individual scenes (not chapters/manuscripts)
         if (!currentReadingData || currentReadingData.type !== 'scene') {
-            const bubble = document.getElementById('revision-bubble');
             if (bubble && !bubble.contains(e.target)) {
                 hideRevisionBubble();
             }
@@ -3567,12 +4474,10 @@ function setupReadingSelectionTracking() {
 
         // Check if scene is canon - don't allow revision
         if (currentReadingData.is_canon) {
-            // Still hide bubble if clicking outside
-            const bubble = document.getElementById('revision-bubble');
             if (bubble && !bubble.contains(e.target)) {
                 hideRevisionBubble();
             }
-            return;  // Don't show bubble for canon scenes
+            return;
         }
 
         const selection = window.getSelection();
@@ -3583,18 +4488,17 @@ function setupReadingSelectionTracking() {
             if (readingContent.contains(range.commonAncestorContainer)) {
                 const selectedText = selection.toString().trim();
 
-                if (selectedText.length > 10) {  // Minimum selection length
-                    const fullText = readingContent.textContent;
+                if (selectedText.length > 10) {
                     const startOffset = getTextOffsetInElement(readingContent, range.startContainer, range.startOffset);
                     const endOffset = getTextOffsetInElement(readingContent, range.endContainer, range.endOffset);
 
                     readingSelection = {
                         text: selectedText,
                         start: startOffset,
-                        end: endOffset
+                        end: endOffset,
+                        isWorkspace: false
                     };
 
-                    // Position and show bubble
                     const rect = range.getBoundingClientRect();
                     showRevisionBubble(rect);
                     return;
@@ -3602,16 +4506,9 @@ function setupReadingSelectionTracking() {
             }
         }
 
-        // If clicking outside bubble and no valid selection, hide it
-        // But don't hide if clicking on buttons or other UI elements
-        const bubble = document.getElementById('revision-bubble');
         if (bubble && !bubble.contains(e.target)) {
-            // Don't hide if clicking on buttons, links, or other interactive elements
-            const clickedElement = e.target;
-            const isInteractive = clickedElement.closest('button, a, .btn, .nav-btn, #back-to-top');
-            if (!isInteractive) {
-                hideRevisionBubble();
-            }
+            const isInteractive = e.target.closest('button, a, .btn, .nav-btn, #back-to-top');
+            if (!isInteractive) hideRevisionBubble();
         }
     });
 }
@@ -3694,19 +4591,36 @@ function populateBubbleModelSelect() {
 }
 
 async function applyBubbleRevision(quickAction = null) {
-    if (!readingSelection || !currentReadingData) {
+    if (!readingSelection) {
         alert('No text selected');
         return;
     }
 
-    const model = document.getElementById('bubble-model-select').value || null;
-    const instructions = document.getElementById('bubble-instructions').value.trim() || null;
-    const sceneId = currentReadingData.id;
+    // Determine if we're in workspace or old reading view
+    const isWorkspace = readingSelection.isWorkspace;
+    let sceneId;
+
+    if (isWorkspace) {
+        if (!currentWorkspaceScene) {
+            alert('No scene context available');
+            return;
+        }
+        sceneId = currentWorkspaceScene.id;
+    } else {
+        if (!currentReadingData) {
+            alert('No scene context available');
+            return;
+        }
+        sceneId = currentReadingData.id;
+    }
 
     if (!sceneId) {
         alert('No scene context available');
         return;
     }
+
+    const model = document.getElementById('bubble-model-select').value || null;
+    const instructions = document.getElementById('bubble-instructions').value.trim() || null;
 
     // Show loading state on all buttons
     const bubble = document.getElementById('revision-bubble');
@@ -3718,13 +4632,6 @@ async function applyBubbleRevision(quickAction = null) {
 
     try {
         const url = apiUrl(`/scenes/${sceneId}/revise-selection`);
-        console.log('Revise selection URL:', url);
-        console.log('Request body:', {
-            selection_start: readingSelection.start,
-            selection_end: readingSelection.end,
-            selection_text: readingSelection.text.substring(0, 50) + '...',
-            quick_action: quickAction
-        });
 
         const response = await fetch(url, {
             method: 'POST',
@@ -3739,11 +4646,8 @@ async function applyBubbleRevision(quickAction = null) {
             })
         });
 
-        console.log('Response status:', response.status);
-
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Error response:', errorText);
             let errorDetail = 'Failed to revise selection';
             try {
                 const error = JSON.parse(errorText);
@@ -3756,26 +4660,31 @@ async function applyBubbleRevision(quickAction = null) {
 
         const result = await response.json();
 
-        // Store original prose on first edit
-        if (!readingDirty && !readingOriginalProse) {
-            readingOriginalProse = currentReadingData.prose;
+        if (isWorkspace) {
+            // Update workspace content
+            document.getElementById('ws-prose-content').textContent = result.merged_prose;
+            document.getElementById('ws-prose-stats').textContent = `${result.word_count.toLocaleString()} words`;
+
+            // Update workspace scene data
+            currentWorkspaceScene.prose = result.merged_prose;
+
+            // Show dirty indicator
+            document.getElementById('ws-dirty-indicator').style.display = 'flex';
+
+        } else {
+            // Old reading view logic
+            if (!readingDirty && !readingOriginalProse) {
+                readingOriginalProse = currentReadingData.prose;
+            }
+
+            readingCurrentProse = result.merged_prose;
+            document.getElementById('reading-content').textContent = result.merged_prose;
+            currentReadingData.prose = result.merged_prose;
+            document.getElementById('reading-stats').textContent = `${result.word_count.toLocaleString()} words`;
+
+            setReadingDirty(true);
+            autosaveToLocalStorage();
         }
-
-        // Update reading content with new prose (NOT saved yet)
-        readingCurrentProse = result.merged_prose;
-        document.getElementById('reading-content').textContent = result.merged_prose;
-
-        // Update current reading data (local state only)
-        currentReadingData.prose = result.merged_prose;
-
-        // Update word count
-        document.getElementById('reading-stats').textContent = `${result.word_count.toLocaleString()} words`;
-
-        // Mark as dirty and show save indicator
-        setReadingDirty(true);
-
-        // Autosave to localStorage
-        autosaveToLocalStorage();
 
         showToast('Selection Revised', 'Changes pending - remember to save', 'info');
         hideRevisionBubble();

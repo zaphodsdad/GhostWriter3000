@@ -577,15 +577,39 @@ The project is fully functional with:
 - **Polish mode** - Light-touch revision for near-final prose
 - **Inline accept/reject** - Cherry-pick individual changes from AI revisions
 - **Canon toggle** - Mark/unmark scenes as canon directly from reading view
+- **Global settings on start page** - API keys, models, credits all on start page
+- **Unified Scene Workspace** - Single adaptive view replaces Generate tab + Reading View
 - Docker deployment support
 
 Ready for production use for personal prose generation projects.
 
-## Upcoming: UX Simplification
+### 19. Global Settings Panel
+Settings now accessible from the start page (before opening any project):
+- **Collapsible panel** - Click header to expand/collapse
+- **Credits display** - Shows OpenRouter balance at a glance
+- **API Keys** - OpenRouter and Anthropic key entry
+- **Default Models** - Generation and Critique model dropdowns
+- **Credit Alerts** - Enable/disable and set threshold
+- **Data Directory** - View and change storage location
 
-Planned improvements to streamline the interface:
-- **Global settings on start page** - API keys and defaults configured before opening projects
-- **Unified Scene Workspace** - Merge Generate tab and Reading View into one adaptive workspace
-- **Status badges in sidebar** - Visual indicators for scene state (empty, has prose, canon, generating)
+The hamburger menu settings modal has been removed - all settings are now on the start page.
 
-See TODO.md for full details.
+### 20. Unified Scene Workspace
+Single adaptive workspace replaces separate Generate tab and Reading View:
+
+**Scene States:**
+- **Empty** - Shows outline + "Generate Prose" / "Import Existing Prose" buttons
+- **Generating** - Shows progress bar with status
+- **Review** - Shows prose + critique + Approve & Revise / Accept / Reject buttons
+- **Has Prose** - Shows prose with floating AI bubble + Evaluate / Mark as Canon / Edit buttons
+- **Canon** - Shows prose (read-only) + "Remove from Canon" button
+- **Editing** - Textarea for direct prose editing
+- **Import** - Textarea to paste existing prose for critique
+
+**Workflow:**
+1. Click any scene in the sidebar → opens workspace
+2. Workspace adapts UI based on scene state
+3. Generate, evaluate, revise, or import all in one place
+4. Floating AI bubble available for inline revisions
+
+See TODO.md for remaining features and roadmap.

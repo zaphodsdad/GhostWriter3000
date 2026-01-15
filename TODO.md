@@ -13,7 +13,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 | **Continuity System** | Complete | Done |
 | **Generation** | Working | Done |
 | **Editing Module** | In Progress | **NOW** |
-| **UX Simplification** | Planned | **NEXT** |
+| **UX Simplification** | Complete | Done |
 | **Outlining Module** | Not started | Future |
 
 ---
@@ -36,11 +36,14 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Basic edit mode - import prose, run through critique loop
 - [x] Continuity system - auto-include last 10 scene summaries
 - [x] Manuscript import - upload .docx/.txt/.md, auto-split chapters, create scenes in edit mode
-- [x] Floating AI revision bubble - select text in reading view for inline AI editing
+- [x] Floating AI revision bubble - select text for inline AI editing
 - [x] Canon toggle from reading view - mark/unmark scenes as canon without entering edit mode
 - [x] Inline accept/reject in diff view - cherry-pick AI changes before applying
 - [x] Polish mode - lighter touch revision (line edits vs structural)
 - [x] Generation dropdown sorted by chapter/scene order
+- [x] Global settings on start page - API keys, default models, credits display
+- [x] Unified Scene Workspace - merged Generate tab and Reading View into one adaptive workspace
+- [x] Removed hamburger menu settings modal (settings now on start page)
 
 ---
 
@@ -57,50 +60,49 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - **Edit mode display** - imported prose visible in reading pane with "Edit Mode - Ready for Critique" status
 - **Backup on prose edit** - auto-backup before manual prose changes
 - **Polish mode** - choose between full structural revision or light line edits
+- **Unified workspace** - click any scene to open adaptive workspace
 
 ### Remaining Editing Features
 
 - [ ] Consistency pass - critique focused on continuity errors across scenes
 - [ ] Side-by-side version comparison (pick any two versions)
 - [ ] Evaluate-only mode - get critique report without entering revision loop
+- [ ] Project-level evaluation - evaluate entire book once manuscript is complete
 
 ---
 
-## NEXT: UX Simplification
+## COMPLETED: UX Simplification
 
-*Simplify the interface by unifying workflows and moving global settings.*
+*Simplified the interface by unifying workflows and moving global settings.*
 
-### Global Settings to Start Page
+### Global Settings to Start Page (DONE)
 
-- [ ] Move API configuration to start page (not buried in project settings)
-- [ ] API provider selection (Anthropic vs OpenRouter)
-- [ ] API key entry with validation
-- [ ] Default model selection
-- [ ] Credit balance display (OpenRouter)
-- [ ] Data directory configuration
+- [x] Move API configuration to start page (collapsible settings panel)
+- [x] API key entry (OpenRouter and Anthropic)
+- [x] Default model selection
+- [x] Credit balance display (OpenRouter)
+- [x] Data directory configuration
+- [x] Removed hamburger menu (settings only on start page now)
 
-### Unified Scene Workspace
+### Unified Scene Workspace (DONE)
 
-*Merge Generate tab and Reading View into one adaptive workspace.*
-
-- [ ] Remove separate Generate tab
-- [ ] Click any scene in sidebar → opens unified workspace
-- [ ] Workspace adapts based on scene state:
+- [x] Removed separate Generate tab
+- [x] Click any scene in sidebar → opens unified workspace
+- [x] Workspace adapts based on scene state:
   - No prose: show outline + "Generate" / "Import Prose" buttons
-  - Has prose (not canon): show prose + floating bubble + revision options
-  - Has prose (canon): show prose + "Evaluate" (mostly read-only)
-  - Currently generating: show progress
-  - Awaiting approval: show prose + critique + approve/revise/accept
-- [ ] Model selection and revision mode in collapsible settings panel
-- [ ] Floating AI bubble works everywhere
-- [ ] "Evaluate" button for critique-only feedback
-- [ ] Status badges in sidebar (empty, has prose, canon, generating)
+  - Has prose (not canon): show prose + floating bubble + Evaluate/Mark Canon/Edit
+  - Has prose (canon): show prose + "Remove from Canon" button
+  - Generating: show progress bar
+  - Awaiting approval: show prose + critique + Approve & Revise/Accept/Reject
+- [x] Model selection and revision mode in collapsible settings panel
+- [x] Floating AI bubble works in workspace
+- [x] "Evaluate" button for critique-only feedback
 
-### Import Reorganization
+### Import Organization
 
-- [ ] Manuscript import stays in Structure → Import
-- [ ] Single-scene prose import moves to unified workspace ("Import Prose" button)
-- [ ] Character/Reference imports stay in their respective tabs
+- [x] Manuscript import stays in Structure → Import
+- [x] Single-scene prose import in unified workspace ("Import Existing Prose" button)
+- [x] Character/Reference imports stay in their respective tabs
 
 ---
 
@@ -159,6 +161,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [ ] Undo/redo for prose edits
 - [ ] Drag-and-drop reordering (chapters and scenes)
 - [ ] (Future) Chapter-level summaries for longer books
+- [ ] Status badges in sidebar (empty, has prose, canon, generating)
 
 ---
 
