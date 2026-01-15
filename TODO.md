@@ -60,13 +60,45 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - **Auto chapter detection** - splits by "Chapter 1", "CHAPTER ONE", etc.
 - **Bulk scene creation** - each chapter becomes a Chapter + Scene in edit mode
 - **Edit mode display** - imported prose visible in reading pane with "Edit Mode - Ready for Critique" status
+- **Backup on prose edit** - auto-backup before manual prose changes
 
-**To add:**
-- [ ] Side-by-side view - original vs revised
-- [ ] Selective revision - apply some critique points, ignore others
+---
+
+### Revision UI Overhaul
+
+*Three-panel revision view: Current Prose | Diff View | Critique*
+*See `REVISION-UI-SKETCH.md` for full design spec.*
+
+**Phase 1: Diff View** *(Complete)*
+- [x] Add jsdiff library (CDN)
+- [x] Show diff between current prose and AI revision
+- [x] Red deletions, green insertions
+- [x] Integrate into generation/approval modal
+
+**Phase 2: Revision Instructions** *(Complete)*
+- [x] Add text input for guiding revisions ("make less cliché", "add tension")
+- [x] Pass instructions to revision prompt
+- [x] Quick-add hint chips for common instructions
+
+**Phase 3: Selection-Based Revision**
+- [ ] Track text selection in prose panel
+- [ ] "Revise Selection" button - revise only highlighted portion
+- [ ] New API endpoint: `POST /generations/{id}/revise-selection`
+- [ ] Send selection + surrounding context to Claude
+- [ ] Splice revised selection back into full prose
+
+**Phase 4: Inline Accept/Reject**
+- [ ] Click individual changes to toggle accept/reject
+- [ ] Build merged prose from accepted changes
+- [ ] "Apply Selected Changes" action
+
+---
+
+### Other Editing Features
+
 - [ ] Consistency pass - critique focused on continuity errors across scenes
 - [ ] Polish mode - lighter touch revision (line edits vs structural)
-- [ ] Track changes style diff view
+- [ ] Side-by-side version comparison (pick any two versions)
 
 ---
 

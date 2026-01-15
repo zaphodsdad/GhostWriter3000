@@ -345,13 +345,14 @@ class GenerationService:
             state.updated_at = datetime.utcnow()
             await self.state_manager.save_state(state)
 
-    async def approve_and_revise(self, project_id: str, generation_id: str) -> GenerationState:
+    async def approve_and_revise(self, project_id: str, generation_id: str, instructions: str = None) -> GenerationState:
         """
         Approve current iteration and start revision.
 
         Args:
             project_id: Project ID
             generation_id: Generation ID
+            instructions: Optional user guidance for the revision
 
         Returns:
             Updated generation state
@@ -373,17 +374,18 @@ class GenerationService:
 
         # Start revision in background
         import asyncio
-        asyncio.create_task(self._run_revision(project_id, generation_id))
+        asyncio.create_task(self._run_revision(project_id, generation_id, instructions=instructions))
 
         return state
 
-    async def _run_revision(self, project_id: str, generation_id: str) -> None:
+    async def _run_revision(self, project_id: str, generation_id: str, instructions: str = None) -> None:
         """
         Run revision based on critique.
 
         Args:
             project_id: Project ID
             generation_id: Generation ID
+            instructions: Optional user guidance for the revision
         """
         try:
             # Load state
@@ -406,9 +408,9 @@ class GenerationService:
             current_prose = state.iterations[-1].prose
             critique = state.iterations[-1].critique
 
-            # Revise prose (use custom model if specified)
+            # Revise prose (use custom model if specified, include user instructions)
             revised_prose = await self.llm.revise_prose(
-                current_prose, critique, system_prompt, model=state.generation_model
+                current_prose, critique, system_prompt, model=state.generation_model, instructions=instructions
             )
 
             # Clean any AI preambles from the output

@@ -190,6 +190,11 @@ Scenes are defined as JSON files in `data/scenes/`.
    - **Reject**: Cancels the generation
 6. **Repeat** the critique-revision loop up to the maximum iterations (default: 5)
 
+#### Revision Features
+
+- **Diff View**: After the first revision, click "Show Changes" to see exactly what the AI changed (green = additions, red = deletions)
+- **Revision Instructions**: Expand the "Revision Instructions" section to guide the AI's revision with specific feedback like "make the pacing faster" or "improve the dialogue"
+
 ## API Documentation
 
 Once running, visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI).

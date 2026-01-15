@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, HTTPException, BackgroundTasks, Query
 from typing import List, Optional
+from pydantic import BaseModel
 
 from app.models.generation import (
     GenerationStart,
@@ -15,6 +16,11 @@ from app.api.routes.settings import load_user_settings
 from app.config import settings
 
 router = APIRouter()
+
+
+class ApproveRequest(BaseModel):
+    """Request body for approve and revise."""
+    instructions: Optional[str] = None  # Optional revision guidance from user
 
 
 def get_effective_models(gen_model: Optional[str], critique_model: Optional[str]) -> tuple[Optional[str], Optional[str]]:
@@ -174,13 +180,14 @@ async def get_generation(project_id: str, generation_id: str):
 
 
 @router.post("/{generation_id}/approve", response_model=GenerationResponse)
-async def approve_and_revise(project_id: str, generation_id: str):
+async def approve_and_revise(project_id: str, generation_id: str, request: ApproveRequest = None):
     """
     Approve current iteration and trigger revision.
 
     Args:
         project_id: Project ID
         generation_id: Unique generation identifier
+        request: Optional request body with revision instructions
 
     Returns:
         Updated generation state
@@ -190,9 +197,12 @@ async def approve_and_revise(project_id: str, generation_id: str):
     """
     ensure_project_exists(project_id)
 
+    # Extract instructions from request body if provided
+    instructions = request.instructions if request else None
+
     try:
         service = get_generation_service()
-        state = await service.approve_and_revise(project_id, generation_id)
+        state = await service.approve_and_revise(project_id, generation_id, instructions=instructions)
         return _build_response(state)
 
     except FileNotFoundError:

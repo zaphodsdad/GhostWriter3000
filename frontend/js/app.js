@@ -14,6 +14,8 @@ let currentGenId = null;
 let pollingInterval = null;
 let currentGenModel = null;
 let currentCritiqueModel = null;
+let previousProse = null;  // For diff view
+let showingDiff = false;   // Diff view toggle state
 let sidebarCollapsed = false;
 let currentReadingData = null;
 let previousView = null;
@@ -1377,6 +1379,11 @@ async function navigateToView(view) {
     // Handle references view
     if (view === 'references') {
         await loadReferences();
+    }
+
+    // Handle backups view
+    if (view === 'backups') {
+        await loadBackups();
     }
 }
 
@@ -3007,6 +3014,138 @@ function showReviewStep(data) {
     const reviseBtn = document.getElementById('gen-revise-btn');
     reviseBtn.disabled = false;
     reviseBtn.textContent = 'Approve & Revise';
+
+    // Handle diff view - check if we have a previous iteration
+    const diffToggleBtn = document.getElementById('diff-toggle-btn');
+    const diffEl = document.getElementById('gen-diff');
+    const diffStatsEl = document.getElementById('gen-diff-stats');
+
+    if (data.history && data.history.length > 1) {
+        // We have previous iterations - enable diff view
+        previousProse = data.history[data.history.length - 2].prose;
+        diffToggleBtn.style.display = 'inline-block';
+
+        // Render the diff
+        renderDiff(previousProse, data.current_prose || '');
+
+        // Reset to prose view by default
+        showingDiff = false;
+        diffEl.style.display = 'none';
+        document.getElementById('gen-prose').style.display = 'block';
+        diffToggleBtn.textContent = 'Show Changes';
+        diffStatsEl.style.display = 'none';
+    } else {
+        // First iteration - hide diff toggle
+        previousProse = null;
+        diffToggleBtn.style.display = 'none';
+        diffEl.style.display = 'none';
+        diffStatsEl.style.display = 'none';
+        showingDiff = false;
+    }
+}
+
+// ============================================
+// Diff View Functions
+// ============================================
+function renderDiff(oldText, newText) {
+    const diffEl = document.getElementById('gen-diff');
+    const diffStatsEl = document.getElementById('gen-diff-stats');
+
+    if (!oldText || !newText) {
+        diffEl.innerHTML = '<em class="text-muted">No previous version to compare</em>';
+        return;
+    }
+
+    // Use jsdiff library (loaded via CDN)
+    const diff = Diff.diffWords(oldText, newText);
+
+    let html = '';
+    let additions = 0;
+    let deletions = 0;
+
+    diff.forEach(part => {
+        if (part.added) {
+            additions += part.value.split(/\s+/).filter(w => w).length;
+            html += `<ins class="diff-add">${escapeHtml(part.value)}</ins>`;
+        } else if (part.removed) {
+            deletions += part.value.split(/\s+/).filter(w => w).length;
+            html += `<del class="diff-del">${escapeHtml(part.value)}</del>`;
+        } else {
+            html += escapeHtml(part.value);
+        }
+    });
+
+    diffEl.innerHTML = html;
+
+    // Update stats
+    if (additions > 0 || deletions > 0) {
+        const statsHtml = [];
+        if (additions > 0) statsHtml.push(`<span class="diff-stat-add">+${additions} words</span>`);
+        if (deletions > 0) statsHtml.push(`<span class="diff-stat-del">-${deletions} words</span>`);
+        diffStatsEl.innerHTML = statsHtml.join(' ');
+    }
+}
+
+function toggleDiffView() {
+    const proseEl = document.getElementById('gen-prose');
+    const diffEl = document.getElementById('gen-diff');
+    const diffToggleBtn = document.getElementById('diff-toggle-btn');
+    const diffStatsEl = document.getElementById('gen-diff-stats');
+
+    showingDiff = !showingDiff;
+
+    if (showingDiff) {
+        proseEl.style.display = 'none';
+        diffEl.style.display = 'block';
+        diffToggleBtn.textContent = 'Show Prose';
+        diffStatsEl.style.display = 'inline';
+    } else {
+        proseEl.style.display = 'block';
+        diffEl.style.display = 'none';
+        diffToggleBtn.textContent = 'Show Changes';
+        diffStatsEl.style.display = 'none';
+    }
+}
+
+// ============================================
+// Revision Instructions Functions
+// ============================================
+function toggleRevisionInstructions() {
+    const body = document.getElementById('revision-instructions-body');
+    const toggle = document.getElementById('revision-instructions-toggle');
+
+    if (body.style.display === 'none') {
+        body.style.display = 'block';
+        toggle.classList.add('open');
+    } else {
+        body.style.display = 'none';
+        toggle.classList.remove('open');
+    }
+}
+
+function addRevisionHint(hint) {
+    const textarea = document.getElementById('revision-instructions');
+    const current = textarea.value.trim();
+
+    if (current) {
+        textarea.value = current + '. ' + hint;
+    } else {
+        textarea.value = hint;
+    }
+
+    textarea.focus();
+}
+
+function clearRevisionInstructions() {
+    const textarea = document.getElementById('revision-instructions');
+    if (textarea) {
+        textarea.value = '';
+    }
+    // Collapse the section
+    const body = document.getElementById('revision-instructions-body');
+    const toggle = document.getElementById('revision-instructions-toggle');
+    if (body) body.style.display = 'none';
+    if (toggle) toggle.classList.remove('open');
 }
 
 async function showCompleteStep(data) {
@@ -3031,14 +3170,23 @@ async function approveAndRevise() {
         document.getElementById('gen-step-progress').style.display = 'block';
         updateProgress('revising', 'Revising based on critique...');
 
+        // Get revision instructions if provided
+        const instructionsEl = document.getElementById('revision-instructions');
+        const instructions = instructionsEl ? instructionsEl.value.trim() : '';
+
         const response = await fetch(apiUrl(`/generations/${currentGenId}/approve`), {
-            method: 'POST'
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ instructions: instructions || null })
         });
 
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.detail || 'Failed to approve');
         }
+
+        // Clear instructions for next revision
+        clearRevisionInstructions();
 
         startPolling();
     } catch (e) {
@@ -4739,4 +4887,245 @@ async function refreshCredits() {
     }
     await loadCredits();
     showToast('Credits', 'Balance refreshed', 'success');
+}
+
+// ============================================
+// Backup System
+// ============================================
+async function loadBackups() {
+    if (!currentProject) return;
+
+    await Promise.all([
+        loadSnapshots(),
+        populateBackupSceneSelect()
+    ]);
+}
+
+async function loadSnapshots() {
+    const listEl = document.getElementById('snapshots-list');
+    const statEl = document.getElementById('backup-stat-snapshots');
+
+    listEl.innerHTML = '<div class="empty-state">Loading snapshots...</div>';
+
+    try {
+        const response = await fetch(`/api/projects/${currentProject.id}/backups/snapshots`);
+        if (!response.ok) throw new Error('Failed to fetch snapshots');
+
+        const snapshots = await response.json();
+
+        statEl.textContent = snapshots.length;
+
+        if (snapshots.length === 0) {
+            listEl.innerHTML = '<div class="empty-state">No project snapshots yet. Create a checkpoint to save your current progress.</div>';
+            return;
+        }
+
+        listEl.innerHTML = snapshots.map(snapshot => `
+            <div class="backup-item">
+                <div class="backup-item-info">
+                    <div class="backup-item-title">${escapeHtml(snapshot.name)}</div>
+                    <div class="backup-item-meta">
+                        ${formatRelativeTime(snapshot.timestamp)} ·
+                        ${snapshot.scene_count} scene${snapshot.scene_count !== 1 ? 's' : ''} ·
+                        <span class="backup-reason ${snapshot.reason === 'checkpoint' ? 'checkpoint' : ''}">${snapshot.reason}</span>
+                    </div>
+                </div>
+                <button class="btn btn-small" onclick="restoreSnapshot('${escapeHtml(snapshot.directory)}')">Restore</button>
+            </div>
+        `).join('');
+
+    } catch (e) {
+        console.error('Failed to load snapshots:', e);
+        listEl.innerHTML = '<div class="empty-state error">Failed to load snapshots</div>';
+    }
+}
+
+async function populateBackupSceneSelect() {
+    const selectEl = document.getElementById('backup-scene-select');
+    const versionsListEl = document.getElementById('scene-versions-list');
+
+    selectEl.innerHTML = '<option value="">-- Select a Scene --</option>';
+    versionsListEl.style.display = 'none';
+
+    if (!scenes || scenes.length === 0) {
+        return;
+    }
+
+    // Build scene options grouped by chapter
+    const scenesByChapter = {};
+    scenes.forEach(scene => {
+        const chapterId = scene.chapter_id || 'uncategorized';
+        if (!scenesByChapter[chapterId]) {
+            scenesByChapter[chapterId] = [];
+        }
+        scenesByChapter[chapterId].push(scene);
+    });
+
+    // Add options
+    for (const [chapterId, chapterScenes] of Object.entries(scenesByChapter)) {
+        const chapter = chapters.find(c => c.id === chapterId);
+        const chapterName = chapter ? chapter.title : 'Uncategorized';
+
+        const optgroup = document.createElement('optgroup');
+        optgroup.label = chapterName;
+
+        for (const scene of chapterScenes) {
+            const option = document.createElement('option');
+            option.value = scene.id;
+            option.textContent = scene.title || `Scene ${scene.scene_number || '?'}`;
+            optgroup.appendChild(option);
+        }
+
+        selectEl.appendChild(optgroup);
+    }
+
+    // Fetch backup stats for each scene (in background)
+    fetchBackupStats();
+}
+
+async function fetchBackupStats() {
+    const statScenesEl = document.getElementById('backup-stat-scenes');
+    const statVersionsEl = document.getElementById('backup-stat-versions');
+
+    let scenesWithBackups = 0;
+    let totalVersions = 0;
+
+    // Check each scene for backups
+    for (const scene of scenes) {
+        try {
+            const response = await fetch(`/api/projects/${currentProject.id}/backups/scenes/${scene.id}/versions`);
+            if (response.ok) {
+                const versions = await response.json();
+                if (versions.length > 0) {
+                    scenesWithBackups++;
+                    totalVersions += versions.length;
+                }
+            }
+        } catch (e) {
+            // Ignore individual failures
+        }
+    }
+
+    statScenesEl.textContent = scenesWithBackups;
+    statVersionsEl.textContent = totalVersions;
+}
+
+async function loadSceneVersions() {
+    const selectEl = document.getElementById('backup-scene-select');
+    const listEl = document.getElementById('scene-versions-list');
+    const sceneId = selectEl.value;
+
+    if (!sceneId) {
+        listEl.style.display = 'none';
+        return;
+    }
+
+    listEl.style.display = 'block';
+    listEl.innerHTML = '<div class="empty-state">Loading versions...</div>';
+
+    try {
+        const response = await fetch(`/api/projects/${currentProject.id}/backups/scenes/${sceneId}/versions`);
+        if (!response.ok) throw new Error('Failed to fetch versions');
+
+        const versions = await response.json();
+
+        if (versions.length === 0) {
+            listEl.innerHTML = '<div class="empty-state">No backups for this scene yet.</div>';
+            return;
+        }
+
+        listEl.innerHTML = versions.map(version => `
+            <div class="backup-item">
+                <div class="backup-item-info">
+                    <div class="backup-item-title">${formatRelativeTime(version.timestamp)}</div>
+                    <div class="backup-item-meta">
+                        ${version.word_count} words ·
+                        ${version.is_canon ? '<span class="badge canon">Canon</span>' : '<span class="badge">Draft</span>'} ·
+                        <span class="backup-reason">${version.reason}</span>
+                    </div>
+                </div>
+                <button class="btn btn-small" onclick="restoreSceneVersion('${sceneId}', '${escapeHtml(version.filename)}')">Restore</button>
+            </div>
+        `).join('');
+
+    } catch (e) {
+        console.error('Failed to load scene versions:', e);
+        listEl.innerHTML = '<div class="empty-state error">Failed to load versions</div>';
+    }
+}
+
+async function createCheckpoint() {
+    const name = prompt('Enter a name for this checkpoint:');
+    if (!name || !name.trim()) return;
+
+    try {
+        const response = await fetch(`/api/projects/${currentProject.id}/backups/checkpoint`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name.trim() })
+        });
+
+        if (!response.ok) throw new Error('Failed to create checkpoint');
+
+        showToast('Checkpoint Created', `Saved checkpoint "${name.trim()}"`, 'success');
+        await loadSnapshots();
+
+    } catch (e) {
+        console.error('Failed to create checkpoint:', e);
+        showToast('Error', 'Failed to create checkpoint', 'error');
+    }
+}
+
+async function restoreSnapshot(directory) {
+    if (!confirm('Are you sure you want to restore this snapshot? This will overwrite your current project state. A backup will be created first.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/projects/${currentProject.id}/backups/snapshots/restore`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ version: directory })
+        });
+
+        if (!response.ok) throw new Error('Failed to restore snapshot');
+
+        showToast('Snapshot Restored', 'Project restored from snapshot. Reloading...', 'success');
+
+        // Reload all project data
+        setTimeout(async () => {
+            await loadAllData();
+            await loadBackups();
+        }, 500);
+
+    } catch (e) {
+        console.error('Failed to restore snapshot:', e);
+        showToast('Error', 'Failed to restore snapshot', 'error');
+    }
+}
+
+async function restoreSceneVersion(sceneId, filename) {
+    if (!confirm('Are you sure you want to restore this version? The current scene content will be backed up first.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/projects/${currentProject.id}/backups/scenes/${sceneId}/restore`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ version: filename })
+        });
+
+        if (!response.ok) throw new Error('Failed to restore scene version');
+
+        showToast('Scene Restored', 'Scene restored from backup', 'success');
+
+        // Reload scenes and refresh the version list
+        await loadScenes();
+        await loadSceneVersions();
+
+    } catch (e) {
+        console.error('Failed to restore scene version:', e);
+        showToast('Error', 'Failed to restore scene version', 'error');
+    }
 }

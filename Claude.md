@@ -202,6 +202,45 @@ Fine-tune before generating:
 - **Last-minute tweaks**: Adjust wording without editing the scene record
 - **Scene modal**: Scene editing now in modal overlay for better UX
 
+### 13. Diff View
+See exactly what changed between revisions:
+- **Toggle button**: "Show Changes" appears after first revision
+- **Word-level diff**: Uses jsdiff library for precise comparison
+- **Visual highlighting**: Green for additions, red strikethrough for deletions
+- **Change stats**: Shows +/- word counts for each revision
+
+### 14. Revision Instructions
+Guide the AI's revision with specific feedback:
+- **Collapsible input**: Expand "Revision Instructions" section during review
+- **Free-form text**: Type custom guidance ("focus on dialogue", "add tension")
+- **Quick hints**: Click chips for common instructions (faster pacing, more sensory, etc.)
+- **Priority handling**: User instructions take precedence over general critique suggestions
+- **Auto-clear**: Instructions clear after each revision to allow fresh guidance
+
+### 15. Backup System
+Comprehensive data protection with automatic and manual backups:
+
+**Automatic Backups** (triggered before):
+- Accepting a scene as canon
+- Deleting a scene
+- Editing prose manually
+- Restoring from backup
+- Bulk manuscript import
+- Clearing project structure
+
+**Manual Backups**:
+- **Checkpoints**: Named project snapshots (never auto-deleted)
+- **Scene backups**: Manual backup of individual scenes
+
+**Backup Tab UI**:
+- **Stats**: View counts of scenes with backups, total versions, snapshots
+- **Project Snapshots**: List all snapshots with restore buttons
+- **Scene Version History**: Select scene, view versions, restore any version
+
+**Retention**:
+- Scene versions: Last 10 per scene
+- Auto-snapshots: Last 5 (checkpoints exempt)
+
 ## Scene Summary & Continuity System
 
 ### The Problem

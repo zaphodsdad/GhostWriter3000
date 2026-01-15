@@ -177,7 +177,8 @@ class LLMService:
         system_prompt: str,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        instructions: Optional[str] = None
     ) -> str:
         """
         Revise prose based on critique using LLM API.
@@ -189,6 +190,7 @@ class LLMService:
             temperature: Optional temperature override
             max_tokens: Optional max tokens override
             model: Optional model override (uses settings.generation_model if None)
+            instructions: Optional user-provided guidance for the revision
 
         Returns:
             Revised prose text
@@ -201,7 +203,7 @@ class LLMService:
             try:
                 from app.utils.prompt_templates import build_revision_prompt
 
-                user_prompt = build_revision_prompt(original_prose, critique)
+                user_prompt = build_revision_prompt(original_prose, critique, instructions)
                 use_model = model or settings.generation_model
 
                 if self.provider == "anthropic":

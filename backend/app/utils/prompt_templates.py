@@ -277,17 +277,31 @@ For each area, provide:
 Be constructive but honest. If something is working well, say so. If something needs improvement, explain why and how to fix it. Pay special attention to any style guide violations."""
 
 
-def build_revision_prompt(original_prose: str, critique: str) -> str:
+def build_revision_prompt(original_prose: str, critique: str, user_instructions: str = None) -> str:
     """
     Build prompt for revising prose based on critique.
 
     Args:
         original_prose: The original prose text
         critique: The critique of the original prose
+        user_instructions: Optional additional guidance from the user
 
     Returns:
         Formatted revision prompt
     """
+    # Build the user instructions section if provided
+    user_guidance = ""
+    if user_instructions and user_instructions.strip():
+        user_guidance = f"""
+# User Guidance
+The author has provided additional direction for this revision:
+---
+{user_instructions.strip()}
+---
+
+Prioritize the author's guidance above general revision suggestions.
+"""
+
     return f"""Please revise the following prose based on the critique provided.
 
 # Original Prose
@@ -299,7 +313,7 @@ def build_revision_prompt(original_prose: str, critique: str) -> str:
 ---
 {critique}
 ---
-
+{user_guidance}
 # Instructions
 Revise the prose to address the critique's suggestions while maintaining:
 - The core narrative and plot points

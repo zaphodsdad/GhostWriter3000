@@ -214,8 +214,15 @@ async def update_scene(project_id: str, scene_id: str, update: SceneUpdate):
         filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
         data = await read_json_file(filepath)
 
-        # Merge updates (only non-None fields)
+        # Check if prose is being modified - backup first
         update_dict = update.model_dump(exclude_unset=True)
+        if "prose" in update_dict and update_dict["prose"] is not None:
+            current_prose = data.get("prose")
+            # Only backup if there's existing prose and it's changing
+            if current_prose and current_prose != update_dict["prose"]:
+                await backup_scene(project_id, scene_id, reason="pre-edit")
+
+        # Merge updates (only non-None fields)
         for key, value in update_dict.items():
             if value is not None:
                 data[key] = value
