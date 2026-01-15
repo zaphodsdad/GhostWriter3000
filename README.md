@@ -2,15 +2,6 @@
 
 An automated prose generation pipeline with critique-revision loop powered by Claude AI. Features a clean web interface for managing characters, world context, and scene generation.
 
-## Known Issues - Fix First
-
-**Mammoth library not installed**: The manuscript import feature for .docx files requires the `mammoth` library. Install with:
-```bash
-cd backend && pip install --target=./venv/lib/python3.12/site-packages mammoth
-```
-
----
-
 ## Features
 
 - **Web-based Interface**: Clean, modern UI for managing all aspects of prose generation

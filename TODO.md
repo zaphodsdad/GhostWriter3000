@@ -4,15 +4,6 @@
 
 ---
 
-## KNOWN ISSUES - FIX FIRST
-
-**Mammoth library not installed**: .docx import fails. Fix with:
-```bash
-cd backend && pip install --target=./venv/lib/python3.12/site-packages mammoth
-```
-
----
-
 ## Roadmap
 
 The full creative workflow: **OUTLINE → GENERATE → EDIT**

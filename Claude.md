@@ -1,22 +1,5 @@
 # Prose Pipeline Project - Claude Context
 
-## KNOWN ISSUES - FIX FIRST
-
-**Mammoth library not installed**: The manuscript import feature for .docx files requires the `mammoth` library, which may not be installed in the virtual environment. To fix:
-
-```bash
-cd backend
-source venv/bin/activate  # or fix venv if broken
-pip install mammoth
-```
-
-If the venv has broken symlinks, you may need to recreate it or install directly to site-packages:
-```bash
-pip install --target=./venv/lib/python3.12/site-packages mammoth
-```
-
----
-
 ## Project Overview
 
 The **Prose Pipeline** is an automated prose generation system built with Claude AI that implements a critique-revision loop for high-quality creative writing. It features a clean web interface for managing characters, world-building, and scene generation with automatic continuity tracking.
