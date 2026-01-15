@@ -12,9 +12,12 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **Series System**: Group related books with shared characters, world-building, and style guides
 - **Reference Library**: Import style guides, published works, or notes as AI context
 - **Edit Mode**: Revise existing prose through the critique loop
+- **Manuscript Import**: Upload .docx/.txt/.md files, auto-detect chapters, create scenes in edit mode
+- **Continuity System**: Automatically includes summaries from last 10 scenes for context
 - **Dynamic Model Selection**: Choose from available OpenRouter models with live pricing
 - **Default Model Settings**: Configure preferred generation and critique models
 - **Word Count Goals**: Track progress toward writing targets with visual progress bar
+- **Credit Alerts**: Notifications when OpenRouter balance drops below threshold
 - **Docker Support**: Easy deployment with Docker and docker-compose
 
 ## Technology Stack

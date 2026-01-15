@@ -10,9 +10,9 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 
 | Module | Status | Priority |
 |--------|--------|----------|
-| **Continuity System** | In Progress | **NOW** |
+| **Continuity System** | Complete | Done |
 | **Generation** | Working | Done |
-| **Editing Module** | Basic exists | Next |
+| **Editing Module** | In Progress | **NOW** |
 | **Outlining Module** | Not started | Future |
 
 ---
@@ -33,10 +33,12 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Series system - group books, share characters/world
 - [x] Reference library - import documents as AI context
 - [x] Basic edit mode - import prose, run through critique loop
+- [x] Continuity system - auto-include last 10 scene summaries
+- [x] Manuscript import - upload .docx/.txt/.md, auto-split chapters, create scenes in edit mode
 
 ---
 
-## NOW: Continuity System ✅
+## DONE: Continuity System ✅
 
 *Foundation for multi-scene generation. Without this, scene 50 doesn't know what happened in scenes 1-49.*
 
@@ -47,16 +49,18 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 
 ---
 
-## NEXT: Editing Module
+## NOW: Editing Module
 
-*Revise existing prose through the critique loop. Basic edit mode exists, needs enhancement.*
+*Revise existing prose through the critique loop.*
 
 **What exists:**
 - Single-scene edit mode (import prose, skip to critique)
 - Critique → revise loop works
+- **Manuscript import** - upload .docx/.txt/.md files
+- **Auto chapter detection** - splits by "Chapter 1", "CHAPTER ONE", etc.
+- **Bulk scene creation** - each chapter becomes a scene in edit mode
 
 **To add:**
-- [ ] Bulk import - paste a chapter, split into scenes
 - [ ] Side-by-side view - original vs revised
 - [ ] Selective revision - apply some critique points, ignore others
 - [ ] Consistency pass - critique focused on continuity errors across scenes

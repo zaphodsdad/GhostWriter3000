@@ -88,7 +88,22 @@ Revise existing manuscripts instead of generating from scratch:
 4. Critique analyzes existing prose
 5. Approve revisions as normal
 
-### 4. Character Management
+### 4. Manuscript Import
+Bulk import existing prose for revision:
+- **File formats**: .docx (via mammoth), .txt, .md
+- **Chapter detection**: Auto-detects "Chapter 1", "CHAPTER ONE", "Chapter One: Title", etc.
+- **Bulk creation**: Each detected chapter becomes a scene in edit mode
+- **Single import**: Import entire text as one scene if preferred
+
+**Workflow**:
+1. Structure → Import → Manuscript tab
+2. Upload file or paste text
+3. Preview detected chapters
+4. Select target chapter for scenes
+5. Confirm import → scenes created in edit mode
+6. Run critique/revise loop on each scene
+
+### 5. Character Management
 Characters stored as markdown files with YAML frontmatter:
 ```yaml
 ---
@@ -110,7 +125,7 @@ Jane grew up in...
 - **YAML format** (auto-detected): Instant local parsing, 100% accurate
 - **Free-form text**: AI-powered extraction via Claude
 
-### 5. World Building
+### 6. World Building
 World context stored similarly to characters:
 ```yaml
 ---
@@ -123,7 +138,7 @@ magic_system: Elemental magic
 The kingdom was founded...
 ```
 
-### 6. Scene-Based Generation
+### 7. Scene-Based Generation
 Scenes defined as JSON with:
 - Scene outline/description
 - Character references
@@ -132,7 +147,7 @@ Scenes defined as JSON with:
 - **Previous scene references** (for continuity)
 - **Edit mode fields** (original_prose, edit_mode flag)
 
-### 7. Critique-Revision Loop
+### 8. Critique-Revision Loop
 
 **Workflow**:
 ```
@@ -159,27 +174,27 @@ PENDING → GENERATING → AWAITING_APPROVAL
                         COMPLETED
 ```
 
-### 8. Dynamic Model Selection
+### 9. Dynamic Model Selection
 Models are fetched dynamically from OpenRouter API:
 - **Live model list**: Queries OpenRouter for available models
 - **Filtered selection**: Shows models from preferred providers (Anthropic, OpenAI, Google, Meta, Mistral, Cohere)
 - **Fallback list**: Default models shown if API unavailable
 - **Pricing info**: Model costs displayed for informed selection
 
-### 9. Default Model Settings
+### 10. Default Model Settings
 User preferences for AI models:
 - **Settings panel**: Configure default generation and critique models
 - **Per-generation override**: Can still select different models for individual generations
 - **Persistent**: Settings saved to `data/settings.json`
 
-### 10. Word Count Goals
+### 11. Word Count Goals
 Track writing progress:
 - **Project goals**: Set target word count per project
 - **Progress bar**: Visual indicator of progress toward goal
 - **Click to edit**: Click word count display to set/update goal
 - **Percentage tracking**: Shows completion percentage
 
-### 11. Generation Preview Editing
+### 12. Generation Preview Editing
 Fine-tune before generating:
 - **Editable outline**: Modify scene outline in generation preview
 - **Last-minute tweaks**: Adjust wording without editing the scene record
@@ -320,6 +335,12 @@ Remaining for output:         ~181,000 tokens ✅
 - `POST /api/projects/{project_id}/generations/{id}/accept` - Accept as canon
 - `POST /api/projects/{project_id}/generations/{id}/reject` - Reject
 
+### Manuscript Import (Project-scoped)
+- `POST /api/projects/{project_id}/manuscript/upload` - Upload .docx/.txt/.md file
+- `POST /api/projects/{project_id}/manuscript/split` - Split text into chapters
+- `POST /api/projects/{project_id}/manuscript/import-scene` - Import as single scene
+- `POST /api/projects/{project_id}/manuscript/import-bulk` - Import chapters as scenes
+
 ## Configuration
 
 Environment variables (`.env`):
@@ -458,9 +479,12 @@ The project is fully functional with:
 - **Series system** for multi-book projects
 - **Reference library** for importing context documents
 - **Edit mode** for revising existing prose
+- **Manuscript import** - Upload .docx/.txt/.md, auto-split chapters
+- **Continuity system** - Auto-includes last 10 scene summaries
 - **Dynamic model selection** - Fetches available models from OpenRouter API
 - **Default model settings** - Configure preferred generation/critique models
 - **Word count goals** - Track progress with visual progress bar
+- **Credit alerts** - Notifications when OpenRouter balance is low
 - **Editable generation preview** - Tweak scene outline before generating
 - Docker deployment support
 

@@ -655,14 +655,15 @@
                                 <div id="import-type-selection" class="import-type-tabs">
                                     <button class="import-type-btn active" data-type="outline" onclick="selectImportType('outline')">Outline</button>
                                     <button class="import-type-btn" data-type="characters" onclick="selectImportType('characters')">Characters</button>
+                                    <button class="import-type-btn" data-type="manuscript" onclick="selectImportType('manuscript')">Manuscript</button>
                                 </div>
 
                                 <p class="text-muted mb-20" id="import-help-text">Paste your outline in Markdown format. Use # for Acts (optional), ## for Chapters, and ### for Scenes.</p>
 
                                 <!-- Step 1: Input -->
                                 <div id="import-step-input">
-                                    <!-- File upload area -->
-                                    <div class="form-group">
+                                    <!-- File upload area (Outline/Characters) -->
+                                    <div id="import-file-section" class="form-group">
                                         <label>Upload File</label>
                                         <div class="file-upload-area" id="import-file-drop">
                                             <input type="file" id="import-file" accept=".txt,.md,.markdown" onchange="handleImportFileUpload(event)">
@@ -671,7 +672,17 @@
                                         </div>
                                     </div>
 
-                                    <div class="form-group">
+                                    <!-- File upload area (Manuscript - accepts .docx) -->
+                                    <div id="manuscript-file-section" class="form-group" style="display: none;">
+                                        <label>Upload Manuscript</label>
+                                        <div class="file-upload-area" id="manuscript-file-drop">
+                                            <input type="file" id="manuscript-file" accept=".docx,.txt,.md,.markdown" onchange="handleManuscriptFileUpload(event)">
+                                            <p>Drop a .docx, .txt, or .md file here, or click to browse</p>
+                                            <small class="text-muted" id="manuscript-file-name"></small>
+                                        </div>
+                                    </div>
+
+                                    <div id="import-text-section" class="form-group">
                                         <label>Or Paste Content</label>
                                         <textarea id="import-markdown" rows="15" placeholder="# Act I: The Beginning
 
@@ -680,6 +691,15 @@
 ### Scene 1: Opening
 The protagonist wakes to find their world changed..."></textarea>
                                     </div>
+
+                                    <!-- Manuscript text area -->
+                                    <div id="manuscript-text-section" class="form-group" style="display: none;">
+                                        <label>Or Paste Manuscript Text</label>
+                                        <textarea id="manuscript-text" rows="15" placeholder="Paste your manuscript text here...
+
+Chapter markers like 'Chapter 1' or 'CHAPTER ONE' will be detected automatically."></textarea>
+                                    </div>
+
                                     <div class="action-bar">
                                         <button class="btn btn-primary" onclick="previewImport()">Preview Import</button>
                                         <button class="btn btn-secondary" onclick="hideImportOutlineModal()">Cancel</button>
@@ -710,6 +730,47 @@ The protagonist wakes to find their world changed..."></textarea>
                                     <div id="import-characters-preview" style="display: none;">
                                         <h4>Characters to Import (<span id="import-char-count">0</span>)</h4>
                                         <div id="import-characters-list" class="import-characters-list"></div>
+                                    </div>
+
+                                    <!-- Manuscript Preview -->
+                                    <div id="import-manuscript-preview" style="display: none;">
+                                        <div class="manuscript-import-info">
+                                            <div class="manuscript-stats">
+                                                <span><strong>File:</strong> <span id="manuscript-filename">-</span></span>
+                                                <span><strong>Words:</strong> <span id="manuscript-wordcount">0</span></span>
+                                                <span><strong>Chapters detected:</strong> <span id="manuscript-chapter-count">0</span></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label>Import Into Chapter *</label>
+                                            <select id="manuscript-target-chapter" required>
+                                                <option value="">-- Select Chapter --</option>
+                                            </select>
+                                            <small class="text-muted">Scenes will be created in this chapter</small>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label class="checkbox-label">
+                                                <input type="checkbox" id="manuscript-split-chapters" checked>
+                                                Split into scenes by chapter markers
+                                            </label>
+                                            <small class="text-muted">If unchecked, imports as a single scene</small>
+                                        </div>
+
+                                        <h4>Chapters to Import</h4>
+                                        <div id="manuscript-chapters-list" class="manuscript-chapters-list"></div>
+
+                                        <div id="manuscript-single-scene" style="display: none;">
+                                            <div class="form-group">
+                                                <label>Scene Title *</label>
+                                                <input type="text" id="manuscript-scene-title" placeholder="Enter a title for the imported scene">
+                                            </div>
+                                            <div class="manuscript-preview-text">
+                                                <label>Preview (first 500 chars)</label>
+                                                <pre id="manuscript-preview-content"></pre>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <div class="action-bar">

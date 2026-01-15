@@ -3467,7 +3467,15 @@ function hideImportOutlineModal() {
     document.getElementById('import-markdown').value = '';
     document.getElementById('import-file').value = '';
     document.getElementById('import-file-name').textContent = '';
+    // Reset manuscript fields
+    const manuscriptText = document.getElementById('manuscript-text');
+    if (manuscriptText) manuscriptText.value = '';
+    const manuscriptFile = document.getElementById('manuscript-file');
+    if (manuscriptFile) manuscriptFile.value = '';
+    const manuscriptFileName = document.getElementById('manuscript-file-name');
+    if (manuscriptFileName) manuscriptFileName.textContent = '';
     importPreviewData = null;
+    manuscriptPreviewData = null;
     currentImportType = 'outline';
 }
 
@@ -3482,6 +3490,18 @@ function selectImportType(type) {
     // Update help text and placeholder
     const helpText = document.getElementById('import-help-text');
     const textarea = document.getElementById('import-markdown');
+
+    // Show/hide appropriate sections
+    const importFileSection = document.getElementById('import-file-section');
+    const importTextSection = document.getElementById('import-text-section');
+    const manuscriptFileSection = document.getElementById('manuscript-file-section');
+    const manuscriptTextSection = document.getElementById('manuscript-text-section');
+
+    // Default: show outline/characters sections, hide manuscript sections
+    importFileSection.style.display = type === 'manuscript' ? 'none' : 'block';
+    importTextSection.style.display = type === 'manuscript' ? 'none' : 'block';
+    manuscriptFileSection.style.display = type === 'manuscript' ? 'block' : 'none';
+    manuscriptTextSection.style.display = type === 'manuscript' ? 'block' : 'none';
 
     if (type === 'outline') {
         helpText.textContent = 'Paste your outline in Markdown format. Use # for Acts (optional), ## for Chapters, and ### for Scenes.';
@@ -3512,6 +3532,8 @@ background: Elena's trusted partner with expertise in ancient languages.
 ---
 
 (Or paste free-form text and AI will extract characters)`;
+    } else if (type === 'manuscript') {
+        helpText.textContent = 'Upload a manuscript file (.docx, .txt, .md) or paste text. Scenes will be created in edit mode for critique/revision.';
     }
 }
 
@@ -3543,6 +3565,8 @@ function previewImport() {
         previewOutlineImport();
     } else if (currentImportType === 'characters') {
         previewCharactersImport();
+    } else if (currentImportType === 'manuscript') {
+        previewManuscriptImport();
     }
 }
 
@@ -3551,6 +3575,8 @@ function confirmImport() {
         confirmOutlineImport();
     } else if (currentImportType === 'characters') {
         confirmCharactersImport();
+    } else if (currentImportType === 'manuscript') {
+        confirmManuscriptImport();
     }
 }
 
@@ -3641,6 +3667,10 @@ async function previewOutlineImport() {
 function backToImportInput() {
     document.getElementById('import-step-preview').style.display = 'none';
     document.getElementById('import-step-input').style.display = 'block';
+    // Reset all preview types
+    document.getElementById('import-outline-preview').style.display = 'none';
+    document.getElementById('import-characters-preview').style.display = 'none';
+    document.getElementById('import-manuscript-preview').style.display = 'none';
 }
 
 async function confirmOutlineImport() {
@@ -3894,6 +3924,237 @@ async function confirmCharactersImport() {
         document.getElementById('import-step-progress').style.display = 'none';
         document.getElementById('import-step-preview').style.display = 'block';
         alert('Error importing characters: ' + e.message);
+    }
+}
+
+// ============================================
+// Manuscript Import Functions
+// ============================================
+
+// Store manuscript data between preview and confirm
+let manuscriptPreviewData = null;
+
+async function handleManuscriptFileUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const validTypes = ['.docx', '.txt', '.md', '.markdown'];
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    if (!validTypes.includes(ext)) {
+        alert('Please upload a .docx, .txt, or .md file');
+        event.target.value = '';
+        return;
+    }
+
+    document.getElementById('manuscript-file-name').textContent = `Loading: ${file.name}...`;
+
+    // For .docx files, we need to upload to the server for conversion
+    if (ext === '.docx') {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch(apiUrl('/manuscript/upload'), {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to upload file');
+            }
+
+            const result = await response.json();
+            document.getElementById('manuscript-text').value = result.full_text;
+            document.getElementById('manuscript-file-name').textContent = `Loaded: ${file.name} (${result.total_words} words)`;
+        } catch (e) {
+            alert('Error uploading .docx file: ' + e.message);
+            document.getElementById('manuscript-file-name').textContent = '';
+            event.target.value = '';
+        }
+    } else {
+        // For text files, read directly
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('manuscript-text').value = e.target.result;
+            const wordCount = e.target.result.split(/\s+/).filter(w => w.length > 0).length;
+            document.getElementById('manuscript-file-name').textContent = `Loaded: ${file.name} (${wordCount} words)`;
+        };
+        reader.onerror = function() {
+            alert('Error reading file');
+            document.getElementById('manuscript-file-name').textContent = '';
+        };
+        reader.readAsText(file);
+    }
+}
+
+async function previewManuscriptImport() {
+    const text = document.getElementById('manuscript-text').value.trim();
+
+    if (!text) {
+        alert('Please upload a file or paste manuscript text');
+        return;
+    }
+
+    if (text.length < 100) {
+        alert('Text is too short. Please provide more content.');
+        return;
+    }
+
+    // Show progress
+    document.getElementById('import-step-input').style.display = 'none';
+    document.getElementById('import-step-progress').style.display = 'block';
+
+    try {
+        // Call the split endpoint
+        const formData = new FormData();
+        formData.append('text', text);
+
+        const response = await fetch(apiUrl('/manuscript/split'), {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to analyze manuscript');
+        }
+
+        const result = await response.json();
+
+        // Store for later
+        manuscriptPreviewData = {
+            chapters: result.chapters,
+            totalWords: result.total_words,
+            fullText: text
+        };
+
+        // Update preview UI
+        document.getElementById('manuscript-filename').textContent =
+            document.getElementById('manuscript-file-name').textContent.replace('Loaded: ', '') || 'Pasted text';
+        document.getElementById('manuscript-wordcount').textContent = result.total_words.toLocaleString();
+        document.getElementById('manuscript-chapter-count').textContent = result.total_chapters;
+
+        // Populate chapter dropdown
+        const chapterSelect = document.getElementById('manuscript-target-chapter');
+        chapterSelect.innerHTML = '<option value="">-- Select Chapter --</option>';
+        chaptersData.forEach(ch => {
+            chapterSelect.innerHTML += `<option value="${ch.id}">${ch.title}</option>`;
+        });
+
+        // Render chapter list
+        const chaptersList = document.getElementById('manuscript-chapters-list');
+        chaptersList.innerHTML = result.chapters.map((ch, i) => `
+            <div class="manuscript-chapter-item">
+                <span class="chapter-title">${ch.title}</span>
+                <span class="chapter-words">${ch.word_count.toLocaleString()} words</span>
+            </div>
+        `).join('');
+
+        // Set up checkbox listener
+        const splitCheckbox = document.getElementById('manuscript-split-chapters');
+        splitCheckbox.onchange = function() {
+            document.getElementById('manuscript-chapters-list').style.display = this.checked ? 'block' : 'none';
+            document.getElementById('manuscript-single-scene').style.display = this.checked ? 'none' : 'block';
+            if (!this.checked) {
+                document.getElementById('manuscript-preview-content').textContent = text.substring(0, 500) + '...';
+            }
+        };
+
+        // Show preview
+        document.getElementById('import-step-progress').style.display = 'none';
+        document.getElementById('import-step-preview').style.display = 'block';
+
+        // Hide other preview types, show manuscript
+        document.getElementById('import-outline-preview').style.display = 'none';
+        document.getElementById('import-characters-preview').style.display = 'none';
+        document.getElementById('import-manuscript-preview').style.display = 'block';
+
+    } catch (e) {
+        document.getElementById('import-step-progress').style.display = 'none';
+        document.getElementById('import-step-input').style.display = 'block';
+        alert('Error analyzing manuscript: ' + e.message);
+    }
+}
+
+async function confirmManuscriptImport() {
+    const chapterId = document.getElementById('manuscript-target-chapter').value;
+    if (!chapterId) {
+        alert('Please select a chapter to import into');
+        return;
+    }
+
+    const splitByChapters = document.getElementById('manuscript-split-chapters').checked;
+
+    // Show progress
+    document.getElementById('import-step-preview').style.display = 'none';
+    document.getElementById('import-step-progress').style.display = 'block';
+
+    try {
+        let result;
+
+        if (splitByChapters && manuscriptPreviewData.chapters.length > 1) {
+            // Bulk import - create multiple scenes
+            const response = await fetch(apiUrl('/manuscript/import-bulk'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chapters: manuscriptPreviewData.chapters,
+                    chapter_id: chapterId,
+                    enable_edit_mode: true
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to import manuscript');
+            }
+
+            result = await response.json();
+            document.getElementById('import-result-message').textContent =
+                `Created ${result.scenes_created} scenes with ${result.total_words.toLocaleString()} words in edit mode.`;
+        } else {
+            // Single scene import
+            const sceneTitle = document.getElementById('manuscript-scene-title').value.trim() || 'Imported Manuscript';
+
+            const response = await fetch(apiUrl('/manuscript/import-scene'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    text: manuscriptPreviewData.fullText,
+                    scene_title: sceneTitle,
+                    chapter_id: chapterId
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to import manuscript');
+            }
+
+            result = await response.json();
+            document.getElementById('import-result-message').textContent =
+                `Created scene "${result.title}" with ${result.word_count.toLocaleString()} words in edit mode.`;
+        }
+
+        // Show complete step
+        document.getElementById('import-step-progress').style.display = 'none';
+        document.getElementById('import-step-complete').style.display = 'block';
+
+        // Refresh scenes
+        await loadScenes();
+        await loadStructure();
+
+        // Auto-close modal after brief delay
+        setTimeout(() => {
+            hideImportOutlineModal();
+            switchView('structure');
+        }, 1500);
+
+    } catch (e) {
+        document.getElementById('import-step-progress').style.display = 'none';
+        document.getElementById('import-step-preview').style.display = 'block';
+        alert('Error importing manuscript: ' + e.message);
     }
 }
 
