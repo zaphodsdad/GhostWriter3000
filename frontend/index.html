@@ -996,6 +996,21 @@ This will be included in the AI prompt during generation."></textarea>
                                         </select>
                                     </div>
                                 </div>
+                                <div class="form-group mt-20">
+                                    <label>Revision Approach</label>
+                                    <div class="revision-mode-options">
+                                        <label class="radio-option">
+                                            <input type="radio" name="revision-mode" value="full" checked>
+                                            <span class="radio-label">Full Revision</span>
+                                            <span class="radio-desc">AI may restructure paragraphs and make significant changes</span>
+                                        </label>
+                                        <label class="radio-option">
+                                            <input type="radio" name="revision-mode" value="polish">
+                                            <span class="radio-label">Polish Mode</span>
+                                            <span class="radio-desc">Light touch - word choice, rhythm, and clarity only</span>
+                                        </label>
+                                    </div>
+                                </div>
                                 <button class="btn btn-success mt-20" id="gen-start-btn" onclick="startGeneration()" disabled>
                                     Start Generation
                                 </button>
@@ -1016,7 +1031,7 @@ This will be included in the AI prompt during generation."></textarea>
                             <!-- Step 3: Review -->
                             <div id="gen-step-review" class="card" style="display: none;">
                                 <h2>Review Generated Prose</h2>
-                                <p class="text-muted mb-20">Revision <span id="gen-iteration">1</span></p>
+                                <p class="text-muted mb-20">Revision <span id="gen-iteration">1</span> <span class="badge" id="revision-mode-badge">Full</span></p>
 
                                 <div class="two-col">
                                     <div>

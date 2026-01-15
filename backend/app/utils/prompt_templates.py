@@ -323,6 +323,115 @@ Revise the prose to address the critique's suggestions while maintaining:
 Focus on improving the specific areas mentioned in the critique. Output only the revised prose, without commentary."""
 
 
+def build_polish_critique_prompt(prose: str, style_guide: Dict[str, Any] = None) -> str:
+    """
+    Build prompt for polish-mode critique (line edits, not structural).
+
+    Args:
+        prose: The prose text to critique
+        style_guide: Optional style guide to critique against
+
+    Returns:
+        Formatted polish critique prompt
+    """
+    style_section = ""
+    if style_guide and style_guide.get('guide'):
+        style_section = f"""
+# STYLE GUIDE REFERENCE
+Check for style guide compliance:
+
+{style_guide.get('guide', '')}
+
+---
+
+"""
+
+    return f"""Provide a POLISH critique of the following prose. Focus on LINE-LEVEL refinements, not structural issues.
+
+---
+{prose}
+---
+{style_section}
+**POLISH MODE**: This is a light-touch review. Do NOT suggest:
+- Restructuring paragraphs or scenes
+- Adding or removing major content
+- Changing the narrative flow or pacing
+- Reorganizing dialogue sequences
+
+Instead, focus ONLY on these polish opportunities:
+
+1. **Word Choice**: Are there vague words that could be more precise? Overused words? Clichés?
+2. **Sentence Rhythm**: Are sentences varied in length? Any awkward constructions?
+3. **Redundancy**: Any repeated information or unnecessary words that could be cut?
+4. **Clarity**: Any confusing phrases that could be clearer without restructuring?
+5. **Sensory Precision**: Could descriptions be sharper with better word choices?
+6. **Dialogue Tags**: Any clunky tags or unnecessary adverbs?
+7. **Style Guide Compliance**: Minor violations of style rules (not structural ones)
+
+For each issue you find:
+- Quote the specific phrase
+- Explain why it could be polished
+- Suggest a refined alternative
+
+Remember: The goal is refinement, not rewriting. If something would require restructuring to fix, skip it."""
+
+
+def build_polish_revision_prompt(original_prose: str, critique: str, user_instructions: str = None) -> str:
+    """
+    Build prompt for polish-mode revision (minimal changes, preserve structure).
+
+    Args:
+        original_prose: The original prose text
+        critique: The polish critique of the original prose
+        user_instructions: Optional additional guidance from the user
+
+    Returns:
+        Formatted polish revision prompt
+    """
+    user_guidance = ""
+    if user_instructions and user_instructions.strip():
+        user_guidance = f"""
+# Author's Guidance
+{user_instructions.strip()}
+
+Apply the author's specific polish requests.
+"""
+
+    return f"""Apply MINIMAL polish edits to the following prose based on the critique.
+
+# Original Prose
+---
+{original_prose}
+---
+
+# Polish Critique
+---
+{critique}
+---
+{user_guidance}
+# POLISH MODE INSTRUCTIONS
+
+**Make the smallest changes possible.** This is NOT a rewrite.
+
+DO:
+- Swap individual words for more precise alternatives
+- Tighten wordy phrases
+- Fix awkward sentence constructions
+- Remove unnecessary adverbs or redundant words
+- Improve word variety where flagged
+
+DO NOT:
+- Restructure paragraphs
+- Add or remove sentences
+- Change the order of events or dialogue
+- Expand descriptions significantly
+- Alter the narrative flow
+
+Your revision should be nearly identical to the original, with surgical word-level improvements.
+
+Output only the polished prose, without commentary."""
+
+
 def build_selection_revision_prompt(
     full_prose: str,
     selection: str,

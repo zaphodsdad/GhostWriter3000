@@ -170,6 +170,63 @@ class LLMService:
             except Exception as e:
                 raise Exception(f"LLM API critique failed: {str(e)}")
 
+    async def critique_prose_polish(
+        self,
+        prose: str,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        model: Optional[str] = None,
+        style_guide: Optional[Dict[str, Any]] = None
+    ) -> str:
+        """
+        Generate polish-mode critique (line edits, not structural).
+
+        Args:
+            prose: Prose text to critique
+            temperature: Optional temperature override
+            max_tokens: Optional max tokens override
+            model: Optional model override (uses settings.critique_model if None)
+            style_guide: Optional style guide to critique against
+
+        Returns:
+            Polish critique text
+
+        Raises:
+            Exception: If API call fails
+        """
+        self._check_and_refresh_client()
+        async with self.semaphore:
+            try:
+                from app.utils.prompt_templates import build_polish_critique_prompt
+
+                system_prompt = "You are a skilled copy editor who focuses on line-level refinements: word choice, rhythm, and clarity. You do NOT suggest structural changes."
+                user_prompt = build_polish_critique_prompt(prose, style_guide)
+                use_model = model or settings.critique_model
+
+                if self.provider == "anthropic":
+                    response = await self.client.messages.create(
+                        model=use_model,
+                        max_tokens=max_tokens or settings.critique_max_tokens,
+                        temperature=temperature or settings.critique_temperature,
+                        system=system_prompt,
+                        messages=[{"role": "user", "content": user_prompt}]
+                    )
+                    return response.content[0].text
+                else:  # openrouter
+                    response = await self.client.chat.completions.create(
+                        model=use_model,
+                        max_tokens=max_tokens or settings.critique_max_tokens,
+                        temperature=temperature or settings.critique_temperature,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ]
+                    )
+                    return response.choices[0].message.content
+
+            except Exception as e:
+                raise Exception(f"LLM API polish critique failed: {str(e)}")
+
     async def revise_prose(
         self,
         original_prose: str,
@@ -229,6 +286,66 @@ class LLMService:
 
             except Exception as e:
                 raise Exception(f"LLM API revision failed: {str(e)}")
+
+    async def revise_prose_polish(
+        self,
+        original_prose: str,
+        critique: str,
+        system_prompt: str,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        model: Optional[str] = None,
+        instructions: Optional[str] = None
+    ) -> str:
+        """
+        Apply polish-mode revisions (minimal changes, preserve structure).
+
+        Args:
+            original_prose: Original prose text
+            critique: Polish critique of the prose
+            system_prompt: System prompt with context
+            temperature: Optional temperature override
+            max_tokens: Optional max tokens override
+            model: Optional model override (uses settings.generation_model if None)
+            instructions: Optional user-provided guidance for the revision
+
+        Returns:
+            Polished prose text
+
+        Raises:
+            Exception: If API call fails
+        """
+        self._check_and_refresh_client()
+        async with self.semaphore:
+            try:
+                from app.utils.prompt_templates import build_polish_revision_prompt
+
+                user_prompt = build_polish_revision_prompt(original_prose, critique, instructions)
+                use_model = model or settings.generation_model
+
+                if self.provider == "anthropic":
+                    response = await self.client.messages.create(
+                        model=use_model,
+                        max_tokens=max_tokens or settings.generation_max_tokens,
+                        temperature=temperature or settings.generation_temperature,
+                        system=system_prompt,
+                        messages=[{"role": "user", "content": user_prompt}]
+                    )
+                    return response.content[0].text
+                else:  # openrouter
+                    response = await self.client.chat.completions.create(
+                        model=use_model,
+                        max_tokens=max_tokens or settings.generation_max_tokens,
+                        temperature=temperature or settings.generation_temperature,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ]
+                    )
+                    return response.choices[0].message.content
+
+            except Exception as e:
+                raise Exception(f"LLM API polish revision failed: {str(e)}")
 
     async def revise_selection(
         self,

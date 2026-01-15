@@ -46,6 +46,7 @@ class GenerationState(BaseModel):
     generation_model: Optional[str] = Field(None, description="Model used for prose generation")
     critique_model: Optional[str] = Field(None, description="Model used for critique")
     edit_mode: bool = Field(False, description="Whether this is an edit mode generation (started with existing prose)")
+    revision_mode: str = Field("full", description="Revision approach: 'full' (structural) or 'polish' (line-edits)")
     iterations: List[Iteration] = Field(default_factory=list, description="List of all iterations")
     final_prose: Optional[str] = Field(None, description="Final accepted prose (when status=COMPLETED)")
     scene_summary: Optional[str] = Field(None, description="Auto-generated scene summary (when status=COMPLETED)")
@@ -111,6 +112,7 @@ class GenerationStart(BaseModel):
     max_iterations: int = Field(5, description="Maximum allowed iterations", ge=1, le=100)
     generation_model: Optional[str] = Field(None, description="Model for prose generation (uses .env default if not specified)")
     critique_model: Optional[str] = Field(None, description="Model for critique (uses .env default if not specified)")
+    revision_mode: str = Field("full", description="Revision approach: 'full' (structural) or 'polish' (line-edits)")
 
 
 class EditModeStart(BaseModel):
@@ -120,6 +122,7 @@ class EditModeStart(BaseModel):
     max_iterations: int = Field(5, description="Maximum allowed iterations", ge=1, le=100)
     generation_model: Optional[str] = Field(None, description="Model for revisions (uses .env default if not specified)")
     critique_model: Optional[str] = Field(None, description="Model for critique (uses .env default if not specified)")
+    revision_mode: str = Field("full", description="Revision approach: 'full' (structural) or 'polish' (line-edits)")
 
 
 class GenerationResponse(BaseModel):
@@ -132,6 +135,7 @@ class GenerationResponse(BaseModel):
     current_iteration: int
     max_iterations: int
     can_revise: bool
+    revision_mode: str = "full"
     current_prose: Optional[str]
     current_critique: Optional[str]
     final_prose: Optional[str]

@@ -77,7 +77,8 @@ async def start_generation(project_id: str, request: GenerationStart, background
             scene_id=request.scene_id,
             max_iterations=request.max_iterations,
             generation_model=gen_model,
-            critique_model=critique_model
+            critique_model=critique_model,
+            revision_mode=request.revision_mode
         )
 
         return _build_response(state)
@@ -121,7 +122,8 @@ async def start_edit_mode_generation(project_id: str, request: EditModeStart, ba
             scene_id=request.scene_id,
             max_iterations=request.max_iterations,
             generation_model=gen_model,
-            critique_model=critique_model
+            critique_model=critique_model,
+            revision_mode=request.revision_mode
         )
 
         return _build_response(state)
@@ -211,6 +213,44 @@ async def approve_and_revise(project_id: str, generation_id: str, request: Appro
     try:
         service = get_generation_service()
         state = await service.approve_and_revise(project_id, generation_id, instructions=instructions)
+        return _build_response(state)
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Generation not found: {generation_id}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class UpdateProseRequest(BaseModel):
+    """Request body for updating generation prose."""
+    prose: str
+
+
+@router.put("/{generation_id}/prose", response_model=GenerationResponse)
+async def update_prose(project_id: str, generation_id: str, request: UpdateProseRequest):
+    """
+    Update the current prose in a generation.
+
+    Used for applying selective changes from diff view.
+
+    Args:
+        project_id: Project ID
+        generation_id: Unique generation identifier
+        request: New prose content
+
+    Returns:
+        Updated generation state
+
+    Raises:
+        HTTPException: If generation not found or not awaiting approval
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        service = get_generation_service()
+        state = await service.update_prose(project_id, generation_id, request.prose)
         return _build_response(state)
 
     except FileNotFoundError:
@@ -383,6 +423,7 @@ def _build_response(state: GenerationState) -> GenerationResponse:
         current_iteration=state.current_iteration,
         max_iterations=state.max_iterations,
         can_revise=state.can_revise,
+        revision_mode=state.revision_mode,
         current_prose=state.current_prose,
         current_critique=state.current_critique,
         final_prose=state.final_prose,

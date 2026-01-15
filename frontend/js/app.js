@@ -14,8 +14,11 @@ let currentGenId = null;
 let pollingInterval = null;
 let currentGenModel = null;
 let currentCritiqueModel = null;
+let currentRevisionMode = 'full';
 let previousProse = null;  // For diff view
 let showingDiff = false;   // Diff view toggle state
+let diffChanges = [];      // Array of {id, type, value, accepted} for inline accept/reject
+let diffOldText = null;    // Store old text for rebuilding prose
 let currentSelection = null;  // For selection-based revision {text, start, end}
 let sidebarCollapsed = false;
 let currentReadingData = null;
@@ -1239,6 +1242,7 @@ async function importProseForEdit() {
 async function startEditModeGeneration(sceneId) {
     const genModel = document.getElementById('gen-model')?.value || null;
     const critiqueModel = document.getElementById('critique-model')?.value || null;
+    const revisionMode = document.querySelector('input[name="revision-mode"]:checked')?.value || 'full';
 
     try {
         const response = await fetch(apiUrl('/generations/start-edit'), {
@@ -1248,7 +1252,8 @@ async function startEditModeGeneration(sceneId) {
                 scene_id: sceneId,
                 max_iterations: 5,
                 generation_model: genModel || undefined,
-                critique_model: critiqueModel || undefined
+                critique_model: critiqueModel || undefined,
+                revision_mode: revisionMode
             })
         });
 
@@ -1259,8 +1264,9 @@ async function startEditModeGeneration(sceneId) {
 
         const state = await response.json();
         currentGenId = state.generation_id;
-        currentGenModel = genModel;
-        currentCritiqueModel = critiqueModel;
+        currentGenModel = genModel || 'Default';
+        currentCritiqueModel = critiqueModel || 'Default';
+        currentRevisionMode = revisionMode;
 
         showGenStep('progress');
         startPolling();
@@ -1396,6 +1402,11 @@ async function navigateToView(view) {
     // Handle backups view
     if (view === 'backups') {
         await loadBackups();
+    }
+
+    // Handle generate view - refresh scene dropdown
+    if (view === 'generate') {
+        populateFormSelects();
     }
 }
 
@@ -1625,11 +1636,19 @@ function populateFormSelects() {
             ).join('');
     }
 
-    // Scene select for generation
+    // Scene select for generation - sorted by chapter order, then scene number
     const genSelect = document.getElementById('gen-scene-select');
     if (genSelect) {
+        const sortedScenes = scenes.filter(s => !s.is_canon).sort((a, b) => {
+            const chA = chapters.find(ch => ch.id === a.chapter_id);
+            const chB = chapters.find(ch => ch.id === b.chapter_id);
+            const chNumA = chA ? chA.chapter_number : 999;
+            const chNumB = chB ? chB.chapter_number : 999;
+            if (chNumA !== chNumB) return chNumA - chNumB;
+            return (a.scene_number || 0) - (b.scene_number || 0);
+        });
         genSelect.innerHTML = '<option value="">-- Choose a Scene --</option>' +
-            scenes.filter(s => !s.is_canon).map(s => {
+            sortedScenes.map(s => {
                 const chapter = chapters.find(ch => ch.id === s.chapter_id);
                 const chapterLabel = chapter ? `Ch ${chapter.chapter_number}: ` : '';
                 return `<option value="${s.id}">${chapterLabel}${escapeHtml(s.title)}</option>`;
@@ -2955,6 +2974,7 @@ async function startGeneration() {
     const sceneId = document.getElementById('gen-scene-select').value;
     const genModel = document.getElementById('gen-model').value || undefined;
     const critiqueModel = document.getElementById('critique-model').value || undefined;
+    const revisionMode = document.querySelector('input[name="revision-mode"]:checked')?.value || 'full';
 
     if (!sceneId) {
         alert('Please select a scene');
@@ -2967,9 +2987,10 @@ async function startGeneration() {
         return;
     }
 
-    // Store models for display
+    // Store models and revision mode for display
     currentGenModel = genModel || 'Default';
     currentCritiqueModel = critiqueModel || 'Default';
+    currentRevisionMode = revisionMode;
 
     try {
         // Save outline changes if modified
@@ -3000,7 +3021,8 @@ async function startGeneration() {
                 scene_id: sceneId,
                 max_iterations: 99,
                 generation_model: genModel,
-                critique_model: critiqueModel
+                critique_model: critiqueModel,
+                revision_mode: revisionMode
             })
         });
 
@@ -3129,6 +3151,14 @@ function showReviewStep(data) {
     document.getElementById('gen-model-used').textContent = `(${genModelDisplay})`;
     document.getElementById('critique-model-used').textContent = `(${critiqueModelDisplay})`;
 
+    // Show revision mode
+    const revisionModeBadge = document.getElementById('revision-mode-badge');
+    if (revisionModeBadge) {
+        const modeDisplay = (data.revision_mode || currentRevisionMode) === 'polish' ? 'Polish' : 'Full';
+        revisionModeBadge.textContent = modeDisplay;
+        revisionModeBadge.className = 'badge' + (modeDisplay === 'Polish' ? ' polish-mode' : '');
+    }
+
     // Revise button always enabled (user controls when to stop)
     const reviseBtn = document.getElementById('gen-revise-btn');
     reviseBtn.disabled = false;
@@ -3172,8 +3202,12 @@ function renderDiff(oldText, newText) {
 
     if (!oldText || !newText) {
         diffEl.innerHTML = '<em class="text-muted">No previous version to compare</em>';
+        diffChanges = [];
         return;
     }
+
+    // Store for rebuilding prose later
+    diffOldText = oldText;
 
     // Use jsdiff library (loaded via CDN)
     const diff = Diff.diffWords(oldText, newText);
@@ -3181,18 +3215,38 @@ function renderDiff(oldText, newText) {
     let html = '';
     let additions = 0;
     let deletions = 0;
+    diffChanges = [];  // Reset changes array
+    let changeId = 0;
 
     diff.forEach(part => {
         if (part.added) {
             additions += part.value.split(/\s+/).filter(w => w).length;
-            html += `<ins class="diff-add">${escapeHtml(part.value)}</ins>`;
+            diffChanges.push({ id: changeId, type: 'add', value: part.value, accepted: true });
+            html += `<ins class="diff-add diff-change accepted" data-change-id="${changeId}" onclick="toggleDiffChange(${changeId})">${escapeHtml(part.value)}</ins>`;
+            changeId++;
         } else if (part.removed) {
             deletions += part.value.split(/\s+/).filter(w => w).length;
-            html += `<del class="diff-del">${escapeHtml(part.value)}</del>`;
+            diffChanges.push({ id: changeId, type: 'del', value: part.value, accepted: true });
+            html += `<del class="diff-del diff-change accepted" data-change-id="${changeId}" onclick="toggleDiffChange(${changeId})">${escapeHtml(part.value)}</del>`;
+            changeId++;
         } else {
+            // Unchanged text - store for rebuilding but no interaction
+            diffChanges.push({ id: changeId, type: 'unchanged', value: part.value, accepted: true });
             html += escapeHtml(part.value);
+            changeId++;
         }
     });
+
+    // Add actions bar for applying changes
+    html += `
+        <div class="diff-actions" id="diff-actions">
+            <div class="diff-actions-info">
+                <span id="diff-changes-count">${additions + deletions} changes</span> -
+                Click changes to accept/reject, then apply
+            </div>
+            <button class="btn btn-success" onclick="applySelectedChanges()">Apply Selected Changes</button>
+        </div>
+    `;
 
     diffEl.innerHTML = html;
 
@@ -3202,6 +3256,109 @@ function renderDiff(oldText, newText) {
         if (additions > 0) statsHtml.push(`<span class="diff-stat-add">+${additions} words</span>`);
         if (deletions > 0) statsHtml.push(`<span class="diff-stat-del">-${deletions} words</span>`);
         diffStatsEl.innerHTML = statsHtml.join(' ');
+    }
+}
+
+function toggleDiffChange(changeId) {
+    const change = diffChanges.find(c => c.id === changeId);
+    if (!change || change.type === 'unchanged') return;
+
+    change.accepted = !change.accepted;
+
+    // Update visual state
+    const el = document.querySelector(`[data-change-id="${changeId}"]`);
+    if (el) {
+        el.classList.toggle('accepted', change.accepted);
+        el.classList.toggle('rejected', !change.accepted);
+    }
+
+    // Update count display
+    updateDiffChangesCount();
+}
+
+function updateDiffChangesCount() {
+    const countEl = document.getElementById('diff-changes-count');
+    if (!countEl) return;
+
+    const accepted = diffChanges.filter(c => c.type !== 'unchanged' && c.accepted).length;
+    const total = diffChanges.filter(c => c.type !== 'unchanged').length;
+    countEl.textContent = `${accepted}/${total} changes accepted`;
+}
+
+function buildMergedProse() {
+    // Build prose based on accepted/rejected changes
+    // - If an 'add' is accepted: include it
+    // - If an 'add' is rejected: exclude it
+    // - If a 'del' is accepted: exclude the deleted text (keep deletion)
+    // - If a 'del' is rejected: include the deleted text (undo deletion)
+    // - Unchanged text is always included
+
+    let result = '';
+
+    for (const change of diffChanges) {
+        if (change.type === 'unchanged') {
+            result += change.value;
+        } else if (change.type === 'add') {
+            if (change.accepted) {
+                result += change.value;  // Include the addition
+            }
+            // If rejected, don't include it
+        } else if (change.type === 'del') {
+            if (!change.accepted) {
+                result += change.value;  // Undo deletion - include the text
+            }
+            // If accepted, don't include it (keep it deleted)
+        }
+    }
+
+    return result;
+}
+
+async function applySelectedChanges() {
+    const mergedProse = buildMergedProse();
+
+    if (!currentGenId) {
+        alert('No active generation to apply changes to.');
+        return;
+    }
+
+    try {
+        // Save to backend
+        const response = await fetch(apiUrl(`/generations/${currentGenId}/prose`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prose: mergedProse })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to save changes');
+        }
+
+        // Update the prose display
+        document.getElementById('gen-prose').textContent = mergedProse;
+
+        // Update word count
+        const wordCount = mergedProse.split(/\s+/).filter(w => w).length;
+        document.getElementById('gen-prose-word-count').textContent = `${wordCount} words`;
+
+        // Switch back to prose view
+        showingDiff = false;
+        document.getElementById('gen-prose').style.display = 'block';
+        document.getElementById('gen-diff').style.display = 'none';
+        document.getElementById('diff-toggle-btn').textContent = 'Show Changes';
+        document.getElementById('gen-diff-stats').style.display = 'none';
+
+        // Update previousProse for next diff comparison
+        previousProse = mergedProse;
+
+        // Clear diff changes
+        diffChanges = [];
+
+        alert('Changes applied and saved! You can now Approve & Revise or Accept as Canon.');
+    } catch (e) {
+        console.error('Error applying changes:', e);
+        alert('Error applying changes: ' + e.message);
     }
 }
 

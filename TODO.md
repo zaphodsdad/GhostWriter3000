@@ -13,6 +13,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 | **Continuity System** | Complete | Done |
 | **Generation** | Working | Done |
 | **Editing Module** | In Progress | **NOW** |
+| **UX Simplification** | Planned | **NEXT** |
 | **Outlining Module** | Not started | Future |
 
 ---
@@ -37,17 +38,9 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Manuscript import - upload .docx/.txt/.md, auto-split chapters, create scenes in edit mode
 - [x] Floating AI revision bubble - select text in reading view for inline AI editing
 - [x] Canon toggle from reading view - mark/unmark scenes as canon without entering edit mode
-
----
-
-## DONE: Continuity System ✅
-
-*Foundation for multi-scene generation. Without this, scene 50 doesn't know what happened in scenes 1-49.*
-
-- [x] Auto-calculate previous scenes based on act → chapter → scene order
-- [x] Include last 10 canon scene summaries in generation context
-- [x] Works for both normal generation and edit mode
-- [ ] (Future) Add chapter-level summaries for longer books
+- [x] Inline accept/reject in diff view - cherry-pick AI changes before applying
+- [x] Polish mode - lighter touch revision (line edits vs structural)
+- [x] Generation dropdown sorted by chapter/scene order
 
 ---
 
@@ -63,46 +56,59 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - **Bulk scene creation** - each chapter becomes a Chapter + Scene in edit mode
 - **Edit mode display** - imported prose visible in reading pane with "Edit Mode - Ready for Critique" status
 - **Backup on prose edit** - auto-backup before manual prose changes
+- **Polish mode** - choose between full structural revision or light line edits
 
----
-
-### Revision UI Overhaul
-
-*Three-panel revision view: Current Prose | Diff View | Critique*
-*See `REVISION-UI-SKETCH.md` for full design spec.*
-
-**Phase 1: Diff View** *(Complete)*
-- [x] Add jsdiff library (CDN)
-- [x] Show diff between current prose and AI revision
-- [x] Red deletions, green insertions
-- [x] Integrate into generation/approval modal
-
-**Phase 2: Revision Instructions** *(Complete)*
-- [x] Add text input for guiding revisions ("make less cliché", "add tension")
-- [x] Pass instructions to revision prompt
-- [x] Quick-add hint chips for common instructions
-
-**Phase 3: Selection-Based Revision** *(Complete)*
-- [x] Track text selection in prose panel
-- [x] Floating AI revision bubble with quick actions
-- [x] New API endpoint: `POST /scenes/{id}/revise-selection`
-- [x] Send selection + surrounding context to Claude
-- [x] Splice revised selection back into full prose
-- [x] Dirty state tracking with save indicator
-- [x] Autosave to localStorage for crash recovery
-
-**Phase 4: Inline Accept/Reject**
-- [ ] Click individual changes to toggle accept/reject
-- [ ] Build merged prose from accepted changes
-- [ ] "Apply Selected Changes" action
-
----
-
-### Other Editing Features
+### Remaining Editing Features
 
 - [ ] Consistency pass - critique focused on continuity errors across scenes
-- [ ] Polish mode - lighter touch revision (line edits vs structural)
 - [ ] Side-by-side version comparison (pick any two versions)
+- [ ] Evaluate-only mode - get critique report without entering revision loop
+
+---
+
+## NEXT: UX Simplification
+
+*Simplify the interface by unifying workflows and moving global settings.*
+
+### Global Settings to Start Page
+
+- [ ] Move API configuration to start page (not buried in project settings)
+- [ ] API provider selection (Anthropic vs OpenRouter)
+- [ ] API key entry with validation
+- [ ] Default model selection
+- [ ] Credit balance display (OpenRouter)
+- [ ] Data directory configuration
+
+### Unified Scene Workspace
+
+*Merge Generate tab and Reading View into one adaptive workspace.*
+
+- [ ] Remove separate Generate tab
+- [ ] Click any scene in sidebar → opens unified workspace
+- [ ] Workspace adapts based on scene state:
+  - No prose: show outline + "Generate" / "Import Prose" buttons
+  - Has prose (not canon): show prose + floating bubble + revision options
+  - Has prose (canon): show prose + "Evaluate" (mostly read-only)
+  - Currently generating: show progress
+  - Awaiting approval: show prose + critique + approve/revise/accept
+- [ ] Model selection and revision mode in collapsible settings panel
+- [ ] Floating AI bubble works everywhere
+- [ ] "Evaluate" button for critique-only feedback
+- [ ] Status badges in sidebar (empty, has prose, canon, generating)
+
+### Import Reorganization
+
+- [ ] Manuscript import stays in Structure → Import
+- [ ] Single-scene prose import moves to unified workspace ("Import Prose" button)
+- [ ] Character/Reference imports stay in their respective tabs
+
+---
+
+## FUTURE: Character & Series Management
+
+- [ ] Promote book characters to series level
+- [ ] Visual distinction between series vs book-only characters
+- [ ] When creating character in series book: prompt for "Series-wide" vs "This book only"
 
 ---
 
@@ -120,6 +126,12 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 
 ---
 
+## FUTURE: Export Module
+
+- [ ] Export - compile project to markdown/docx/epub
+
+---
+
 ## Backlog: Infrastructure & Polish
 
 *Nice to have, not blocking main workflow.*
@@ -130,8 +142,8 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [ ] Cost tracking - tokens per generation, running totals
 
 ### Robustness
-- [x] Backup system - auto-backup before overwrites (auto-backup on accept, delete, import; manual backups; checkpoints)
-- [x] Version history for prose iterations (last 10 versions per scene, full project snapshots)
+- [x] Backup system - auto-backup before overwrites
+- [x] Version history for prose iterations
 - [ ] Unit tests for services
 - [ ] Integration tests for API
 
@@ -143,10 +155,10 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 
 ### Additional Features
 - [ ] Search across scenes/characters/world
-- [ ] Export - compile project to markdown/docx/epub
 - [ ] Websockets for real-time generation status
 - [ ] Undo/redo for prose edits
-- [ ] Drag-and-drop scene reordering
+- [ ] Drag-and-drop reordering (chapters and scenes)
+- [ ] (Future) Chapter-level summaries for longer books
 
 ---
 

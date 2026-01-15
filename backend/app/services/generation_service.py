@@ -36,7 +36,8 @@ class GenerationService:
         scene_id: str,
         max_iterations: int = 5,
         generation_model: Optional[str] = None,
-        critique_model: Optional[str] = None
+        critique_model: Optional[str] = None,
+        revision_mode: str = "full"
     ) -> GenerationState:
         """
         Start a new generation pipeline for a scene.
@@ -78,7 +79,8 @@ class GenerationService:
             world_context_ids=scene.world_context_ids,
             previous_scene_ids=previous_scene_ids,
             generation_model=generation_model,
-            critique_model=critique_model
+            critique_model=critique_model,
+            revision_mode=revision_mode
         )
 
         # Save initial state
@@ -101,7 +103,8 @@ class GenerationService:
         scene_id: str,
         max_iterations: int = 5,
         generation_model: Optional[str] = None,
-        critique_model: Optional[str] = None
+        critique_model: Optional[str] = None,
+        revision_mode: str = "full"
     ) -> GenerationState:
         """
         Start edit mode generation for a scene with imported prose.
@@ -154,7 +157,8 @@ class GenerationService:
             previous_scene_ids=previous_scene_ids,
             generation_model=generation_model,
             critique_model=critique_model,
-            edit_mode=True
+            edit_mode=True,
+            revision_mode=revision_mode
         )
 
         # Save initial state
@@ -326,10 +330,15 @@ class GenerationService:
             # Load style guide for critique reference
             style_guide = await self._load_style_guide(project_id)
 
-            # Generate critique (use custom model if specified)
-            critique = await self.llm.critique_prose(
-                current_prose, model=state.critique_model, style_guide=style_guide
-            )
+            # Generate critique (use polish or full mode based on revision_mode)
+            if state.revision_mode == "polish":
+                critique = await self.llm.critique_prose_polish(
+                    current_prose, model=state.critique_model, style_guide=style_guide
+                )
+            else:
+                critique = await self.llm.critique_prose(
+                    current_prose, model=state.critique_model, style_guide=style_guide
+                )
 
             # Update iteration with critique
             state.iterations[-1].critique = critique
@@ -344,6 +353,37 @@ class GenerationService:
             state.error_message = str(e)
             state.updated_at = datetime.utcnow()
             await self.state_manager.save_state(state)
+
+    async def update_prose(self, project_id: str, generation_id: str, prose: str) -> GenerationState:
+        """
+        Update the current prose in a generation.
+
+        Used for applying selective changes from diff view.
+
+        Args:
+            project_id: Project ID
+            generation_id: Generation ID
+            prose: New prose content
+
+        Returns:
+            Updated generation state
+
+        Raises:
+            ValueError: If generation not awaiting approval
+        """
+        state = await self.state_manager.load_state(project_id, generation_id)
+
+        if state.status != GenerationStatus.AWAITING_APPROVAL:
+            raise ValueError(f"Generation not awaiting approval (status: {state.status})")
+
+        # Update the current iteration's prose
+        if state.iterations:
+            state.iterations[-1].prose = prose
+            state.current_prose = prose
+            state.updated_at = datetime.utcnow()
+            await self.state_manager.save_state(state)
+
+        return state
 
     async def approve_and_revise(self, project_id: str, generation_id: str, instructions: str = None) -> GenerationState:
         """
@@ -408,10 +448,15 @@ class GenerationService:
             current_prose = state.iterations[-1].prose
             critique = state.iterations[-1].critique
 
-            # Revise prose (use custom model if specified, include user instructions)
-            revised_prose = await self.llm.revise_prose(
-                current_prose, critique, system_prompt, model=state.generation_model, instructions=instructions
-            )
+            # Revise prose (use polish or full mode based on revision_mode)
+            if state.revision_mode == "polish":
+                revised_prose = await self.llm.revise_prose_polish(
+                    current_prose, critique, system_prompt, model=state.generation_model, instructions=instructions
+                )
+            else:
+                revised_prose = await self.llm.revise_prose(
+                    current_prose, critique, system_prompt, model=state.generation_model, instructions=instructions
+                )
 
             # Clean any AI preambles from the output
             revised_prose = clean_prose_output(revised_prose)

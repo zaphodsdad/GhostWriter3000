@@ -217,7 +217,29 @@ Guide the AI's revision with specific feedback:
 - **Priority handling**: User instructions take precedence over general critique suggestions
 - **Auto-clear**: Instructions clear after each revision to allow fresh guidance
 
-### 15. Backup System
+### 15. Polish Mode
+Choose between two revision approaches:
+- **Full Revision** (default): AI may restructure paragraphs, reorder content, and make significant changes
+- **Polish Mode**: Light touch - word choice, rhythm, clarity, and minor fixes only. Preserves paragraph structure.
+
+**How it works**:
+- Select revision mode before starting generation
+- Polish mode uses specialized prompts that instruct the AI to make minimal changes
+- Critique focuses on line-level issues (word precision, redundancy, rhythm) instead of structural concerns
+- Revision applies only surgical word-level improvements
+
+**Use cases**:
+- Polish mode for near-final prose that just needs tightening
+- Full revision for drafts that need significant rework
+
+### 16. Inline Accept/Reject (Diff View)
+Cherry-pick individual changes from AI revisions:
+- **Click to toggle**: Click any change (insertion or deletion) to accept/reject it
+- **Visual feedback**: Accepted changes highlighted, rejected changes dimmed with strikethrough
+- **Apply Selected**: Build merged prose from only the accepted changes
+- **Granular control**: Keep the improvements you like, discard the ones you don't
+
+### 17. Backup System
 Comprehensive data protection with automatic and manual backups:
 
 **Automatic Backups** (triggered before):
@@ -241,7 +263,7 @@ Comprehensive data protection with automatic and manual backups:
 - Scene versions: Last 10 per scene
 - Auto-snapshots: Last 5 (checkpoints exempt)
 
-### 16. Floating AI Revision Bubble
+### 18. Floating AI Revision Bubble
 Inline text editing in reading view:
 - **Text Selection**: Select any text in reading view to trigger revision bubble
 - **Quick Actions**: One-click buttons for common edits (Shorten, Lengthen, Rephrase, More Vivid, More Tension, Simplify)
@@ -552,6 +574,18 @@ The project is fully functional with:
 - **Credit alerts** - Notifications when OpenRouter balance is low
 - **Editable generation preview** - Tweak scene outline before generating
 - **Floating AI revision bubble** - Select text for inline AI editing with quick actions
+- **Polish mode** - Light-touch revision for near-final prose
+- **Inline accept/reject** - Cherry-pick individual changes from AI revisions
+- **Canon toggle** - Mark/unmark scenes as canon directly from reading view
 - Docker deployment support
 
 Ready for production use for personal prose generation projects.
+
+## Upcoming: UX Simplification
+
+Planned improvements to streamline the interface:
+- **Global settings on start page** - API keys and defaults configured before opening projects
+- **Unified Scene Workspace** - Merge Generate tab and Reading View into one adaptive workspace
+- **Status badges in sidebar** - Visual indicators for scene state (empty, has prose, canon, generating)
+
+See TODO.md for full details.
