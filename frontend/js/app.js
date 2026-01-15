@@ -4035,11 +4035,11 @@ async function previewManuscriptImport() {
         document.getElementById('manuscript-wordcount').textContent = result.total_words.toLocaleString();
         document.getElementById('manuscript-chapter-count').textContent = result.total_chapters;
 
-        // Populate chapter dropdown
-        const chapterSelect = document.getElementById('manuscript-target-chapter');
-        chapterSelect.innerHTML = '<option value="">-- Select Chapter --</option>';
-        chapters.forEach(ch => {
-            chapterSelect.innerHTML += `<option value="${ch.id}">${ch.title}</option>`;
+        // Populate act dropdown
+        const actSelect = document.getElementById('manuscript-target-act');
+        actSelect.innerHTML = '<option value="">-- No Act (standalone chapters) --</option>';
+        acts.forEach(act => {
+            actSelect.innerHTML += `<option value="${act.id}">${act.title}</option>`;
         });
 
         // Render chapter list
@@ -4078,12 +4078,7 @@ async function previewManuscriptImport() {
 }
 
 async function confirmManuscriptImport() {
-    const chapterId = document.getElementById('manuscript-target-chapter').value;
-    if (!chapterId) {
-        alert('Please select a chapter to import into');
-        return;
-    }
-
+    const actId = document.getElementById('manuscript-target-act').value;
     const splitByChapters = document.getElementById('manuscript-split-chapters').checked;
 
     // Show progress
@@ -4093,15 +4088,16 @@ async function confirmManuscriptImport() {
     try {
         let result;
 
-        if (splitByChapters && manuscriptPreviewData.chapters.length > 1) {
-            // Bulk import - create multiple scenes
+        if (splitByChapters) {
+            // Bulk import - create chapters and scenes
             const response = await fetch(apiUrl('/manuscript/import-bulk'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     chapters: manuscriptPreviewData.chapters,
-                    chapter_id: chapterId,
-                    enable_edit_mode: true
+                    act_id: actId || null,
+                    enable_edit_mode: true,
+                    create_chapters: true
                 })
             });
 
@@ -4112,18 +4108,25 @@ async function confirmManuscriptImport() {
 
             result = await response.json();
             document.getElementById('import-result-message').textContent =
-                `Created ${result.scenes_created} scenes with ${result.total_words.toLocaleString()} words in edit mode.`;
+                `Created ${result.chapters_created} chapters and ${result.scenes_created} scenes with ${result.total_words.toLocaleString()} words in edit mode.`;
         } else {
-            // Single scene import
+            // Single chapter/scene import - create one chapter with one scene
             const sceneTitle = document.getElementById('manuscript-scene-title').value.trim() || 'Imported Manuscript';
 
-            const response = await fetch(apiUrl('/manuscript/import-scene'), {
+            // Use bulk import with single chapter
+            const response = await fetch(apiUrl('/manuscript/import-bulk'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    text: manuscriptPreviewData.fullText,
-                    scene_title: sceneTitle,
-                    chapter_id: chapterId
+                    chapters: [{
+                        chapter_number: 1,
+                        title: sceneTitle,
+                        content: manuscriptPreviewData.fullText,
+                        word_count: manuscriptPreviewData.totalWords
+                    }],
+                    act_id: actId || null,
+                    enable_edit_mode: true,
+                    create_chapters: true
                 })
             });
 
@@ -4134,7 +4137,7 @@ async function confirmManuscriptImport() {
 
             result = await response.json();
             document.getElementById('import-result-message').textContent =
-                `Created scene "${result.title}" with ${result.word_count.toLocaleString()} words in edit mode.`;
+                `Created chapter "${sceneTitle}" with ${result.total_words.toLocaleString()} words in edit mode.`;
         }
 
         // Show complete step

@@ -58,15 +58,19 @@ class ImportResult(BaseModel):
 class BulkImportRequest(BaseModel):
     """Request to import multiple chapters as scenes."""
     chapters: List[ChapterSplit]
-    chapter_id: str = Field(..., description="Chapter to create scenes in")
+    chapter_id: Optional[str] = Field(None, description="Chapter to create scenes in (legacy)")
+    act_id: Optional[str] = Field(None, description="Act to create chapters in (optional)")
     enable_edit_mode: bool = Field(True, description="Enable edit mode for each scene")
+    create_chapters: bool = Field(True, description="Create chapters from manuscript structure")
 
 
 class BulkImportResult(BaseModel):
     """Result of bulk manuscript import."""
-    scenes_created: int
-    total_words: int
-    scene_ids: List[str]
+    chapters_created: int = 0
+    scenes_created: int = 0
+    total_words: int = 0
+    chapter_ids: List[str] = []
+    scene_ids: List[str] = []
     message: str
 
 
@@ -354,58 +358,78 @@ async def import_bulk_scenes(
     request: BulkImportRequest
 ):
     """
-    Import multiple chapter splits as scenes.
+    Import multiple chapter splits, creating chapters and scenes.
 
-    Creates a scene for each chapter split, optionally in edit mode.
+    For each detected chapter in the manuscript:
+    - Creates a Chapter in the project structure
+    - Creates a Scene within that chapter with the prose in edit mode
     """
     ensure_project_exists(project_id)
-    validate_chapter_exists(project_id, request.chapter_id)
 
     if not request.chapters:
         raise HTTPException(status_code=400, detail="No chapters provided")
 
     try:
+        chapters_dir = settings.project_dir(project_id) / "chapters"
+        chapters_dir.mkdir(parents=True, exist_ok=True)
         scenes_dir = settings.scenes_dir(project_id)
         scenes_dir.mkdir(parents=True, exist_ok=True)
 
-        # Get starting scene number
-        existing_count = 0
-        for f in scenes_dir.glob("*.json"):
-            try:
-                data = await read_json_file(f)
-                if data.get("chapter_id") == request.chapter_id:
-                    existing_count += 1
-            except:
-                continue
+        # Get starting chapter number
+        existing_chapters = list(chapters_dir.glob("*.json"))
+        starting_chapter_num = len(existing_chapters) + 1
 
+        chapter_ids = []
         scene_ids = []
         total_words = 0
         now = datetime.utcnow()
 
-        for i, chapter in enumerate(request.chapters):
-            scene_number = existing_count + i + 1
-
-            # Generate scene ID
-            scene_id = slugify(chapter.title)
-            if not scene_id:
-                scene_id = f"scene-{scene_number}"
-
-            filepath = scenes_dir / f"{scene_id}.json"
-
-            # Ensure unique ID
-            if filepath.exists():
-                scene_id = f"{scene_id}-{int(datetime.utcnow().timestamp())}-{i}"
-                filepath = scenes_dir / f"{scene_id}.json"
-
-            word_count = len(chapter.content.split())
+        for i, manuscript_chapter in enumerate(request.chapters):
+            chapter_number = starting_chapter_num + i
+            word_count = len(manuscript_chapter.content.split())
             total_words += word_count
+
+            # Create Chapter
+            chapter_id = slugify(manuscript_chapter.title)
+            if not chapter_id:
+                chapter_id = f"chapter-{chapter_number}"
+
+            chapter_filepath = chapters_dir / f"{chapter_id}.json"
+
+            # Ensure unique chapter ID
+            if chapter_filepath.exists():
+                chapter_id = f"{chapter_id}-{int(datetime.utcnow().timestamp())}"
+                chapter_filepath = chapters_dir / f"{chapter_id}.json"
+
+            chapter_data = {
+                "id": chapter_id,
+                "title": manuscript_chapter.title,
+                "chapter_number": chapter_number,
+                "act_id": request.act_id,  # May be None
+                "description": f"Imported from manuscript ({word_count} words)",
+                "notes": None,
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat()
+            }
+
+            await write_json_file(chapter_filepath, chapter_data)
+            chapter_ids.append(chapter_id)
+
+            # Create Scene within the chapter
+            scene_id = f"{chapter_id}-scene-1"
+            scene_filepath = scenes_dir / f"{scene_id}.json"
+
+            # Ensure unique scene ID
+            if scene_filepath.exists():
+                scene_id = f"{scene_id}-{int(datetime.utcnow().timestamp())}"
+                scene_filepath = scenes_dir / f"{scene_id}.json"
 
             scene_data = {
                 "id": scene_id,
-                "title": chapter.title,
-                "outline": f"[Imported from chapter {chapter.chapter_number} - {word_count} words]",
-                "chapter_id": request.chapter_id,
-                "scene_number": scene_number,
+                "title": f"{manuscript_chapter.title}",
+                "outline": f"[Imported manuscript chapter - {word_count} words]",
+                "chapter_id": chapter_id,
+                "scene_number": 1,
                 "character_ids": [],
                 "world_context_ids": [],
                 "previous_scene_ids": [],
@@ -424,20 +448,22 @@ async def import_bulk_scenes(
             # Add edit mode fields if requested
             if request.enable_edit_mode:
                 scene_data["edit_mode"] = True
-                scene_data["original_prose"] = chapter.content
+                scene_data["original_prose"] = manuscript_chapter.content
                 scene_data["edit_mode_started_at"] = now.isoformat()
 
-            await write_json_file(filepath, scene_data)
+            await write_json_file(scene_filepath, scene_data)
             scene_ids.append(scene_id)
 
         return BulkImportResult(
+            chapters_created=len(chapter_ids),
             scenes_created=len(scene_ids),
             total_words=total_words,
+            chapter_ids=chapter_ids,
             scene_ids=scene_ids,
-            message=f"Created {len(scene_ids)} scenes with {total_words} total words."
+            message=f"Created {len(chapter_ids)} chapters and {len(scene_ids)} scenes with {total_words} total words."
         )
 
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to import scenes: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to import manuscript: {str(e)}")
