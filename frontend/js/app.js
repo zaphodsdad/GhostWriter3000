@@ -4724,9 +4724,13 @@ function handleSelectionChange() {
     const bubble = document.getElementById('revision-bubble');
 
     // If bubble is visible but selection is now empty, hide it
+    // BUT don't hide if focus is inside the bubble (e.g., user clicked in input field)
     if (bubble && bubble.style.display !== 'none') {
         if (!selection.toString().trim()) {
-            hideRevisionBubble();
+            // Check if active element is inside the bubble
+            if (!bubble.contains(document.activeElement)) {
+                hideRevisionBubble();
+            }
         }
     }
 }
@@ -4739,14 +4743,19 @@ function setupReadingSelectionTracking() {
     document.addEventListener('selectionchange', handleSelectionChange);
 
     // Selection start: hide bubble when starting a new selection
-    document.addEventListener('selectstart', () => {
+    document.addEventListener('selectstart', (e) => {
+        const bubble = document.getElementById('revision-bubble');
+        // Don't process if the selectstart is inside the bubble (e.g., selecting in input)
+        if (bubble && bubble.contains(e.target)) {
+            return;
+        }
+
         // Small delay to allow the selection to actually start
         setTimeout(() => {
-            const bubble = document.getElementById('revision-bubble');
             if (bubble && bubble.style.display !== 'none') {
-                // Only hide if we're starting a new selection
+                // Only hide if we're starting a new selection outside the bubble
                 const selection = window.getSelection();
-                if (selection.toString().trim().length < 10) {
+                if (selection.toString().trim().length < 10 && !bubble.contains(document.activeElement)) {
                     hideRevisionBubble();
                 }
             }
