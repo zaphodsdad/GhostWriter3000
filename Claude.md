@@ -628,3 +628,8 @@ See TODO.md for remaining features and roadmap.
 - Root cause: `workspaceMarkCanon()` and `workspaceRemoveCanon()` called `updateWordCount()` which doesn't exist, causing silent failures before render functions could execute
 - Fix: Removed invalid `updateWordCount()` calls (word count already handled by `updateStats()`)
 - Also added direct state updates and explicit workspace view switching for immediate UI feedback
+
+**Word Count Not Updating After Mark as Canon:**
+- Issue: Header word count stayed at 0 even with canon scenes
+- Root cause: When importing prose, it's saved to `original_prose` (edit mode field). When clicking "Mark as Canon", only `is_canon: true` was sent - NOT the prose. Scene was marked canon but had no `prose` field.
+- Fix: `workspaceMarkCanon()` now sends both `is_canon: true` AND `prose` (using `original_prose` if `prose` isn't set), ensuring prose is saved to the scene record when marking as canon.

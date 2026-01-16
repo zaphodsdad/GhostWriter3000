@@ -3636,10 +3636,14 @@ async function workspaceMarkCanon() {
     }
 
     try {
+        // Send both is_canon and prose to ensure prose is saved to the scene
         const response = await fetch(apiUrl(`/scenes/${currentWorkspaceScene.id}`), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_canon: true })
+            body: JSON.stringify({
+                is_canon: true,
+                prose: prose  // Save prose (may come from original_prose for edit mode scenes)
+            })
         });
 
         if (!response.ok) throw new Error('Failed to mark as canon');
@@ -3648,10 +3652,18 @@ async function workspaceMarkCanon() {
 
         // Immediately update local state so UI reflects change
         currentWorkspaceScene.is_canon = true;
+        currentWorkspaceScene.prose = prose;  // Ensure prose is set locally too
 
         // Refresh sidebar data
         await loadScenes();
         await loadChapters();
+
+        // Ensure the scenes array has the current scene's prose for word count
+        const sceneIndex = scenes.findIndex(s => s.id === currentWorkspaceScene.id);
+        if (sceneIndex >= 0) {
+            scenes[sceneIndex] = { ...scenes[sceneIndex], ...currentWorkspaceScene };
+        }
+
         updateStats();
         renderOutlineTree();
         renderStructureTree();
@@ -3691,6 +3703,13 @@ async function workspaceRemoveCanon() {
         // Refresh sidebar data
         await loadScenes();
         await loadChapters();
+
+        // Ensure the scenes array has the current scene's updated canon status
+        const sceneIndex = scenes.findIndex(s => s.id === currentWorkspaceScene.id);
+        if (sceneIndex >= 0) {
+            scenes[sceneIndex] = { ...scenes[sceneIndex], ...currentWorkspaceScene };
+        }
+
         updateStats();
         renderOutlineTree();
         renderStructureTree();
