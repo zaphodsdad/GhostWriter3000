@@ -57,7 +57,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Floating AI bubble inconsistent - fixed with getComputedStyle() and proper event listeners
 - [x] Sidebar not updating after canon toggle - fixed by removing invalid updateWordCount() call
 - [x] Word count in header not updating after marking scene as canon - fixed by sending prose when marking as canon
-- [ ] Sidebar/word count not updating after Accept as Canon from review state - requires page refresh
+- [ ] Sidebar (green scene name) and cumulative word count not updating after Accept as Canon from review state - requires page refresh
 
 ---
 
