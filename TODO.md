@@ -48,6 +48,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Fixed sidebar refresh after canon toggle - workspace functions now call render functions
 - [x] Evaluate-only mode - floating panel shows critique, "Start Revision" reuses critique (no duplicate API call)
 - [x] Action buttons moved to workspace header (Evaluate, Mark as Canon, Edit, review actions)
+- [x] Floating AI bubble works in review state (prose column during critique review)
 
 ---
 
@@ -56,6 +57,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Floating AI bubble inconsistent - fixed with getComputedStyle() and proper event listeners
 - [x] Sidebar not updating after canon toggle - fixed by removing invalid updateWordCount() call
 - [x] Word count in header not updating after marking scene as canon - fixed by sending prose when marking as canon
+- [ ] Sidebar/word count not updating after Accept as Canon from review state - requires page refresh
 
 ---
 
