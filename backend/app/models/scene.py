@@ -5,6 +5,45 @@ from typing import List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 
+class Beat(BaseModel):
+    """A beat within a scene - used for outline planning."""
+
+    id: str = Field(..., description="Unique beat identifier")
+    text: str = Field(..., description="What happens in this beat")
+    notes: Optional[str] = Field(None, description="Writer's notes about this beat")
+    tags: List[str] = Field(default_factory=list, description="Tags for dependency tracking")
+    order: int = Field(0, description="Position within the scene")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "beat-001",
+                "text": "Elena finds the letter hidden in Marcus's desk",
+                "notes": "This is the discovery that drives Act 2",
+                "tags": ["letter-discovery", "marcus-secret"],
+                "order": 1
+            }
+        }
+
+
+class BeatCreate(BaseModel):
+    """Model for creating a new beat."""
+
+    text: str = Field(..., description="What happens in this beat")
+    notes: Optional[str] = Field(None, description="Writer's notes")
+    tags: List[str] = Field(default_factory=list, description="Tags for dependency tracking")
+    order: Optional[int] = Field(None, description="Position within scene (auto-assigned if not provided)")
+
+
+class BeatUpdate(BaseModel):
+    """Model for updating a beat."""
+
+    text: Optional[str] = Field(None, description="What happens in this beat")
+    notes: Optional[str] = Field(None, description="Writer's notes")
+    tags: Optional[List[str]] = Field(None, description="Tags for dependency tracking")
+    order: Optional[int] = Field(None, description="Position within scene")
+
+
 class Scene(BaseModel):
     """Scene outline model."""
 
@@ -41,6 +80,11 @@ class Scene(BaseModel):
     world_context_ids: List[str] = Field(default_factory=list, description="List of world context IDs")
     previous_scene_ids: List[str] = Field(default_factory=list, description="Previous scene IDs for continuity")
     tags: List[str] = Field(default_factory=list, description="Scene tags")
+
+    # Outline planning fields
+    beats: List[Beat] = Field(default_factory=list, description="Beats within this scene (outline planning)")
+    depends_on: List[str] = Field(default_factory=list, description="Scene IDs or tags this scene depends on")
+    outline_status: str = Field("idea", description="Outline status: idea, draft, ready")
     additional_notes: Optional[str] = Field(None, description="Additional notes or instructions")
     tone: Optional[str] = Field(None, description="Desired tone for the scene")
     pov: Optional[str] = Field(None, description="Point of view")
@@ -96,6 +140,11 @@ class SceneCreate(BaseModel):
     prose: Optional[str] = Field(None, description="Imported prose for edit mode")
     edit_mode: bool = Field(False, description="Start in edit mode with imported prose")
 
+    # Outline planning fields
+    beats: List[BeatCreate] = Field(default_factory=list, description="Beats for this scene")
+    depends_on: List[str] = Field(default_factory=list, description="Scene IDs or tags this depends on")
+    outline_status: str = Field("idea", description="Outline status: idea, draft, ready")
+
 
 class SceneUpdate(BaseModel):
     """Model for updating a scene."""
@@ -119,3 +168,8 @@ class SceneUpdate(BaseModel):
     # Edit mode fields
     edit_mode: Optional[bool] = Field(None, description="Toggle edit mode")
     original_prose: Optional[str] = Field(None, description="Original imported prose")
+
+    # Outline planning fields
+    beats: Optional[List[Beat]] = Field(None, description="Beats for this scene")
+    depends_on: Optional[List[str]] = Field(None, description="Scene IDs or tags this depends on")
+    outline_status: Optional[str] = Field(None, description="Outline status: idea, draft, ready")

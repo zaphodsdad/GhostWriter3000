@@ -87,6 +87,7 @@ async def list_projects():
                     scene_count=count_files(settings.scenes_dir(project_id), "*.json"),
                     canon_scene_count=count_canon_scenes(project_id),
                     word_count_goal=data.get("word_count_goal"),
+                    outline_only=data.get("outline_only", False),
                     created_at=datetime.fromisoformat(data.get("created_at", datetime.utcnow().isoformat())),
                     updated_at=datetime.fromisoformat(data.get("updated_at", datetime.utcnow().isoformat()))
                 ))

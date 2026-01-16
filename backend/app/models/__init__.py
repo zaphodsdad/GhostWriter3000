@@ -1,7 +1,7 @@
 """Data models for the Prose Pipeline application."""
 
 from app.models.project import Project, ProjectCreate, ProjectUpdate, ProjectSummary
-from app.models.scene import Scene, SceneCreate, SceneUpdate
+from app.models.scene import Scene, SceneCreate, SceneUpdate, Beat, BeatCreate, BeatUpdate
 from app.models.character import Character, CharacterCreate, CharacterUpdate
 from app.models.world import WorldContext, WorldContextCreate, WorldContextUpdate
 from app.models.generation import GenerationState, GenerationStatus, Iteration
@@ -13,6 +13,8 @@ __all__ = [
     "Project", "ProjectCreate", "ProjectUpdate", "ProjectSummary",
     # Scene
     "Scene", "SceneCreate", "SceneUpdate",
+    # Beat (outline planning)
+    "Beat", "BeatCreate", "BeatUpdate",
     # Character
     "Character", "CharacterCreate", "CharacterUpdate",
     # World

@@ -22,6 +22,9 @@ class Project(BaseModel):
     # Word count goal
     word_count_goal: Optional[int] = Field(None, ge=0, description="Target word count for the project")
 
+    # Outline mode - project started from outline, no structure yet
+    outline_only: bool = Field(False, description="Project is in outline-only mode (planning phase)")
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -70,6 +73,9 @@ class ProjectCreate(BaseModel):
     # Word count goal
     word_count_goal: Optional[int] = Field(None, ge=0, description="Target word count")
 
+    # Outline mode
+    outline_only: bool = Field(False, description="Start in outline-only mode (planning phase)")
+
     @field_validator("title")
     @classmethod
     def validate_title(cls, v: str) -> str:
@@ -94,6 +100,9 @@ class ProjectUpdate(BaseModel):
     # Word count goal
     word_count_goal: Optional[int] = Field(None, ge=0, description="Target word count")
 
+    # Outline mode
+    outline_only: Optional[bool] = Field(None, description="Toggle outline-only mode")
+
 
 class ProjectSummary(BaseModel):
     """Summary of a project for listing."""
@@ -114,6 +123,9 @@ class ProjectSummary(BaseModel):
     canon_scene_count: int = 0
     total_word_count: int = 0
     word_count_goal: Optional[int] = None
+
+    # Outline mode
+    outline_only: bool = False
 
     created_at: datetime
     updated_at: datetime

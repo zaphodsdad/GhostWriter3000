@@ -283,6 +283,25 @@ Both benefit from the prose philosophy foundation. The quality layer helps every
 
 ---
 
+## UX Decision: Start Page & Navigation
+
+**Decided:** Option A - Outline is a view within a project
+
+```
+Start Page: [Projects] [Series] [+ New Project] [+ New Series]
+                                      ↓
+                         "Start from outline" checkbox
+     ↓
+Open Project → Tabs: [Structure] [Outline] [Workspace] [References]
+```
+
+- Outline is a tab/view within a project (same project, different mode)
+- New projects can start in "Outline Only" mode via checkbox
+- Series get an "Arc Planning" section (series-level outline as reference doc)
+- Standalone outlines = projects with "outline only" flag, can be promoted later
+
+---
+
 ## Open Questions
 
 1. **Beat editor UI** - Inline in scene view? Separate panel? Modal?
