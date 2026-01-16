@@ -1016,6 +1016,19 @@ This will be included in the AI prompt during generation."></textarea>
                                     <p class="text-muted text-center" id="ws-progress-detail">Setting up generation pipeline...</p>
                                 </div>
 
+                                <!-- State: Error (generation failed) -->
+                                <div id="ws-error" class="workspace-state" style="display: none;">
+                                    <div class="error-state">
+                                        <div class="error-icon">⚠️</div>
+                                        <h3>Generation Failed</h3>
+                                        <p class="error-message" id="ws-error-message">An error occurred during generation.</p>
+                                        <div class="error-actions">
+                                            <button class="btn btn-primary" onclick="retryWorkspaceGeneration()">Retry</button>
+                                            <button class="btn btn-secondary" onclick="dismissWorkspaceError()">Dismiss</button>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <!-- State: Review (awaiting approval) -->
                                 <div id="ws-review" class="workspace-state" style="display: none;">
                                     <!-- Unsaved Changes Indicator for Review State -->

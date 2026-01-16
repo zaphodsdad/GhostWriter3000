@@ -953,6 +953,40 @@ nav {
     color: var(--text-muted);
 }
 
+/* Error State */
+.error-state {
+    text-align: center;
+    padding: 60px 40px;
+    background: var(--bg-card);
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    max-width: 500px;
+    margin: 40px auto;
+}
+
+.error-state .error-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.error-state h3 {
+    color: var(--danger);
+    margin-bottom: 12px;
+}
+
+.error-state .error-message {
+    color: var(--text-muted);
+    margin-bottom: 24px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.error-state .error-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
 .empty-state p {
     margin-bottom: 20px;
 }

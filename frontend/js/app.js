@@ -3225,7 +3225,7 @@ async function openSceneWorkspace(sceneId) {
 }
 
 function hideAllWorkspaceStates() {
-    const states = ['ws-empty', 'ws-generating', 'ws-review', 'ws-prose', 'ws-canon', 'ws-editing', 'ws-import', 'ws-complete', 'ws-no-scene'];
+    const states = ['ws-empty', 'ws-generating', 'ws-review', 'ws-prose', 'ws-canon', 'ws-editing', 'ws-import', 'ws-complete', 'ws-no-scene', 'ws-error'];
     states.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
@@ -3398,8 +3398,7 @@ async function checkWorkspaceProgress() {
             showWorkspaceComplete(data);
         } else if (data.status === 'error') {
             stopWorkspacePolling();
-            showToast('Error', data.error_message || 'Generation failed', 'error');
-            await refreshWorkspaceScene();
+            showWorkspaceError(data.error_message || 'Generation failed');
         } else if (data.status === 'rejected') {
             stopWorkspacePolling();
             await refreshWorkspaceScene();
@@ -3493,6 +3492,45 @@ async function showWorkspaceComplete(data) {
 
     // Refresh workspace scene data
     refreshWorkspaceScene();
+}
+
+function showWorkspaceError(errorMessage) {
+    hideAllWorkspaceStates();
+    document.getElementById('ws-error-message').textContent = errorMessage || 'An error occurred during generation.';
+    document.getElementById('ws-error').style.display = 'block';
+}
+
+async function retryWorkspaceGeneration() {
+    // Dismiss the error first (rejects the failed generation)
+    if (workspaceGenId) {
+        try {
+            await fetch(apiUrl(`/generations/${workspaceGenId}/reject`), {
+                method: 'POST'
+            });
+        } catch (e) {
+            console.error('Failed to reject errored generation:', e);
+        }
+    }
+
+    // Start a new generation
+    workspaceGenId = null;
+    await startWorkspaceGeneration();
+}
+
+async function dismissWorkspaceError() {
+    // Reject the failed generation to clean up
+    if (workspaceGenId) {
+        try {
+            await fetch(apiUrl(`/generations/${workspaceGenId}/reject`), {
+                method: 'POST'
+            });
+        } catch (e) {
+            console.error('Failed to reject errored generation:', e);
+        }
+    }
+
+    workspaceGenId = null;
+    await refreshWorkspaceScene();
 }
 
 async function workspaceApproveAndRevise() {
