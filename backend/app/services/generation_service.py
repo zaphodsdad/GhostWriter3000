@@ -97,6 +97,96 @@ class GenerationService:
 
         return state
 
+    async def queue_generation(
+        self,
+        project_id: str,
+        scene_id: str,
+        max_iterations: int = 5,
+        generation_model: Optional[str] = None,
+        critique_model: Optional[str] = None,
+        revision_mode: str = "full"
+    ) -> GenerationState:
+        """
+        Add a scene to the generation queue without starting it.
+
+        Args:
+            project_id: Project ID
+            scene_id: Scene ID to generate
+            max_iterations: Maximum revision iterations allowed
+            generation_model: Optional model for prose generation
+            critique_model: Optional model for critique
+            revision_mode: Revision approach
+
+        Returns:
+            Generation state with QUEUED status
+        """
+        # Load scene to validate it exists
+        scene = await self._load_scene(project_id, scene_id)
+
+        # Auto-calculate previous canon scenes
+        previous_scene_ids = await self._get_previous_canon_scenes(project_id, scene_id)
+
+        # Create new generation state with QUEUED status
+        generation_id = str(uuid.uuid4())
+        state = GenerationState(
+            generation_id=generation_id,
+            project_id=project_id,
+            scene_id=scene_id,
+            status=GenerationStatus.QUEUED,
+            max_iterations=max_iterations,
+            character_ids=scene.character_ids,
+            world_context_ids=scene.world_context_ids,
+            previous_scene_ids=previous_scene_ids,
+            generation_model=generation_model,
+            critique_model=critique_model,
+            revision_mode=revision_mode
+        )
+
+        # Save state
+        await self.state_manager.save_state(state)
+
+        logger.info(
+            f"Queued generation for scene {scene_id}",
+            extra={"generation_id": generation_id, "project_id": project_id, "scene_id": scene_id}
+        )
+
+        return state
+
+    async def start_queued_generation(
+        self,
+        project_id: str,
+        generation_id: str
+    ) -> GenerationState:
+        """
+        Start a queued generation (changes QUEUED to GENERATING and runs).
+
+        Args:
+            project_id: Project ID
+            generation_id: Generation ID to start
+
+        Returns:
+            Updated generation state
+
+        Raises:
+            ValueError: If generation is not in QUEUED status
+        """
+        state = await self.state_manager.load_state(project_id, generation_id)
+
+        if state.status != GenerationStatus.QUEUED:
+            raise ValueError(f"Generation is not queued (status: {state.status})")
+
+        logger.info(
+            f"Starting queued generation for scene {state.scene_id}",
+            extra={"generation_id": generation_id, "project_id": project_id}
+        )
+
+        # Start generation in background
+        import asyncio
+        asyncio.create_task(self._run_generation(project_id, generation_id))
+
+        # Return current state (will be updated by background task)
+        return await self.state_manager.load_state(project_id, generation_id)
+
     async def start_edit_mode_generation(
         self,
         project_id: str,

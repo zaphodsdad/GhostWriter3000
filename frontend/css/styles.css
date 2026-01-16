@@ -1105,9 +1105,12 @@ nav {
 }
 
 .sidebar-footer {
+    position: sticky;
+    bottom: 0;
     margin-top: 16px;
-    padding-top: 16px;
+    padding: 16px 0;
     border-top: 1px solid var(--border);
+    background: var(--bg-card);
 }
 
 .btn-block {
@@ -2062,10 +2065,18 @@ nav {
     color: var(--text-muted);
 }
 
-.queue-item-status {
+.queue-item-status,
+.queue-item-actions {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+}
+
+.btn-xs {
+    padding: 2px 8px;
+    font-size: 1rem;
+    line-height: 1;
+    border-radius: 4px;
 }
 
 .queue-status-badge {
@@ -2075,9 +2086,15 @@ nav {
     font-weight: 500;
 }
 
+.queue-status-badge.queued {
+    background: rgba(156, 163, 175, 0.2);
+    color: var(--text-muted);
+}
+
 .queue-status-badge.generating,
 .queue-status-badge.critiquing,
-.queue-status-badge.revising {
+.queue-status-badge.revising,
+.queue-status-badge.initialized {
     background: rgba(59, 130, 246, 0.2);
     color: var(--primary);
 }
@@ -2210,10 +2227,20 @@ nav {
     display: flex;
     gap: 10px;
     padding: 12px;
-    background: var(--bg-input);
+    background: var(--primary);
     border-radius: 8px;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
     align-items: center;
+    flex-wrap: wrap;
+}
+
+.batch-controls .batch-count {
+    color: white;
+    font-weight: 500;
+}
+
+.batch-controls .btn {
+    flex-shrink: 0;
 }
 
 .batch-count {

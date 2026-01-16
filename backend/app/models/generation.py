@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 class GenerationStatus(str, Enum):
     """Generation pipeline status."""
 
+    QUEUED = "queued"  # Waiting in batch queue, not yet started
     INITIALIZED = "initialized"
     GENERATING = "generating"
     GENERATION_COMPLETE = "generation_complete"

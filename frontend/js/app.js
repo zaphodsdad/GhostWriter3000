@@ -3336,6 +3336,11 @@ async function startWorkspaceGeneration() {
     }
 
     try {
+        // Cleanup old completed/rejected/error generations for this scene
+        await fetch(apiUrl(`/generations/by-scene/${currentWorkspaceScene.id}?keep_active=true`), {
+            method: 'DELETE'
+        });
+
         hideAllWorkspaceStates();
         document.getElementById('ws-generating').style.display = 'block';
         updateWorkspaceProgress('initialized', 'Starting generation...');
@@ -4164,6 +4169,7 @@ function updateProgress(status, message) {
 
 function getStatusMessage(status) {
     const messages = {
+        'queued': 'Queued',
         'initialized': 'Initializing...',
         'generating': 'Generating prose...',
         'generation_complete': 'Generation complete',
@@ -4178,6 +4184,7 @@ function getStatusMessage(status) {
 
 function getStatusDetail(status) {
     const details = {
+        'queued': 'Waiting in queue...',
         'initialized': 'Setting up generation pipeline...',
         'generating': 'Claude is writing prose based on your scene outline...',
         'generation_complete': 'Prose generated, preparing critique...',
@@ -6399,22 +6406,68 @@ function renderQueue() {
         const scene = scenes.find(s => s.id === gen.scene_id);
         const sceneTitle = scene ? scene.title : gen.scene_id;
         const statusLabel = getStatusMessage(gen.status);
+        const canDelete = ['completed', 'rejected', 'error'].includes(gen.status);
 
         return `
-            <div class="queue-item" onclick="openQueueReview('${gen.generation_id}')">
-                <div class="queue-item-info">
+            <div class="queue-item">
+                <div class="queue-item-info" onclick="openQueueReview('${gen.generation_id}')">
                     <div class="queue-item-title">${escapeHtml(sceneTitle)}</div>
                     <div class="queue-item-meta">
                         <span>Iteration ${gen.current_iteration}</span>
                         <span>${formatRelativeTime(gen.updated_at)}</span>
                     </div>
                 </div>
-                <div class="queue-item-status">
+                <div class="queue-item-actions">
                     <span class="queue-status-badge ${gen.status}">${statusLabel}</span>
+                    ${canDelete ? `<button class="btn btn-danger btn-xs" onclick="deleteQueueItem('${gen.generation_id}', event)" title="Delete">×</button>` : ''}
                 </div>
             </div>
         `;
     }).join('');
+}
+
+async function deleteQueueItem(generationId, event) {
+    event.stopPropagation();
+
+    try {
+        const response = await fetch(apiUrl(`/generations/${generationId}`), {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to delete');
+
+        await loadQueue();
+        showToast('Deleted', 'Generation removed from queue', 'success');
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+    }
+}
+
+async function clearCompletedQueue() {
+    const finishedStatuses = ['completed', 'rejected', 'error'];
+    const toDelete = queueData.filter(g => finishedStatuses.includes(g.status));
+
+    if (toDelete.length === 0) {
+        showToast('Nothing to Clear', 'No completed/rejected/failed items in queue', 'info');
+        return;
+    }
+
+    if (!confirm(`Delete ${toDelete.length} finished generation(s)?`)) return;
+
+    let deleted = 0;
+    for (const gen of toDelete) {
+        try {
+            const response = await fetch(apiUrl(`/generations/${gen.generation_id}`), {
+                method: 'DELETE'
+            });
+            if (response.ok) deleted++;
+        } catch (e) {
+            console.error('Failed to delete', gen.generation_id, e);
+        }
+    }
+
+    await loadQueue();
+    showToast('Cleared', `Removed ${deleted} item(s) from queue`, 'success');
 }
 
 function filterQueue() {
@@ -6642,20 +6695,25 @@ function toggleSceneSelection(sceneId, event) {
 
 function updateBatchControls() {
     const controls = document.getElementById('batch-controls');
-    const count = document.getElementById('batch-count');
 
     if (selectedScenes.size > 0) {
         if (!controls) {
             // Create batch controls if they don't exist
             const sidebar = document.getElementById('sidebar');
-            const footer = sidebar.querySelector('.sidebar-footer');
+            const footer = sidebar?.querySelector('.sidebar-footer');
+
+            if (!footer) {
+                console.error('sidebar-footer not found');
+                return;
+            }
+
             const batchDiv = document.createElement('div');
             batchDiv.id = 'batch-controls';
             batchDiv.className = 'batch-controls';
             batchDiv.innerHTML = `
                 <span class="batch-count" id="batch-count">${selectedScenes.size} selected</span>
-                <button class="btn btn-success btn-small" onclick="startBatchGeneration()">Generate Selected</button>
-                <button class="btn btn-secondary btn-small" onclick="clearSelection()">Clear</button>
+                <button class="btn btn-success btn-sm" onclick="startBatchGeneration()">Generate Selected</button>
+                <button class="btn btn-secondary btn-sm" onclick="clearSelection()">Clear</button>
             `;
             footer.insertBefore(batchDiv, footer.firstChild);
         } else {
@@ -6675,59 +6733,186 @@ function clearSelection() {
 }
 
 async function startBatchGeneration() {
-    console.log('startBatchGeneration called');
-    console.log('selectedScenes:', Array.from(selectedScenes));
-
     if (selectedScenes.size === 0) {
         alert('No scenes selected');
         return;
     }
 
-    const genModel = document.getElementById('gen-model')?.value || undefined;
-    const critiqueModel = document.getElementById('critique-model')?.value || undefined;
-    console.log('Using models:', genModel, critiqueModel);
-
     const sceneIds = Array.from(selectedScenes);
-    let started = 0;
-    let failed = 0;
+
+    // Load current queue to check for conflicts
+    await loadQueue();
+
+    // Check for conflicts - scenes with active generations
+    const activeStatuses = ['queued', 'initialized', 'generating', 'critiquing', 'revising',
+                           'generation_complete', 'awaiting_approval', 'generating_summary'];
+
+    const conflicts = [];
+    const readyToGenerate = [];
 
     for (const sceneId of sceneIds) {
-        console.log('Starting generation for:', sceneId);
+        const activeGen = queueData.find(g => g.scene_id === sceneId && activeStatuses.includes(g.status));
+        if (activeGen) {
+            const scene = scenes.find(s => s.id === sceneId);
+            conflicts.push({
+                sceneId,
+                sceneTitle: scene ? scene.title : sceneId,
+                status: activeGen.status,
+                generationId: activeGen.generation_id
+            });
+        } else {
+            readyToGenerate.push(sceneId);
+        }
+    }
+
+    // Handle conflicts
+    if (conflicts.length > 0) {
+        const conflictList = conflicts.map(c => `• ${c.sceneTitle} (${c.status})`).join('\n');
+        const message = conflicts.length === sceneIds.length
+            ? `All selected scenes already have active generations:\n\n${conflictList}\n\nWould you like to open the Queue to review them?`
+            : `${conflicts.length} scene(s) already have active generations:\n\n${conflictList}\n\nGenerate the other ${readyToGenerate.length} scene(s)?`;
+
+        if (conflicts.length === sceneIds.length) {
+            if (confirm(message)) {
+                clearSelection();
+                navigateToView('queue');
+            }
+            return;
+        }
+
+        if (!confirm(message)) {
+            return;
+        }
+    }
+
+    if (readyToGenerate.length === 0) {
+        showToast('Nothing to Generate', 'All selected scenes already have active generations.', 'info');
+        return;
+    }
+
+    const total = readyToGenerate.length;
+
+    // Clear selection and switch to queue view immediately
+    clearSelection();
+    navigateToView('queue');
+
+    // STEP 1: Queue all scenes first (they appear immediately with "Queued" status)
+    showToast('Queuing', `Adding ${total} scene(s) to queue...`, 'info');
+
+    const queuedGenerations = [];
+
+    for (const sceneId of readyToGenerate) {
+        const scene = scenes.find(s => s.id === sceneId);
+        const sceneTitle = scene ? scene.title : sceneId;
+
         try {
-            const url = apiUrl('/generations/start');
-            console.log('POST to:', url);
-            const response = await fetch(url, {
+            // Cleanup old completed/rejected/error generations for this scene first
+            await fetch(apiUrl(`/generations/by-scene/${sceneId}?keep_active=true`), {
+                method: 'DELETE'
+            });
+
+            // Queue the scene (creates QUEUED state)
+            const response = await fetch(apiUrl('/generations/queue'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     scene_id: sceneId,
-                    max_iterations: 99,
-                    generation_model: genModel,
-                    critique_model: critiqueModel
+                    max_iterations: 5
                 })
             });
 
-            console.log('Response status:', response.status);
             if (response.ok) {
-                started++;
+                const data = await response.json();
+                queuedGenerations.push({
+                    generationId: data.generation_id,
+                    sceneId,
+                    sceneTitle
+                });
             } else {
                 const errorData = await response.json();
-                console.error('Generation failed:', errorData);
-                failed++;
+                console.error('Queue failed:', errorData);
+                showToast('Failed to Queue', `${sceneTitle}: ${errorData.detail || 'Unknown error'}`, 'error');
             }
         } catch (e) {
-            failed++;
-            console.error('Error starting generation for', sceneId, e);
+            console.error('Error queuing', sceneId, e);
+            showToast('Error', `${sceneTitle}: ${e.message}`, 'error');
         }
     }
 
-    showToast('Batch Started', `Started ${started} generation(s)${failed > 0 ? `, ${failed} failed` : ''}`, 'success');
-
-    // Clear selection and switch to queue view
-    clearSelection();
-    startQueuePolling();
-    navigateToView('queue');
+    // Refresh queue to show all queued items
     await loadQueue();
+
+    if (queuedGenerations.length === 0) {
+        showToast('Queue Failed', 'No scenes were queued successfully.', 'error');
+        return;
+    }
+
+    showToast('Queued', `${queuedGenerations.length} scene(s) queued. Starting generation...`, 'success');
+
+    // STEP 2: Process queued generations one at a time
+    let completed = 0;
+    let failed = 0;
+
+    for (let i = 0; i < queuedGenerations.length; i++) {
+        const { generationId, sceneTitle } = queuedGenerations[i];
+
+        try {
+            showToast('Generating', `${sceneTitle} (${i + 1}/${queuedGenerations.length})`, 'info');
+
+            // Start this queued generation
+            const response = await fetch(apiUrl(`/generations/${generationId}/start-queued`), {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                // Poll until this generation reaches awaiting_approval, completed, or error
+                await waitForGeneration(generationId);
+                completed++;
+            } else {
+                const errorData = await response.json();
+                console.error('Start failed:', errorData);
+                failed++;
+                showToast('Failed', `${sceneTitle}: ${errorData.detail || 'Unknown error'}`, 'error');
+            }
+        } catch (e) {
+            failed++;
+            console.error('Error starting generation for', sceneTitle, e);
+            showToast('Error', `${sceneTitle}: ${e.message}`, 'error');
+        }
+
+        // Update queue view after each
+        await loadQueue();
+    }
+
+    showToast('Batch Complete', `${completed} ready for review, ${failed} failed.`, completed > 0 ? 'success' : 'error');
+}
+
+async function waitForGeneration(generationId) {
+    // Poll until generation reaches a stopping point
+    const maxWait = 300000; // 5 minutes max per scene
+    const pollInterval = 2000;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < maxWait) {
+        try {
+            const response = await fetch(apiUrl(`/generations/${generationId}`));
+            if (!response.ok) break;
+
+            const data = await response.json();
+
+            // Stop polling when generation reaches a terminal or review state
+            if (['awaiting_approval', 'completed', 'error', 'rejected'].includes(data.status)) {
+                return data;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+        } catch (e) {
+            console.error('Error polling generation:', e);
+            break;
+        }
+    }
+
+    return null;
 }
 
 async function generateChapter(chapterId, event) {
@@ -6739,35 +6924,13 @@ async function generateChapter(chapterId, event) {
         return;
     }
 
-    if (!confirm(`Generate ${chapterScenes.length} scene(s) in this chapter?`)) return;
+    // Select these scenes and use the batch generation flow
+    chapterScenes.forEach(s => selectedScenes.add(s.id));
+    updateBatchControls();
+    renderOutlineTree();
 
-    const genModel = document.getElementById('gen-model')?.value || undefined;
-    const critiqueModel = document.getElementById('critique-model')?.value || undefined;
-
-    let started = 0;
-    for (const scene of chapterScenes) {
-        try {
-            const response = await fetch(apiUrl('/generations/start'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    scene_id: scene.id,
-                    max_iterations: 99,
-                    generation_model: genModel,
-                    critique_model: critiqueModel
-                })
-            });
-
-            if (response.ok) started++;
-        } catch (e) {
-            console.error('Error starting generation for', scene.id, e);
-        }
-    }
-
-    showToast('Chapter Generation Started', `Started ${started} scene(s)`, 'success');
-    startQueuePolling();
-    navigateToView('queue');
-    await loadQueue();
+    // Now trigger batch generation which handles conflicts
+    await startBatchGeneration();
 }
 
 // ============================================

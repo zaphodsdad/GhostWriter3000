@@ -19,6 +19,11 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **Default Model Settings**: Configure preferred generation and critique models
 - **Word Count Goals**: Track progress toward writing targets with visual progress bar
 - **Credit Alerts**: Notifications when OpenRouter balance drops below threshold
+- **Generation Queue**: Batch process multiple scenes with sequential generation and queue management
+- **Evaluate-Only Mode**: Get AI critique without entering the revision loop
+- **Floating AI Bubble**: Select text for inline AI-powered revisions with quick actions
+- **Polish Mode**: Choose between full structural revision or light line-edits only
+- **Failed Generation Recovery**: Error handling with retry/dismiss options
 - **Docker Support**: Easy deployment with Docker and docker-compose
 
 ## Technology Stack
@@ -190,10 +195,26 @@ Scenes are defined as JSON files in `data/scenes/`.
    - **Reject**: Cancels the generation
 6. **Repeat** the critique-revision loop up to the maximum iterations (default: 5)
 
+#### Batch Generation
+
+- **Select multiple scenes** using checkboxes in the sidebar
+- **Click "Generate Selected"** to queue all selected scenes
+- Scenes are processed **sequentially** (one at a time)
+- **Queue management**: View progress, delete items, clear finished generations
+- **Conflict detection**: Warns if a scene already has an active generation
+
 #### Revision Features
 
 - **Diff View**: After the first revision, click "Show Changes" to see exactly what the AI changed (green = additions, red = deletions)
 - **Revision Instructions**: Expand the "Revision Instructions" section to guide the AI's revision with specific feedback like "make the pacing faster" or "improve the dialogue"
+- **Floating AI Bubble**: Select any text in the prose view to get quick AI revision options (Shorten, Lengthen, Rephrase, etc.)
+- **Polish Mode**: Toggle between full structural revision and light polish (word choice and rhythm only)
+
+#### Evaluate-Only Mode
+
+- Click **"Evaluate"** on any scene with prose
+- Get AI critique feedback without entering the revision loop
+- Choose to start revision from the evaluation or just read the feedback
 
 ## API Documentation
 

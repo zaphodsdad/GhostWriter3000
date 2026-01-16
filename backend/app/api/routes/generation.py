@@ -90,6 +90,72 @@ async def start_generation(project_id: str, request: GenerationStart, background
         raise HTTPException(status_code=500, detail=f"Generation failed: {str(e)}")
 
 
+@router.post("/queue", response_model=GenerationResponse)
+async def queue_generation(project_id: str, request: GenerationStart):
+    """
+    Add a scene to the generation queue without starting it.
+
+    Creates a generation state with QUEUED status. Use /start-queued to begin processing.
+
+    Args:
+        project_id: Project ID
+        request: GenerationStart request with scene_id
+
+    Returns:
+        Generation state with QUEUED status
+    """
+    ensure_project_exists(project_id)
+
+    gen_model, critique_model = get_effective_models(
+        request.generation_model,
+        request.critique_model
+    )
+
+    try:
+        service = get_generation_service()
+        state = await service.queue_generation(
+            project_id=project_id,
+            scene_id=request.scene_id,
+            max_iterations=request.max_iterations,
+            generation_model=gen_model,
+            critique_model=critique_model,
+            revision_mode=request.revision_mode
+        )
+        return _build_response(state)
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Queue failed: {str(e)}")
+
+
+@router.post("/{generation_id}/start-queued", response_model=GenerationResponse)
+async def start_queued_generation(project_id: str, generation_id: str):
+    """
+    Start a queued generation (changes status from QUEUED to GENERATING).
+
+    Args:
+        project_id: Project ID
+        generation_id: Generation ID to start
+
+    Returns:
+        Updated generation state
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        service = get_generation_service()
+        state = await service.start_queued_generation(project_id, generation_id)
+        return _build_response(state)
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Generation not found: {generation_id}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/start-edit", response_model=GenerationResponse)
 async def start_edit_mode_generation(project_id: str, request: EditModeStart, background_tasks: BackgroundTasks):
     """
@@ -422,6 +488,46 @@ async def delete_generation(project_id: str, generation_id: str):
 
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Generation not found: {generation_id}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/by-scene/{scene_id}")
+async def cleanup_scene_generations(
+    project_id: str,
+    scene_id: str,
+    keep_active: bool = Query(True, description="Keep active generations (generating, awaiting_approval)")
+):
+    """
+    Delete all generations for a specific scene.
+
+    Args:
+        project_id: Project ID
+        scene_id: Scene ID to cleanup
+        keep_active: If True, keep generations that are still active
+
+    Returns:
+        Count of deleted generations
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        service = get_generation_service()
+        all_gens = await service.state_manager.get_generations_by_status(project_id, None)
+
+        active_statuses = ['initialized', 'generating', 'critiquing', 'revising',
+                          'generation_complete', 'awaiting_approval', 'generating_summary']
+
+        deleted = 0
+        for gen in all_gens:
+            if gen.scene_id == scene_id:
+                if keep_active and gen.status.value in active_statuses:
+                    continue
+                await service.state_manager.delete_state(project_id, gen.generation_id)
+                deleted += 1
+
+        return {"deleted": deleted, "scene_id": scene_id}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
