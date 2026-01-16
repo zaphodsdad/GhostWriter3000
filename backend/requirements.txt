@@ -28,6 +28,3 @@ mammoth==1.8.0
 
 # Utilities
 python-dotenv==1.0.1
-
-# Grammar/Style Checking
-language_tool_python==2.8

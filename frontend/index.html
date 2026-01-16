@@ -939,7 +939,6 @@ This will be included in the AI prompt during generation."></textarea>
                                         </div>
                                         <div class="workspace-actions" id="ws-header-actions" style="display: none;">
                                             <button class="btn btn-primary btn-sm" onclick="workspaceEvaluate()">Evaluate</button>
-                                            <button class="btn btn-info btn-sm" onclick="workspaceCheckGrammar()">Check Grammar</button>
                                             <button class="btn btn-success btn-sm" onclick="workspaceMarkCanon()">Mark as Canon</button>
                                             <button class="btn btn-secondary btn-sm" onclick="workspaceEditProse()">Edit</button>
                                         </div>
@@ -1474,21 +1473,6 @@ This will be included in the AI prompt during generation."></textarea>
             <button class="btn btn-primary" onclick="startRevisionFromEvaluate()">Start Revision</button>
             <button class="btn btn-secondary" onclick="hideEvaluateModal()">Done</button>
         </div>
-    </div>
-
-    <!-- Grammar Tooltip (appears on hover/click of highlighted text) -->
-    <div id="grammar-tooltip" class="grammar-tooltip" style="display: none;">
-        <div class="grammar-tooltip-message" id="grammar-tooltip-message"></div>
-        <div class="grammar-tooltip-suggestions" id="grammar-tooltip-suggestions"></div>
-        <div class="grammar-tooltip-actions">
-            <button class="btn-ignore" onclick="ignoreGrammarIssue()">Ignore</button>
-        </div>
-    </div>
-
-    <!-- Grammar Status Bar (shown when grammar check is active) -->
-    <div id="grammar-status-bar" class="grammar-status-bar" style="display: none;">
-        <span class="grammar-status-text" id="grammar-status-text">0 issues</span>
-        <button class="btn btn-xs" onclick="clearGrammarHighlights()">Clear</button>
     </div>
 
     <!-- Floating Back to Top Button -->

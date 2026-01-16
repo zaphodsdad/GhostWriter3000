@@ -155,7 +155,6 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 *Nice to have, not blocking main workflow.*
 
 ### Structural
-- [x] Grammar/style checker integration - LanguageTool integration for grammar/style checking
 - [ ] Startup validation - check API key on boot, fail fast
 - [ ] Error recovery - retry logic, stuck-state recovery
 - [ ] Cost tracking - tokens per generation, running totals
