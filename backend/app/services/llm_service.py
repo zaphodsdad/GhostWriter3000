@@ -140,9 +140,9 @@ class LLMService:
             try:
                 from app.utils.prompt_templates import build_critique_prompt
 
-                system_prompt = "You are a skilled literary critic who provides constructive feedback on narrative prose."
+                system_prompt = "You are a skilled literary critic who provides constructive feedback on narrative prose. Your primary concern is ensuring prose reads as human-written, not AI-generated. Flag AI tells (banned vocabulary like 'delve', 'tapestry', 'myriad', and structural patterns) as top priority issues."
                 if style_guide and style_guide.get('guide'):
-                    system_prompt += " Pay special attention to whether the prose follows the provided style guide."
+                    system_prompt += " Also check compliance with the provided style guide."
                 user_prompt = build_critique_prompt(prose, style_guide)
                 use_model = model or settings.critique_model
 
@@ -199,7 +199,7 @@ class LLMService:
             try:
                 from app.utils.prompt_templates import build_polish_critique_prompt
 
-                system_prompt = "You are a skilled copy editor who focuses on line-level refinements: word choice, rhythm, and clarity. You do NOT suggest structural changes."
+                system_prompt = "You are a skilled copy editor who focuses on line-level refinements: word choice, rhythm, and clarity. You do NOT suggest structural changes. Your top priority is flagging AI tells - banned vocabulary (delve, tapestry, myriad, whilst) and patterns that mark prose as machine-generated."
                 user_prompt = build_polish_critique_prompt(prose, style_guide)
                 use_model = model or settings.critique_model
 

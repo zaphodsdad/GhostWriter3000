@@ -481,13 +481,14 @@ class SaveProseResponse(BaseModel):
 
 
 # Quick action mappings to instructions
+# IMPORTANT: All instructions include anti-AI-tell guidance to ensure human-quality output
 QUICK_ACTION_INSTRUCTIONS = {
-    "shorten": "Make this more concise. Reduce word count while preserving the essential meaning and impact.",
-    "lengthen": "Expand this with more detail, description, or nuance. Add depth without padding.",
-    "rephrase": "Rewrite this with different wording while keeping the same meaning and tone.",
-    "more_vivid": "Make this more vivid with stronger sensory details and more evocative language.",
-    "more_tension": "Increase the tension and suspense. Make it more gripping and urgent.",
-    "simplify": "Simplify the language. Make it clearer and more accessible without losing meaning.",
+    "shorten": "Make this more concise. Reduce word count while preserving essential meaning. Do NOT use AI-tell vocabulary (delve, myriad, whilst, etc.).",
+    "lengthen": "Expand with specific, concrete detail - not vague adjectives. Add depth through sensory specifics, not padding. Avoid AI vocabulary (delve, tapestry, myriad).",
+    "rephrase": "Rewrite with different wording, same meaning and tone. Use natural vocabulary a human novelist would choose. Avoid: delve, whilst, myriad, tapestry, commence.",
+    "more_vivid": "Sharpen with concrete sensory details - specific sights, sounds, textures. Avoid purple prose and AI-tell words (delve, tapestry, myriad). Precision beats decoration.",
+    "more_tension": "Increase tension through pacing and stakes, not overwrought language. Short sentences. Specific details. No AI vocabulary (delve, whilst, tapestry).",
+    "simplify": "Clarify with simpler, more direct language. Cut unnecessary words. Use strong verbs. Avoid formal AI patterns (furthermore, moreover, utilize, commence).",
 }
 
 
@@ -535,7 +536,7 @@ async def revise_scene_selection(project_id: str, scene_id: str, request: Select
         llm = get_llm_service()
 
         # Build a simple system prompt for direct revision
-        system_prompt = "You are a skilled prose editor. Revise the selected text while maintaining consistency with the surrounding context, narrative voice, and style."
+        system_prompt = "You are a skilled prose editor. Revise the selected text while maintaining consistency with the surrounding context, narrative voice, and style. CRITICAL: Your output must read as human-written. Never use AI-tell vocabulary (delve, tapestry, myriad, whilst, amidst, commence, utilize, plethora). Write with the natural voice of a published novelist."
 
         # Combine quick_action with custom instructions
         instructions = request.instructions or ""

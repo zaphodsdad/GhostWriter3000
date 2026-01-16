@@ -2,8 +2,11 @@
 
 An automated prose generation pipeline with critique-revision loop powered by Claude AI. Features a clean web interface for managing characters, world context, and scene generation.
 
+**Core Philosophy**: Output prose that is indistinguishable from work by skilled human authors. No AI tells. No banned vocabulary. Authentic voice.
+
 ## Features
 
+- **Human-Quality Prose**: Built-in safeguards against AI tells - banned vocabulary (delve, tapestry, myriad, etc.), structural patterns, and hedging language are flagged and prevented
 - **Web-based Interface**: Clean, modern UI for managing all aspects of prose generation
 - **Character Management**: Store character sheets as markdown files with YAML frontmatter, with portrait support and bulk import
 - **World Building**: Maintain world context files for consistent story elements

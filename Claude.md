@@ -6,6 +6,50 @@ The **Prose Pipeline** is an automated prose generation system built with Claude
 
 **Core Concept**: Generate prose from scene outlines, automatically critique it, and iteratively revise based on feedback until the user accepts the final version.
 
+## Core Philosophy: Human-Quality Prose
+
+**The output must be indistinguishable from work by skilled human authors.** This is the foundational principle that guides every prompt and feature. Readers should never suspect AI involvement.
+
+### Banned AI Vocabulary
+These words are never allowed - they immediately mark prose as AI-generated:
+- delve, delved, delving
+- tapestry (when used metaphorically)
+- myriad
+- whilst, amidst, amongst
+- commence, utilise/utilize
+- plethora, multifaceted
+- paradigm, synergy, leverage (as verb)
+- facilitate, encompass
+- furthermore, moreover, additionally (as sentence starters)
+- "It's important to note that..."
+
+### Patterns to Avoid
+- **Balanced structures**: Not everything in threes or perfect parallels
+- **Purple prose**: Precision beats overwrought decoration
+- **Adverb overuse**: Strong verbs don't need propping up
+- **Filter words**: Avoid "he felt", "she noticed" - just show the thing
+- **Hedging**: No "somewhat", "rather", "quite" unless voice-appropriate
+- **Formal constructions**: Write like novelists, not essays
+- **Neat resolutions**: Real scenes have rough edges
+
+### Voice Authenticity
+- Vary sentence length dramatically
+- Use fragments when they work
+- Let characters interrupt, trail off, speak imperfectly
+- Embrace specific, concrete details over abstractions
+- Trust the reader - don't over-explain
+- Write with confidence, not cautious hedging
+
+### Implementation
+This philosophy is embedded in:
+- **System prompts**: Baseline prose standards for all generation
+- **Critique prompts**: AI tells are flagged as top-priority issues
+- **Revision prompts**: Explicit warnings against introducing AI tells
+- **Quick actions**: Inline revision instructions reinforce natural vocabulary
+- **Style guide**: Project style guides can extend/override the baseline
+
+The style guide remains authoritative for project-specific rules, but the anti-AI-tell baseline applies universally.
+
 ## Technology Stack
 
 - **Backend**: Python 3.11 + FastAPI

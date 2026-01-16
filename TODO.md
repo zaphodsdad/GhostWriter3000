@@ -49,6 +49,10 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Evaluate-only mode - floating panel shows critique, "Start Revision" reuses critique (no duplicate API call)
 - [x] Action buttons moved to workspace header (Evaluate, Mark as Canon, Edit, review actions)
 - [x] Floating AI bubble works in review state (prose column during critique review)
+- [x] **Core Prose Philosophy** - embedded "no AI tells" rules in all prompts (generation, critique, revision, quick actions)
+- [x] Banned vocabulary list (delve, tapestry, myriad, whilst, etc.) enforced across all prose operations
+- [x] Critique prompts now flag AI tells as top-priority issues
+- [x] Quick action instructions updated to prevent AI vocabulary
 
 ---
 
