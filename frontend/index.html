@@ -1476,40 +1476,19 @@ This will be included in the AI prompt during generation."></textarea>
         </div>
     </div>
 
-    <!-- Grammar Check Panel -->
-    <div id="grammar-panel" class="grammar-panel" style="display: none;">
-        <div class="grammar-panel-header">
-            <h3>Grammar & Style Check</h3>
-            <button class="panel-close" onclick="hideGrammarPanel()">&times;</button>
+    <!-- Grammar Tooltip (appears on hover/click of highlighted text) -->
+    <div id="grammar-tooltip" class="grammar-tooltip" style="display: none;">
+        <div class="grammar-tooltip-message" id="grammar-tooltip-message"></div>
+        <div class="grammar-tooltip-suggestions" id="grammar-tooltip-suggestions"></div>
+        <div class="grammar-tooltip-actions">
+            <button class="btn-ignore" onclick="ignoreGrammarIssue()">Ignore</button>
         </div>
-        <div class="grammar-panel-body">
-            <div id="grammar-loading" style="display: none;">
-                <div class="loading-spinner"></div>
-                <p class="text-muted">Checking grammar and style...</p>
-            </div>
-            <div id="grammar-unavailable" style="display: none;">
-                <p class="text-warning">Grammar checking is unavailable.</p>
-                <p class="text-muted" id="grammar-unavailable-reason"></p>
-            </div>
-            <div id="grammar-results" style="display: none;">
-                <div class="grammar-summary" id="grammar-summary">
-                    <!-- Summary: X issues found -->
-                </div>
-                <div class="grammar-issues-list" id="grammar-issues-list">
-                    <!-- Individual issues -->
-                </div>
-            </div>
-            <div id="grammar-no-issues" style="display: none;">
-                <p class="text-success">No issues found! Your prose looks good.</p>
-            </div>
-        </div>
-        <div class="grammar-panel-footer">
-            <label class="toggle-inline">
-                <input type="checkbox" id="grammar-show-all" onchange="toggleGrammarHighlights()">
-                <span>Show all rules (strict)</span>
-            </label>
-            <button class="btn btn-secondary" onclick="hideGrammarPanel()">Close</button>
-        </div>
+    </div>
+
+    <!-- Grammar Status Bar (shown when grammar check is active) -->
+    <div id="grammar-status-bar" class="grammar-status-bar" style="display: none;">
+        <span class="grammar-status-text" id="grammar-status-text">0 issues</span>
+        <button class="btn btn-xs" onclick="clearGrammarHighlights()">Clear</button>
     </div>
 
     <!-- Floating Back to Top Button -->

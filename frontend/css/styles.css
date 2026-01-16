@@ -3143,166 +3143,74 @@ nav {
     font-size: 0.95rem;
 }
 
-/* Grammar Check Panel */
-.grammar-panel {
+/* Grammar Inline Highlighting */
+
+/* Underline styles by category */
+.grammar-error {
+    border-bottom: 2px wavy #ef4444;
+    cursor: pointer;
+    position: relative;
+}
+
+.grammar-error:hover {
+    background: rgba(239, 68, 68, 0.15);
+}
+
+.grammar-error.GRAMMAR {
+    border-bottom-color: #ef4444; /* Red for grammar */
+}
+
+.grammar-error.TYPOS {
+    border-bottom-color: #f59e0b; /* Orange for typos */
+}
+
+.grammar-error.STYLE {
+    border-bottom-color: #3b82f6; /* Blue for style */
+}
+
+.grammar-error.PUNCTUATION {
+    border-bottom-color: #8b5cf6; /* Purple for punctuation */
+}
+
+.grammar-error.TYPOGRAPHY,
+.grammar-error.MISC {
+    border-bottom-color: #64748b; /* Gray for misc */
+}
+
+/* Floating tooltip for grammar issues */
+.grammar-tooltip {
     position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;
-    max-width: 600px;
-    max-height: 80vh;
+    z-index: 1001;
     background: var(--bg-card);
     border: 1px solid var(--border);
-    border-radius: 16px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.grammar-panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
-    border-bottom: 1px solid var(--border);
-}
-
-.grammar-panel-header h3 {
-    margin: 0;
-    font-size: 1.1rem;
-}
-
-.grammar-panel-body {
-    flex: 1;
-    padding: 20px;
-    overflow-y: auto;
-}
-
-.grammar-panel-footer {
-    display: flex;
-    gap: 12px;
-    justify-content: space-between;
-    align-items: center;
-    padding: 16px 20px;
-    border-top: 1px solid var(--border);
-}
-
-.grammar-summary {
-    padding: 12px 16px;
-    background: var(--bg-input);
     border-radius: 8px;
-    margin-bottom: 16px;
-}
-
-.grammar-summary-counts {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-}
-
-.grammar-count-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    max-width: 350px;
+    padding: 12px;
     font-size: 0.9rem;
 }
 
-.grammar-count-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 24px;
-    height: 24px;
-    padding: 0 8px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-}
-
-.grammar-count-badge.grammar { background: #ef4444; color: white; }
-.grammar-count-badge.typos { background: #f59e0b; color: black; }
-.grammar-count-badge.style { background: #3b82f6; color: white; }
-.grammar-count-badge.punctuation { background: #8b5cf6; color: white; }
-.grammar-count-badge.other { background: #64748b; color: white; }
-
-.grammar-issues-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.grammar-issue {
-    background: var(--bg-input);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 14px;
-    cursor: pointer;
-    transition: border-color 0.2s;
-}
-
-.grammar-issue:hover {
-    border-color: var(--primary);
-}
-
-.grammar-issue-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
-}
-
-.grammar-issue-category {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    padding: 2px 8px;
-    border-radius: 4px;
-}
-
-.grammar-issue-category.GRAMMAR { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
-.grammar-issue-category.TYPOS { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
-.grammar-issue-category.STYLE { background: rgba(59, 130, 246, 0.2); color: #3b82f6; }
-.grammar-issue-category.PUNCTUATION { background: rgba(139, 92, 246, 0.2); color: #8b5cf6; }
-.grammar-issue-category.MISC,
-.grammar-issue-category.TYPOGRAPHY { background: rgba(100, 116, 139, 0.2); color: #94a3b8; }
-
-.grammar-issue-message {
-    font-size: 0.95rem;
+.grammar-tooltip-message {
     color: var(--text);
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    line-height: 1.5;
 }
 
-.grammar-issue-context {
-    font-size: 0.85rem;
-    color: var(--text-muted);
-    background: var(--bg-dark);
-    padding: 8px 12px;
-    border-radius: 4px;
-    font-family: monospace;
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
-.grammar-issue-context .highlight {
-    background: rgba(239, 68, 68, 0.3);
-    padding: 1px 2px;
-    border-radius: 2px;
-}
-
-.grammar-issue-suggestions {
-    margin-top: 10px;
+.grammar-tooltip-suggestions {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
+    margin-bottom: 10px;
+}
+
+.grammar-tooltip-suggestions:empty {
+    display: none;
 }
 
 .grammar-suggestion {
     background: var(--success);
     color: white;
-    padding: 4px 10px;
+    padding: 4px 12px;
     border-radius: 4px;
     font-size: 0.85rem;
     cursor: pointer;
@@ -3314,31 +3222,46 @@ nav {
     background: var(--success-hover);
 }
 
-.toggle-inline {
+.grammar-tooltip-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+}
+
+.btn-ignore {
+    background: transparent;
+    color: var(--text-muted);
+    border: none;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+}
+
+.btn-ignore:hover {
+    color: var(--text);
+}
+
+/* Status bar at bottom of viewport */
+.grammar-status-bar {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 16px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 12px;
     font-size: 0.9rem;
+    z-index: 999;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.grammar-status-text {
     color: var(--text-muted);
-    cursor: pointer;
-}
-
-.toggle-inline input {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-}
-
-/* Grammar highlight in prose */
-.grammar-highlight {
-    background: rgba(239, 68, 68, 0.2);
-    border-bottom: 2px wavy #ef4444;
-    cursor: pointer;
-    position: relative;
-}
-
-.grammar-highlight:hover {
-    background: rgba(239, 68, 68, 0.3);
 }
 
 /* Info button variant */

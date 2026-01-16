@@ -16,13 +16,12 @@ class GrammarIssue(BaseModel):
     """A single grammar/style issue."""
 
     message: str  # Human-readable description
-    short_message: str  # Brief description (e.g., "Possible typo")
     offset: int  # Character offset in text
     length: int  # Length of problematic text
+    matched_text: str  # The actual problematic text
     replacements: List[str]  # Suggested fixes (may be empty)
     rule_id: str  # LanguageTool rule identifier
     category: str  # Category (e.g., "TYPOS", "GRAMMAR", "STYLE")
-    context: str  # Text around the issue for display
 
 
 class GrammarCheckResult(BaseModel):
@@ -31,7 +30,6 @@ class GrammarCheckResult(BaseModel):
     issues: List[GrammarIssue]
     text_length: int
     issue_count: int
-    categories: dict  # Count by category
 
 
 def _get_tool():
@@ -63,14 +61,12 @@ class GrammarService:
     # Categories to ignore (too noisy for creative writing)
     IGNORED_CATEGORIES = {
         "CASING",  # "The word 'the' should start with uppercase"
-        "REDUNDANCY",  # Often intentional in prose
     }
 
     # Rules to ignore (too strict for fiction)
     IGNORED_RULES = {
         "UPPERCASE_SENTENCE_START",  # Allows sentences starting with lowercase
         "EN_QUOTES",  # Don't enforce quote style
-        "MORFOLOGIK_RULE_EN_US",  # Catches many fantasy names
         "COMMA_PARENTHESIS_WHITESPACE",  # Too picky
         "WHITESPACE_RULE",  # Multiple spaces are fine in prose
     }
@@ -109,7 +105,6 @@ class GrammarService:
         matches = tool.check(text)
 
         issues = []
-        category_counts = {}
 
         for match in matches:
             # Skip ignored categories/rules unless all rules enabled
@@ -119,35 +114,21 @@ class GrammarService:
                 if match.ruleId in self.IGNORED_RULES:
                     continue
 
-            # Extract context (50 chars before and after)
-            start = max(0, match.offset - 50)
-            end = min(len(text), match.offset + match.errorLength + 50)
-            context = text[start:end]
-            if start > 0:
-                context = "..." + context
-            if end < len(text):
-                context = context + "..."
-
             issue = GrammarIssue(
                 message=match.message,
-                short_message=match.shortMessage or match.message[:50],
                 offset=match.offset,
                 length=match.errorLength,
-                replacements=match.replacements[:5],  # Limit to 5 suggestions
+                matched_text=match.matchedText or text[match.offset:match.offset + match.errorLength],
+                replacements=match.replacements[:5] if match.replacements else [],
                 rule_id=match.ruleId,
-                category=match.category,
-                context=context
+                category=match.category
             )
             issues.append(issue)
-
-            # Count by category
-            category_counts[match.category] = category_counts.get(match.category, 0) + 1
 
         return GrammarCheckResult(
             issues=issues,
             text_length=len(text),
-            issue_count=len(issues),
-            categories=category_counts
+            issue_count=len(issues)
         )
 
 

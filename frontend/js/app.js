@@ -3767,9 +3767,12 @@ async function startRevisionFromEvaluate() {
     }
 }
 
-// ==================== Grammar Checking ====================
+// ==================== Grammar Checking (Inline Highlighting) ====================
 
-let lastGrammarResults = null;
+let grammarIssues = [];           // Array of issues from last check
+let grammarOriginalProse = null;  // Original prose text before highlighting
+let grammarProseElement = null;   // The element we're highlighting in
+let currentGrammarIssue = null;   // Currently selected issue for tooltip
 
 async function workspaceCheckGrammar() {
     if (!currentWorkspaceScene) return;
@@ -3780,31 +3783,26 @@ async function workspaceCheckGrammar() {
         return;
     }
 
-    // Show the panel with loading state
-    showGrammarPanel();
-    document.getElementById('grammar-loading').style.display = 'block';
-    document.getElementById('grammar-results').style.display = 'none';
-    document.getElementById('grammar-no-issues').style.display = 'none';
-    document.getElementById('grammar-unavailable').style.display = 'none';
+    // Find the prose element to highlight in
+    grammarProseElement = document.getElementById('ws-prose-content');
+    if (!grammarProseElement) {
+        showToast('Error', 'No prose element found', 'error');
+        return;
+    }
+
+    grammarOriginalProse = prose;
+    showToast('Checking', 'Analyzing grammar and style...', 'info');
 
     try {
-        const enableAllRules = document.getElementById('grammar-show-all')?.checked || false;
-
         const response = await fetch(apiUrl(`/grammar/check`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                prose: prose,
-                enable_all_rules: enableAllRules
-            })
+            body: JSON.stringify({ prose: prose, enable_all_rules: false })
         });
 
         if (response.status === 503) {
-            // Service unavailable (no Java)
             const error = await response.json();
-            document.getElementById('grammar-loading').style.display = 'none';
-            document.getElementById('grammar-unavailable').style.display = 'block';
-            document.getElementById('grammar-unavailable-reason').textContent = error.detail;
+            showToast('Unavailable', error.detail || 'Grammar service unavailable. Ensure Java is installed.', 'error');
             return;
         }
 
@@ -3813,95 +3811,66 @@ async function workspaceCheckGrammar() {
         }
 
         const data = await response.json();
-        lastGrammarResults = data;
-
-        document.getElementById('grammar-loading').style.display = 'none';
+        grammarIssues = data.issues;
 
         if (data.issue_count === 0) {
-            document.getElementById('grammar-no-issues').style.display = 'block';
-        } else {
-            displayGrammarResults(data);
-            document.getElementById('grammar-results').style.display = 'block';
+            showToast('Success', 'No grammar or style issues found!', 'success');
+            return;
         }
 
+        // Render prose with highlighted errors
+        renderProseWithHighlights();
+
+        // Show status bar
+        updateGrammarStatusBar();
+
+        showToast('Found', `${data.issue_count} issue${data.issue_count !== 1 ? 's' : ''} found`, 'info');
+
     } catch (e) {
-        document.getElementById('grammar-loading').style.display = 'none';
-        document.getElementById('grammar-unavailable').style.display = 'block';
-        document.getElementById('grammar-unavailable-reason').textContent = e.message;
+        showToast('Error', e.message, 'error');
     }
 }
 
-function showGrammarPanel() {
-    document.getElementById('grammar-panel').style.display = 'flex';
-}
+function renderProseWithHighlights() {
+    if (!grammarProseElement || !grammarOriginalProse) return;
 
-function hideGrammarPanel() {
-    document.getElementById('grammar-panel').style.display = 'none';
-    lastGrammarResults = null;
-}
+    // Sort issues by offset (descending) so we can insert spans without messing up offsets
+    const sortedIssues = [...grammarIssues].sort((a, b) => b.offset - a.offset);
 
-function displayGrammarResults(data) {
-    // Build summary
-    const summaryHtml = buildGrammarSummary(data);
-    document.getElementById('grammar-summary').innerHTML = summaryHtml;
+    let html = escapeHtml(grammarOriginalProse);
 
-    // Build issues list
-    const issuesHtml = data.issues.map((issue, index) => buildGrammarIssueHtml(issue, index)).join('');
-    document.getElementById('grammar-issues-list').innerHTML = issuesHtml;
-}
+    // We need to work with the original offsets, so we track offset adjustments
+    // Actually, since we escaped HTML, character offsets may be off if there were < > & chars
+    // For simplicity, let's rebuild properly
 
-function buildGrammarSummary(data) {
-    const categoryMap = {
-        'GRAMMAR': { label: 'Grammar', class: 'grammar' },
-        'TYPOS': { label: 'Typos', class: 'typos' },
-        'STYLE': { label: 'Style', class: 'style' },
-        'PUNCTUATION': { label: 'Punctuation', class: 'punctuation' }
-    };
+    // Better approach: build HTML by walking through the text
+    let result = '';
+    let lastEnd = 0;
 
-    let countsHtml = '';
-    for (const [category, count] of Object.entries(data.categories)) {
-        const info = categoryMap[category] || { label: category, class: 'other' };
-        countsHtml += `
-            <div class="grammar-count-item">
-                <span class="grammar-count-badge ${info.class}">${count}</span>
-                <span>${info.label}</span>
-            </div>
-        `;
+    // Sort by offset ascending for building
+    const issuesByOffset = [...grammarIssues].sort((a, b) => a.offset - b.offset);
+
+    for (let i = 0; i < issuesByOffset.length; i++) {
+        const issue = issuesByOffset[i];
+
+        // Add text before this issue
+        if (issue.offset > lastEnd) {
+            result += escapeHtml(grammarOriginalProse.substring(lastEnd, issue.offset));
+        }
+
+        // Add the highlighted issue text
+        const issueText = grammarOriginalProse.substring(issue.offset, issue.offset + issue.length);
+        result += `<span class="grammar-error ${issue.category}" data-issue-index="${i}" onclick="showGrammarTooltip(event, ${i})">${escapeHtml(issueText)}</span>`;
+
+        lastEnd = issue.offset + issue.length;
     }
 
-    return `
-        <div style="margin-bottom: 8px; font-weight: 600;">${data.issue_count} issue${data.issue_count !== 1 ? 's' : ''} found</div>
-        <div class="grammar-summary-counts">${countsHtml}</div>
-    `;
-}
-
-function buildGrammarIssueHtml(issue, index) {
-    // Highlight the problematic text in context
-    const contextParts = issue.context.split(issue.context.substring(
-        issue.context.indexOf('...') === 0 ? issue.offset - (issue.offset > 50 ? issue.offset - 50 : 0) + 3 : issue.offset,
-        (issue.context.indexOf('...') === 0 ? issue.offset - (issue.offset > 50 ? issue.offset - 50 : 0) + 3 : issue.offset) + issue.length
-    ));
-
-    // Build suggestions
-    let suggestionsHtml = '';
-    if (issue.replacements && issue.replacements.length > 0) {
-        suggestionsHtml = `
-            <div class="grammar-issue-suggestions">
-                ${issue.replacements.map(r => `<button class="grammar-suggestion" onclick="applyGrammarSuggestion(${index}, '${escapeHtml(r)}')">${escapeHtml(r)}</button>`).join('')}
-            </div>
-        `;
+    // Add remaining text after last issue
+    if (lastEnd < grammarOriginalProse.length) {
+        result += escapeHtml(grammarOriginalProse.substring(lastEnd));
     }
 
-    return `
-        <div class="grammar-issue" data-index="${index}" onclick="scrollToGrammarIssue(${index})">
-            <div class="grammar-issue-header">
-                <span class="grammar-issue-category ${issue.category}">${issue.category}</span>
-            </div>
-            <div class="grammar-issue-message">${escapeHtml(issue.message)}</div>
-            <div class="grammar-issue-context">${escapeHtml(issue.context)}</div>
-            ${suggestionsHtml}
-        </div>
-    `;
+    grammarProseElement.innerHTML = result;
 }
 
 function escapeHtml(text) {
@@ -3910,75 +3879,156 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function scrollToGrammarIssue(index) {
-    if (!lastGrammarResults || !lastGrammarResults.issues[index]) return;
+function showGrammarTooltip(event, issueIndex) {
+    event.stopPropagation();
 
-    const issue = lastGrammarResults.issues[index];
+    const issue = grammarIssues[issueIndex];
+    if (!issue) return;
 
-    // Find the prose container
-    const proseElement = document.getElementById('ws-prose-content') ||
-                        document.getElementById('ws-review-prose') ||
-                        document.getElementById('ws-canon-content');
+    currentGrammarIssue = { index: issueIndex, issue: issue };
 
-    if (!proseElement) return;
+    const tooltip = document.getElementById('grammar-tooltip');
+    const messageEl = document.getElementById('grammar-tooltip-message');
+    const suggestionsEl = document.getElementById('grammar-tooltip-suggestions');
 
-    // For now, just show a toast with the location
-    showToast('Issue Location', `Character ${issue.offset}: "${issue.context.substring(0, 50)}..."`, 'info');
+    // Set message
+    messageEl.textContent = issue.message;
+
+    // Build suggestions
+    if (issue.replacements && issue.replacements.length > 0) {
+        suggestionsEl.innerHTML = issue.replacements.map(r =>
+            `<button class="grammar-suggestion" onclick="applyGrammarFix('${escapeAttr(r)}')">${escapeHtml(r)}</button>`
+        ).join('');
+    } else {
+        suggestionsEl.innerHTML = '<span style="color: var(--text-muted); font-size: 0.85rem;">No suggestions available</span>';
+    }
+
+    // Position tooltip near the clicked element
+    const rect = event.target.getBoundingClientRect();
+    let top = rect.bottom + 8;
+    let left = rect.left;
+
+    // Keep within viewport
+    const tooltipWidth = 350;
+    const tooltipHeight = 150; // estimate
+    if (left + tooltipWidth > window.innerWidth) {
+        left = window.innerWidth - tooltipWidth - 10;
+    }
+    if (top + tooltipHeight > window.innerHeight) {
+        top = rect.top - tooltipHeight - 8;
+    }
+
+    tooltip.style.top = `${top}px`;
+    tooltip.style.left = `${left}px`;
+    tooltip.style.display = 'block';
+
+    // Close tooltip when clicking outside
+    setTimeout(() => {
+        document.addEventListener('click', hideGrammarTooltipOnClickOutside);
+    }, 0);
 }
 
-async function applyGrammarSuggestion(index, replacement) {
-    if (!lastGrammarResults || !lastGrammarResults.issues[index] || !currentWorkspaceScene) return;
+function escapeAttr(text) {
+    return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
+}
 
-    const issue = lastGrammarResults.issues[index];
-    let prose = currentWorkspaceScene.prose || currentWorkspaceScene.original_prose;
+function hideGrammarTooltip() {
+    document.getElementById('grammar-tooltip').style.display = 'none';
+    currentGrammarIssue = null;
+    document.removeEventListener('click', hideGrammarTooltipOnClickOutside);
+}
 
-    if (!prose) return;
+function hideGrammarTooltipOnClickOutside(event) {
+    const tooltip = document.getElementById('grammar-tooltip');
+    if (!tooltip.contains(event.target) && !event.target.classList.contains('grammar-error')) {
+        hideGrammarTooltip();
+    }
+}
 
-    // Apply the replacement
-    const before = prose.substring(0, issue.offset);
-    const after = prose.substring(issue.offset + issue.length);
+function applyGrammarFix(replacement) {
+    if (!currentGrammarIssue || !grammarOriginalProse) return;
+
+    const { index, issue } = currentGrammarIssue;
+
+    // Apply the fix to the original prose
+    const before = grammarOriginalProse.substring(0, issue.offset);
+    const after = grammarOriginalProse.substring(issue.offset + issue.length);
     const newProse = before + replacement + after;
 
-    // Update the scene in memory
+    // Calculate offset adjustment for subsequent issues
+    const lengthDiff = replacement.length - issue.length;
+
+    // Update scene in memory
     if (currentWorkspaceScene.prose) {
         currentWorkspaceScene.prose = newProse;
     } else {
         currentWorkspaceScene.original_prose = newProse;
     }
 
-    // Update the display
-    const proseElement = document.getElementById('ws-prose-content');
-    if (proseElement) {
-        proseElement.textContent = newProse;
+    // Remove this issue and adjust offsets of later issues
+    grammarIssues.splice(index, 1);
+    for (let i = 0; i < grammarIssues.length; i++) {
+        if (grammarIssues[i].offset > issue.offset) {
+            grammarIssues[i].offset += lengthDiff;
+        }
     }
+
+    // Update the original prose reference
+    grammarOriginalProse = newProse;
+
+    // Re-render with updated highlights
+    renderProseWithHighlights();
+    updateGrammarStatusBar();
 
     // Show dirty indicator
     document.getElementById('ws-dirty-indicator').style.display = 'flex';
 
-    // Remove this issue from the results
-    lastGrammarResults.issues.splice(index, 1);
-    lastGrammarResults.issue_count--;
+    // Hide tooltip
+    hideGrammarTooltip();
 
-    // Recalculate categories
-    lastGrammarResults.categories = {};
-    for (const iss of lastGrammarResults.issues) {
-        lastGrammarResults.categories[iss.category] = (lastGrammarResults.categories[iss.category] || 0) + 1;
-    }
-
-    // Re-render the results
-    if (lastGrammarResults.issue_count === 0) {
-        document.getElementById('grammar-results').style.display = 'none';
-        document.getElementById('grammar-no-issues').style.display = 'block';
-    } else {
-        displayGrammarResults(lastGrammarResults);
-    }
-
-    showToast('Fixed', `Applied: "${replacement}"`, 'success');
+    showToast('Fixed', `Changed to "${replacement}"`, 'success');
 }
 
-function toggleGrammarHighlights() {
-    // Re-run the grammar check with updated settings
-    workspaceCheckGrammar();
+function ignoreGrammarIssue() {
+    if (!currentGrammarIssue) return;
+
+    const { index } = currentGrammarIssue;
+
+    // Remove this issue without applying a fix
+    grammarIssues.splice(index, 1);
+
+    // Re-render
+    renderProseWithHighlights();
+    updateGrammarStatusBar();
+
+    hideGrammarTooltip();
+}
+
+function updateGrammarStatusBar() {
+    const statusBar = document.getElementById('grammar-status-bar');
+    const statusText = document.getElementById('grammar-status-text');
+
+    if (grammarIssues.length === 0) {
+        statusBar.style.display = 'none';
+        return;
+    }
+
+    statusText.textContent = `${grammarIssues.length} issue${grammarIssues.length !== 1 ? 's' : ''}`;
+    statusBar.style.display = 'flex';
+}
+
+function clearGrammarHighlights() {
+    grammarIssues = [];
+    currentGrammarIssue = null;
+
+    // Restore plain text
+    if (grammarProseElement && grammarOriginalProse) {
+        grammarProseElement.textContent = grammarOriginalProse;
+    }
+
+    // Hide status bar
+    document.getElementById('grammar-status-bar').style.display = 'none';
+    hideGrammarTooltip();
 }
 
 async function workspaceMarkCanon() {
