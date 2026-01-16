@@ -125,6 +125,16 @@ class EditModeStart(BaseModel):
     revision_mode: str = Field("full", description="Revision approach: 'full' (structural) or 'polish' (line-edits)")
 
 
+class StartWithCritiqueRequest(BaseModel):
+    """Request model to start revision with an existing critique (skip critique step)."""
+
+    scene_id: str = Field(..., description="Scene ID to revise")
+    critique: str = Field(..., description="Existing critique from evaluate endpoint")
+    max_iterations: int = Field(5, description="Maximum allowed iterations", ge=1, le=100)
+    generation_model: Optional[str] = Field(None, description="Model for revisions")
+    revision_mode: str = Field("full", description="Revision approach: 'full' or 'polish'")
+
+
 class GenerationResponse(BaseModel):
     """Response model for generation state."""
 

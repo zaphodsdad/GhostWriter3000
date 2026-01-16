@@ -646,3 +646,95 @@ async def save_scene_prose(project_id: str, scene_id: str, request: SaveProseReq
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# Evaluate-Only Endpoint (critique without revision loop)
+
+class EvaluateRequest(BaseModel):
+    """Request for evaluate-only critique."""
+    model: Optional[str] = Field(None, description="Optional critique model override")
+    revision_mode: str = Field("full", description="'full' or 'polish' critique style")
+
+
+class EvaluateResponse(BaseModel):
+    """Response with critique only, no state changes."""
+    scene_id: str
+    title: str
+    critique: str
+    word_count: int
+    revision_mode: str
+
+
+@router.post("/{scene_id}/evaluate", response_model=EvaluateResponse)
+async def evaluate_scene(project_id: str, scene_id: str, request: EvaluateRequest):
+    """
+    Get AI critique of a scene without entering revision loop.
+
+    This is a read-only evaluation - no generation state is created,
+    no changes are made to the scene. Just feedback.
+
+    Args:
+        project_id: Project ID
+        scene_id: Scene ID
+        request: EvaluateRequest with optional model and revision mode
+
+    Returns:
+        EvaluateResponse with the critique
+
+    Raises:
+        HTTPException: If scene not found or has no prose
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        # Load scene
+        filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
+        data = await read_json_file(filepath)
+
+        # Get prose (prefer prose, fall back to original_prose for edit mode)
+        prose = data.get("prose") or data.get("original_prose")
+        if not prose or not prose.strip():
+            raise HTTPException(status_code=400, detail="Scene has no prose to evaluate")
+
+        # Load style guide if available
+        style_guide = None
+        style_path = settings.project_dir(project_id) / "style.json"
+        if style_path.exists():
+            try:
+                style_guide = await read_json_file(style_path)
+            except:
+                pass  # Style guide is optional
+
+        # Get LLM service and run critique
+        from app.services.llm_service import LLMService
+        llm = LLMService()
+
+        if request.revision_mode == "polish":
+            critique = await llm.critique_prose_polish(
+                prose=prose,
+                model=request.model,
+                style_guide=style_guide
+            )
+        else:
+            critique = await llm.critique_prose(
+                prose=prose,
+                model=request.model,
+                style_guide=style_guide
+            )
+
+        word_count = len(prose.split())
+
+        return EvaluateResponse(
+            scene_id=scene_id,
+            title=data.get("title", "Untitled"),
+            critique=critique,
+            word_count=word_count,
+            revision_mode=request.revision_mode
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Scene not found: {scene_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Evaluation failed: {str(e)}")

@@ -931,10 +931,25 @@ This will be included in the AI prompt during generation."></textarea>
                                         <h2 id="ws-title">Select a Scene</h2>
                                         <p class="text-muted" id="ws-subtitle"></p>
                                     </div>
-                                    <div class="workspace-badges">
-                                        <span class="badge" id="ws-status-badge" style="display: none;">Draft</span>
-                                        <span class="badge canon" id="ws-canon-badge" style="display: none;">Canon</span>
-                                        <span class="badge edit-mode" id="ws-edit-mode-badge" style="display: none;">Edit Mode</span>
+                                    <div class="workspace-header-right">
+                                        <div class="workspace-badges">
+                                            <span class="badge" id="ws-status-badge" style="display: none;">Draft</span>
+                                            <span class="badge canon" id="ws-canon-badge" style="display: none;">Canon</span>
+                                            <span class="badge edit-mode" id="ws-edit-mode-badge" style="display: none;">Edit Mode</span>
+                                        </div>
+                                        <div class="workspace-actions" id="ws-header-actions" style="display: none;">
+                                            <button class="btn btn-primary btn-sm" onclick="workspaceEvaluate()">Evaluate</button>
+                                            <button class="btn btn-success btn-sm" onclick="workspaceMarkCanon()">Mark as Canon</button>
+                                            <button class="btn btn-secondary btn-sm" onclick="workspaceEditProse()">Edit</button>
+                                        </div>
+                                        <div class="workspace-actions" id="ws-canon-actions" style="display: none;">
+                                            <button class="btn btn-warning btn-sm" onclick="workspaceRemoveCanon()">Remove from Canon</button>
+                                        </div>
+                                        <div class="workspace-actions" id="ws-review-actions" style="display: none;">
+                                            <button class="btn btn-primary btn-sm" id="ws-revise-btn-header" onclick="workspaceApproveAndRevise()">Approve & Revise</button>
+                                            <button class="btn btn-success btn-sm" onclick="workspaceAcceptFinal()">Accept as Canon</button>
+                                            <button class="btn btn-danger btn-sm" onclick="workspaceReject()">Reject</button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1048,18 +1063,6 @@ This will be included in the AI prompt during generation."></textarea>
                                             </div>
                                         </div>
                                     </div>
-
-                                    <div class="action-bar">
-                                        <button class="btn btn-primary" id="ws-revise-btn" onclick="workspaceApproveAndRevise()">
-                                            Approve & Revise
-                                        </button>
-                                        <button class="btn btn-success" onclick="workspaceAcceptFinal()">
-                                            Accept as Canon
-                                        </button>
-                                        <button class="btn btn-danger" onclick="workspaceReject()">
-                                            Reject & Start Over
-                                        </button>
-                                    </div>
                                 </div>
 
                                 <!-- State: Has Prose (editable, not canon) -->
@@ -1073,12 +1076,6 @@ This will be included in the AI prompt during generation."></textarea>
                                         <!-- Prose content with floating bubble support -->
                                     </div>
                                     <div id="ws-prose-stats" class="text-muted mt-20" style="text-align: right;"></div>
-
-                                    <div class="action-bar">
-                                        <button class="btn btn-primary" onclick="workspaceEvaluate()">Evaluate</button>
-                                        <button class="btn btn-success" onclick="workspaceMarkCanon()">Mark as Canon</button>
-                                        <button class="btn btn-secondary" onclick="workspaceEditProse()">Edit Prose</button>
-                                    </div>
                                 </div>
 
                                 <!-- State: Canon (read-only) -->
@@ -1087,10 +1084,6 @@ This will be included in the AI prompt during generation."></textarea>
                                         <!-- Canon prose content (read-only) -->
                                     </div>
                                     <div id="ws-canon-stats" class="text-muted mt-20" style="text-align: right;"></div>
-
-                                    <div class="action-bar">
-                                        <button class="btn btn-warning" onclick="workspaceRemoveCanon()">Remove from Canon</button>
-                                    </div>
                                 </div>
 
                                 <!-- State: Editing (textarea mode) -->
@@ -1428,6 +1421,34 @@ This will be included in the AI prompt during generation."></textarea>
                 <button class="btn btn-success" onclick="saveWordCountGoal()">Save</button>
                 <button class="btn btn-secondary" onclick="hideWordCountGoalModal()">Cancel</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Evaluate Panel (floating bubble style) -->
+    <div id="evaluate-panel" class="evaluate-panel" style="display: none;">
+        <div class="evaluate-panel-header">
+            <h3>Scene Evaluation</h3>
+            <button class="panel-close" onclick="hideEvaluateModal()">&times;</button>
+        </div>
+        <div class="evaluate-panel-body">
+            <div id="evaluate-loading" style="display: none;">
+                <div class="evaluate-progress">
+                    <div class="evaluate-spinner"></div>
+                    <p>Running AI critique...</p>
+                </div>
+            </div>
+            <div id="evaluate-result" style="display: none;">
+                <div class="evaluate-meta">
+                    <span id="evaluate-scene-title" class="evaluate-title"></span>
+                    <span class="text-muted" id="evaluate-word-count"></span>
+                    <span class="badge" id="evaluate-mode-badge"></span>
+                </div>
+                <div class="critique-box" id="evaluate-critique"></div>
+            </div>
+        </div>
+        <div class="evaluate-panel-footer" id="evaluate-footer" style="display: none;">
+            <button class="btn btn-primary" onclick="startRevisionFromEvaluate()">Start Revision</button>
+            <button class="btn btn-secondary" onclick="hideEvaluateModal()">Done</button>
         </div>
     </div>
 

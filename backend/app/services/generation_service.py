@@ -175,6 +175,90 @@ class GenerationService:
 
         return state
 
+    async def start_with_existing_critique(
+        self,
+        project_id: str,
+        scene_id: str,
+        critique: str,
+        max_iterations: int = 5,
+        generation_model: Optional[str] = None,
+        revision_mode: str = "full"
+    ) -> GenerationState:
+        """
+        Start revision using an existing critique (from evaluate endpoint).
+
+        This skips the critique step entirely, creating a generation state
+        that's immediately ready for "Approve & Revise".
+
+        Args:
+            project_id: Project ID
+            scene_id: Scene ID to revise
+            critique: Existing critique text from evaluate endpoint
+            max_iterations: Maximum revision iterations allowed
+            generation_model: Optional model for revisions
+            revision_mode: 'full' or 'polish'
+
+        Returns:
+            Generation state in AWAITING_APPROVAL status
+        """
+        # Load scene
+        scene = await self._load_scene(project_id, scene_id)
+
+        # Get prose (from prose field or original_prose if in edit mode)
+        prose = scene.prose or scene.original_prose
+        if not prose:
+            raise ValueError(f"Scene {scene_id} has no prose to revise")
+
+        # Enable edit mode if not already (needed for revision flow)
+        if not scene.edit_mode:
+            scene.edit_mode = True
+            scene.original_prose = prose
+            # Save scene with edit mode enabled
+            scene_path = settings.scenes_dir(project_id) / f"{scene_id}.json"
+            scene_path.write_text(scene.model_dump_json(indent=2))
+
+        # Auto-calculate previous canon scenes
+        previous_scene_ids = await self._get_previous_canon_scenes(project_id, scene_id)
+
+        # Create generation state directly in AWAITING_APPROVAL
+        generation_id = str(uuid.uuid4())
+
+        # Create first iteration with prose and critique pre-populated
+        iteration = Iteration(
+            iteration_number=1,
+            prose=prose,
+            critique=critique,
+            approved=None,
+            timestamp=datetime.utcnow()
+        )
+
+        state = GenerationState(
+            generation_id=generation_id,
+            project_id=project_id,
+            scene_id=scene_id,
+            status=GenerationStatus.AWAITING_APPROVAL,
+            current_iteration=1,
+            max_iterations=max_iterations,
+            character_ids=scene.character_ids,
+            world_context_ids=scene.world_context_ids,
+            previous_scene_ids=previous_scene_ids,
+            generation_model=generation_model,
+            critique_model=None,  # Not needed - critique already provided
+            edit_mode=True,
+            revision_mode=revision_mode,
+            history=[iteration]
+        )
+
+        # Save state
+        await self.state_manager.save_state(state)
+
+        logger.info(
+            f"Started revision with existing critique for scene {scene_id}",
+            extra={"generation_id": generation_id, "project_id": project_id}
+        )
+
+        return state
+
     async def _run_edit_mode_generation(self, project_id: str, generation_id: str) -> None:
         """
         Run edit mode generation - skip initial generation, go straight to critique.

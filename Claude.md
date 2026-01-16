@@ -579,6 +579,7 @@ The project is fully functional with:
 - **Canon toggle** - Mark/unmark scenes as canon directly from reading view
 - **Global settings on start page** - API keys, models, credits all on start page
 - **Unified Scene Workspace** - Single adaptive view replaces Generate tab + Reading View
+- **Evaluate-only mode** - Get AI critique without entering revision loop, with option to start revision using existing critique
 - Docker deployment support
 
 Ready for production use for personal prose generation projects.
@@ -633,3 +634,30 @@ See TODO.md for remaining features and roadmap.
 - Issue: Header word count stayed at 0 even with canon scenes
 - Root cause: When importing prose, it's saved to `original_prose` (edit mode field). When clicking "Mark as Canon", only `is_canon: true` was sent - NOT the prose. Scene was marked canon but had no `prose` field.
 - Fix: `workspaceMarkCanon()` now sends both `is_canon: true` AND `prose` (using `original_prose` if `prose` isn't set), ensuring prose is saved to the scene record when marking as canon.
+
+### 22. Evaluate-Only Mode (2026-01-16)
+
+Get AI critique feedback on your prose without entering the full revision loop.
+
+**How it works:**
+1. Click **Evaluate** button on any scene with prose
+2. A floating panel appears with the AI critique
+3. Choose to:
+   - **Start Revision** - Enter the revision loop to act on the feedback
+   - **Done** - Close the panel (read-only feedback)
+
+**Token-Efficient Revision Flow:**
+When clicking "Start Revision" from the evaluate panel:
+- The existing critique is reused (no duplicate API call)
+- Goes directly to the review screen with prose + critique
+- User can then "Approve & Revise" to generate revisions
+
+**API Endpoints:**
+- `POST /scenes/{scene_id}/evaluate` - Get critique only, no state changes
+- `POST /generations/start-with-critique` - Start revision with existing critique (skips critique step)
+
+**UI Updates:**
+- Action buttons moved to workspace header (next to chapter title)
+- Evaluate, Mark as Canon, Edit buttons in header for prose scenes
+- Remove from Canon button in header for canon scenes
+- Approve & Revise, Accept as Canon, Reject buttons in header for review state

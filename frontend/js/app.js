@@ -3230,6 +3230,10 @@ function hideAllWorkspaceStates() {
         const el = document.getElementById(id);
         if (el) el.style.display = 'none';
     });
+    // Hide all header actions
+    document.getElementById('ws-header-actions').style.display = 'none';
+    document.getElementById('ws-canon-actions').style.display = 'none';
+    document.getElementById('ws-review-actions').style.display = 'none';
 }
 
 function showWorkspaceEmpty(scene) {
@@ -3244,6 +3248,8 @@ function showWorkspaceProse(scene) {
     document.getElementById('ws-prose-stats').textContent = `${wordCount.toLocaleString()} words`;
     document.getElementById('ws-dirty-indicator').style.display = 'none';
     document.getElementById('ws-prose').style.display = 'block';
+    // Show header actions for prose state
+    document.getElementById('ws-header-actions').style.display = 'flex';
 }
 
 function showWorkspaceCanon(scene) {
@@ -3251,6 +3257,8 @@ function showWorkspaceCanon(scene) {
     const wordCount = scene.prose ? scene.prose.trim().split(/\s+/).length : 0;
     document.getElementById('ws-canon-stats').textContent = `${wordCount.toLocaleString()} words`;
     document.getElementById('ws-canon').style.display = 'block';
+    // Show canon actions in header
+    document.getElementById('ws-canon-actions').style.display = 'flex';
 }
 
 function populateWorkspaceModelDropdowns() {
@@ -3442,6 +3450,8 @@ function showWorkspaceReview(data) {
     }
 
     document.getElementById('ws-review').style.display = 'block';
+    // Show review actions in header
+    document.getElementById('ws-review-actions').style.display = 'flex';
     workspacePreviousProse = data.current_prose;
 }
 
@@ -3463,7 +3473,7 @@ async function workspaceApproveAndRevise() {
     const instructions = document.getElementById('ws-revision-instructions')?.value || '';
 
     try {
-        document.getElementById('ws-revise-btn').disabled = true;
+        document.getElementById('ws-revise-btn-header').disabled = true;
 
         hideAllWorkspaceStates();
         document.getElementById('ws-generating').style.display = 'block';
@@ -3490,7 +3500,7 @@ async function workspaceApproveAndRevise() {
         showToast('Error', e.message, 'error');
         showWorkspaceReview({ current_prose: workspacePreviousProse });
     } finally {
-        document.getElementById('ws-revise-btn').disabled = false;
+        document.getElementById('ws-revise-btn-header').disabled = false;
     }
 }
 
@@ -3583,42 +3593,106 @@ function cancelWorkspaceImport() {
 async function workspaceEvaluate() {
     if (!currentWorkspaceScene) return;
 
-    // Start generation in edit mode (skip prose generation, go straight to critique)
-    const genModel = document.getElementById('ws-gen-model')?.value || undefined;
+    // Use evaluate-only endpoint (no revision loop)
     const critiqueModel = document.getElementById('ws-critique-model')?.value || undefined;
     const revisionMode = document.querySelector('input[name="ws-revision-mode"]:checked')?.value || 'full';
 
-    try {
-        hideAllWorkspaceStates();
-        document.getElementById('ws-generating').style.display = 'block';
-        updateWorkspaceProgress('critiquing', 'Running AI critique...');
+    // Show modal with loading state
+    showEvaluateModal();
 
-        const response = await fetch(apiUrl('/generations/start-edit'), {
+    try {
+        const response = await fetch(apiUrl(`/scenes/${currentWorkspaceScene.id}/evaluate`), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                scene_id: currentWorkspaceScene.id,
-                max_iterations: 99,
-                generation_model: genModel,
-                critique_model: critiqueModel,
+                model: critiqueModel,
                 revision_mode: revisionMode
             })
         });
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to start evaluation');
+            throw new Error(error.detail || 'Failed to evaluate scene');
+        }
+
+        const data = await response.json();
+        showEvaluateResult(data);
+
+    } catch (e) {
+        hideEvaluateModal();
+        showToast('Error', e.message, 'error');
+    }
+}
+
+// Store last evaluation data for potential revision
+let lastEvaluationData = null;
+
+function showEvaluateModal() {
+    document.getElementById('evaluate-panel').style.display = 'block';
+    document.getElementById('evaluate-loading').style.display = 'flex';
+    document.getElementById('evaluate-result').style.display = 'none';
+    document.getElementById('evaluate-footer').style.display = 'none';
+}
+
+function hideEvaluateModal() {
+    document.getElementById('evaluate-panel').style.display = 'none';
+    lastEvaluationData = null;
+}
+
+function showEvaluateResult(data) {
+    lastEvaluationData = data;
+    document.getElementById('evaluate-loading').style.display = 'none';
+    document.getElementById('evaluate-result').style.display = 'block';
+    document.getElementById('evaluate-footer').style.display = 'flex';
+
+    document.getElementById('evaluate-scene-title').textContent = data.title;
+    document.getElementById('evaluate-word-count').textContent = `${data.word_count.toLocaleString()} words`;
+    document.getElementById('evaluate-mode-badge').textContent = data.revision_mode === 'polish' ? 'Polish' : 'Full';
+    document.getElementById('evaluate-critique').textContent = data.critique;
+}
+
+async function startRevisionFromEvaluate() {
+    if (!currentWorkspaceScene || !lastEvaluationData) return;
+
+    // Save evaluation data before hiding (hideEvaluateModal clears it)
+    const evaluationData = lastEvaluationData;
+    const revisionMode = evaluationData.revision_mode || 'full';
+    const existingCritique = evaluationData.critique;
+
+    // Hide the evaluate panel
+    hideEvaluateModal();
+
+    try {
+        const generationModel = document.getElementById('ws-generation-model')?.value || undefined;
+
+        // Use the new endpoint that skips critique (uses existing critique from evaluate)
+        const response = await fetch(apiUrl(`/generations/start-with-critique`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                scene_id: currentWorkspaceScene.id,
+                critique: existingCritique,
+                generation_model: generationModel,
+                revision_mode: revisionMode
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Failed to start revision');
         }
 
         const data = await response.json();
         workspaceGenId = data.generation_id;
         workspacePreviousProse = currentWorkspaceScene.prose || currentWorkspaceScene.original_prose;
 
-        startWorkspacePolling();
+        // Show review state directly (no polling needed - state is already awaiting_approval)
+        showWorkspaceReview(data);
 
+        showToast('Success', 'Ready for revision', 'success');
     } catch (e) {
         showToast('Error', e.message, 'error');
-        showWorkspaceProse(currentWorkspaceScene);
+        renderWorkspaceView();
     }
 }
 

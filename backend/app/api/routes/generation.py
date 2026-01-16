@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.models.generation import (
     GenerationStart,
     EditModeStart,
+    StartWithCritiqueRequest,
     GenerationResponse,
     GenerationState,
     GenerationStatus
@@ -134,6 +135,46 @@ async def start_edit_mode_generation(project_id: str, request: EditModeStart, ba
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Edit mode generation failed: {str(e)}")
+
+
+@router.post("/start-with-critique", response_model=GenerationResponse)
+async def start_with_existing_critique(project_id: str, request: StartWithCritiqueRequest):
+    """
+    Start revision using an existing critique (from evaluate endpoint).
+
+    This skips the critique step entirely, saving tokens when the user
+    has already run an evaluation and wants to act on that feedback.
+
+    Args:
+        project_id: Project ID
+        request: Request with scene_id, existing critique, and options
+
+    Returns:
+        Generation state in awaiting_approval status with critique pre-populated
+    """
+    ensure_project_exists(project_id)
+
+    gen_model, _ = get_effective_models(request.generation_model, None)
+
+    try:
+        service = get_generation_service()
+        state = await service.start_with_existing_critique(
+            project_id=project_id,
+            scene_id=request.scene_id,
+            critique=request.critique,
+            max_iterations=request.max_iterations,
+            generation_model=gen_model,
+            revision_mode=request.revision_mode
+        )
+
+        return _build_response(state)
+
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Start with critique failed: {str(e)}")
 
 
 @router.get("/queue", response_model=List[GenerationResponse])

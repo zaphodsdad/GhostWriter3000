@@ -46,6 +46,8 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Removed hamburger menu settings modal (settings now on start page)
 - [x] Fixed floating AI bubble - uses getComputedStyle() for reliable visibility detection
 - [x] Fixed sidebar refresh after canon toggle - workspace functions now call render functions
+- [x] Evaluate-only mode - floating panel shows critique, "Start Revision" reuses critique (no duplicate API call)
+- [x] Action buttons moved to workspace header (Evaluate, Mark as Canon, Edit, review actions)
 
 ---
 
@@ -76,7 +78,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 
 - [ ] Consistency pass - critique focused on continuity errors across scenes
 - [ ] Side-by-side version comparison (pick any two versions)
-- [ ] Evaluate-only mode - get critique report without entering revision loop
+- [x] Evaluate-only mode - get critique report without entering revision loop (with token-efficient "Start Revision" option)
 - [ ] Project-level evaluation - evaluate entire book once manuscript is complete
 
 ---
