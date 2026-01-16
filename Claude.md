@@ -613,3 +613,18 @@ Single adaptive workspace replaces separate Generate tab and Reading View:
 4. Floating AI bubble available for inline revisions
 
 See TODO.md for remaining features and roadmap.
+
+### 21. Bug Fixes (2026-01-16)
+
+**Floating AI Bubble Reliability:**
+- Issue: Bubble sometimes appeared, mostly didn't
+- Root cause: Visibility check using inline `style.display` instead of computed styles
+- Fix: Added `isElementVisible()` helper using `getComputedStyle()` for reliable visibility detection
+- Also added `getActiveProseContainer()` helper to cleanly detect workspace vs reading view
+- Added `selectionchange` and `selectstart` event listeners for more reliable selection tracking
+
+**Sidebar Canon Toggle Refresh:**
+- Issue: Sidebar didn't update after marking/unmarking scenes as canon
+- Root cause: `workspaceMarkCanon()` and `workspaceRemoveCanon()` called `updateWordCount()` which doesn't exist, causing silent failures before render functions could execute
+- Fix: Removed invalid `updateWordCount()` calls (word count already handled by `updateStats()`)
+- Also added direct state updates and explicit workspace view switching for immediate UI feedback

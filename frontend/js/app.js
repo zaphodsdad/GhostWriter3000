@@ -1765,27 +1765,21 @@ async function saveStyleGuide() {
 }
 
 function updateStats() {
-    console.log('updateStats called');
-    console.log('scenes count:', scenes.length);
-
     document.getElementById('stat-characters').textContent = characters.length;
     document.getElementById('stat-worlds').textContent = worlds.length;
     document.getElementById('stat-chapters').textContent = chapters.length;
     document.getElementById('stat-scenes').textContent = scenes.length;
 
     const canonScenes = scenes.filter(s => s.is_canon);
-    console.log('canon scenes:', canonScenes.length, canonScenes.map(s => s.id));
     document.getElementById('stat-canon').textContent = canonScenes.length;
 
     // Calculate word count from canon scenes
     let wordCount = 0;
     canonScenes.forEach(s => {
-        console.log(`Scene ${s.id}: prose=${s.prose ? s.prose.length + ' chars' : 'null'}`);
         if (s.prose) {
             wordCount += s.prose.split(/\s+/).length;
         }
     });
-    console.log('Total word count:', wordCount);
     document.getElementById('stat-words').textContent = wordCount.toLocaleString();
 
     // Update master word count in header with goal progress
@@ -3651,11 +3645,24 @@ async function workspaceMarkCanon() {
         if (!response.ok) throw new Error('Failed to mark as canon');
 
         showToast('Success', 'Scene marked as canon', 'success');
-        loadScenes();
-        updateWordCount();
-        await refreshWorkspaceScene();
+
+        // Immediately update local state so UI reflects change
+        currentWorkspaceScene.is_canon = true;
+
+        // Refresh sidebar data
+        await loadScenes();
+        await loadChapters();
+        updateStats();
+        renderOutlineTree();
+        renderStructureTree();
+
+        // Re-render workspace with updated state (show ws-canon instead of ws-prose)
+        hideAllWorkspaceStates();
+        showWorkspaceCanon(currentWorkspaceScene);
+        document.getElementById('ws-canon-badge').style.display = 'inline-flex';
 
     } catch (e) {
+        console.error('[Canon Mark] Error:', e);
         showToast('Error', e.message, 'error');
     }
 }
@@ -3677,11 +3684,24 @@ async function workspaceRemoveCanon() {
         if (!response.ok) throw new Error('Failed to remove from canon');
 
         showToast('Success', 'Scene removed from canon', 'success');
-        loadScenes();
-        updateWordCount();
-        await refreshWorkspaceScene();
+
+        // Immediately update local state so UI reflects change
+        currentWorkspaceScene.is_canon = false;
+
+        // Refresh sidebar data
+        await loadScenes();
+        await loadChapters();
+        updateStats();
+        renderOutlineTree();
+        renderStructureTree();
+
+        // Re-render workspace with updated state (show ws-prose instead of ws-canon)
+        hideAllWorkspaceStates();
+        showWorkspaceProse(currentWorkspaceScene);
+        document.getElementById('ws-canon-badge').style.display = 'none';
 
     } catch (e) {
+        console.error('[Canon Remove] Error:', e);
         showToast('Error', e.message, 'error');
     }
 }
@@ -4400,116 +4420,133 @@ async function reviseSelection() {
 // ============================================
 let readingSelection = null;  // {text, start, end} for reading view selection
 
+// Helper: Check if element is actually visible (uses computed style)
+function isElementVisible(el) {
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+}
+
+// Helper: Get the active prose container (workspace or reading view)
+function getActiveProseContainer() {
+    // Check workspace first
+    const workspace = document.getElementById('scene-workspace');
+    const wsProseContent = document.getElementById('ws-prose-content');
+    const wsProseState = document.getElementById('ws-prose');
+
+    if (workspace && workspace.classList.contains('active') &&
+        wsProseState && isElementVisible(wsProseState) && wsProseContent) {
+
+        // Must have a non-canon scene loaded
+        if (currentWorkspaceScene && !currentWorkspaceScene.is_canon) {
+            return { element: wsProseContent, isWorkspace: true };
+        }
+    }
+
+    // Fall back to reading view (for legacy support)
+    const readingView = document.getElementById('reading-view');
+    const readingContent = document.getElementById('reading-content');
+    const readingMode = document.getElementById('reading-mode');
+
+    if (readingView && readingView.classList.contains('active') &&
+        readingContent && readingMode && isElementVisible(readingMode)) {
+
+        // Must be a non-canon scene
+        if (currentReadingData && currentReadingData.type === 'scene' && !currentReadingData.is_canon) {
+            return { element: readingContent, isWorkspace: false };
+        }
+    }
+
+    return null;
+}
+
+// Handle text selection and show bubble
+function handleTextSelection(e) {
+    const bubble = document.getElementById('revision-bubble');
+    const container = getActiveProseContainer();
+
+    // If clicking inside the bubble, don't process
+    if (bubble && e && bubble.contains(e.target)) {
+        return;
+    }
+
+    // No valid container - hide bubble and return
+    if (!container) {
+        hideRevisionBubble();
+        return;
+    }
+
+    const selection = window.getSelection();
+
+    // Check if we have a valid selection
+    if (selection.rangeCount > 0 && selection.toString().trim()) {
+        const range = selection.getRangeAt(0);
+
+        // Selection must be within our prose container
+        if (container.element.contains(range.commonAncestorContainer)) {
+            const selectedText = selection.toString().trim();
+
+            // Minimum 10 characters
+            if (selectedText.length > 10) {
+                const startOffset = getTextOffsetInElement(container.element, range.startContainer, range.startOffset);
+                const endOffset = getTextOffsetInElement(container.element, range.endContainer, range.endOffset);
+
+                readingSelection = {
+                    text: selectedText,
+                    start: startOffset,
+                    end: endOffset,
+                    isWorkspace: container.isWorkspace
+                };
+
+                const rect = range.getBoundingClientRect();
+                showRevisionBubble(rect);
+                return;
+            }
+        }
+    }
+
+    // No valid selection - hide bubble if clicking outside it
+    if (e) {
+        const isInteractive = e.target.closest('button, a, .btn, .nav-btn, #back-to-top, .revision-bubble');
+        if (!isInteractive) {
+            hideRevisionBubble();
+        }
+    }
+}
+
+// Handle selection changes (for when selection is cleared)
+function handleSelectionChange() {
+    const selection = window.getSelection();
+    const bubble = document.getElementById('revision-bubble');
+
+    // If bubble is visible but selection is now empty, hide it
+    if (bubble && bubble.style.display !== 'none') {
+        if (!selection.toString().trim()) {
+            hideRevisionBubble();
+        }
+    }
+}
+
 function setupReadingSelectionTracking() {
-    document.addEventListener('mouseup', (e) => {
-        const bubble = document.getElementById('revision-bubble');
+    // Main event: mouseup to detect completed selections
+    document.addEventListener('mouseup', handleTextSelection);
 
-        // Check workspace first (new unified workspace)
-        const workspace = document.getElementById('scene-workspace');
-        const wsProseContent = document.getElementById('ws-prose-content');
-        const wsProseState = document.getElementById('ws-prose');
+    // Selection change: detect when selection is cleared (e.g., clicking elsewhere)
+    document.addEventListener('selectionchange', handleSelectionChange);
 
-        if (workspace && workspace.classList.contains('active') && wsProseContent && wsProseState && wsProseState.style.display !== 'none') {
-            // We're in workspace prose view
-            if (!currentWorkspaceScene) {
-                if (bubble && !bubble.contains(e.target)) hideRevisionBubble();
-                return;
-            }
-
-            // Don't allow revision on canon scenes
-            if (currentWorkspaceScene.is_canon) {
-                if (bubble && !bubble.contains(e.target)) hideRevisionBubble();
-                return;
-            }
-
-            const selection = window.getSelection();
-            if (selection.rangeCount > 0 && selection.toString().trim()) {
-                const range = selection.getRangeAt(0);
-                if (wsProseContent.contains(range.commonAncestorContainer)) {
-                    const selectedText = selection.toString().trim();
-                    if (selectedText.length > 10) {
-                        const startOffset = getTextOffsetInElement(wsProseContent, range.startContainer, range.startOffset);
-                        const endOffset = getTextOffsetInElement(wsProseContent, range.endContainer, range.endOffset);
-
-                        readingSelection = {
-                            text: selectedText,
-                            start: startOffset,
-                            end: endOffset,
-                            isWorkspace: true  // Flag to know we're in workspace
-                        };
-
-                        const rect = range.getBoundingClientRect();
-                        showRevisionBubble(rect);
-                        return;
-                    }
+    // Selection start: hide bubble when starting a new selection
+    document.addEventListener('selectstart', () => {
+        // Small delay to allow the selection to actually start
+        setTimeout(() => {
+            const bubble = document.getElementById('revision-bubble');
+            if (bubble && bubble.style.display !== 'none') {
+                // Only hide if we're starting a new selection
+                const selection = window.getSelection();
+                if (selection.toString().trim().length < 10) {
+                    hideRevisionBubble();
                 }
             }
-
-            if (bubble && !bubble.contains(e.target)) {
-                const isInteractive = e.target.closest('button, a, .btn, .nav-btn, #back-to-top');
-                if (!isInteractive) hideRevisionBubble();
-            }
-            return;
-        }
-
-        // Fall back to old reading view logic (for chapters/manuscripts/acts)
-        const readingView = document.getElementById('reading-view');
-        const readingContent = document.getElementById('reading-content');
-        if (!readingView || !readingView.classList.contains('active') || !readingContent) {
-            if (bubble && !bubble.contains(e.target)) hideRevisionBubble();
-            return;
-        }
-
-        // Check if we're in reading mode (not editing mode)
-        const readingMode = document.getElementById('reading-mode');
-        if (!readingMode || readingMode.style.display === 'none') return;
-
-        // Only allow revision on individual scenes (not chapters/manuscripts)
-        if (!currentReadingData || currentReadingData.type !== 'scene') {
-            if (bubble && !bubble.contains(e.target)) {
-                hideRevisionBubble();
-            }
-            return;
-        }
-
-        // Check if scene is canon - don't allow revision
-        if (currentReadingData.is_canon) {
-            if (bubble && !bubble.contains(e.target)) {
-                hideRevisionBubble();
-            }
-            return;
-        }
-
-        const selection = window.getSelection();
-
-        if (selection.rangeCount > 0 && selection.toString().trim()) {
-            const range = selection.getRangeAt(0);
-
-            if (readingContent.contains(range.commonAncestorContainer)) {
-                const selectedText = selection.toString().trim();
-
-                if (selectedText.length > 10) {
-                    const startOffset = getTextOffsetInElement(readingContent, range.startContainer, range.startOffset);
-                    const endOffset = getTextOffsetInElement(readingContent, range.endContainer, range.endOffset);
-
-                    readingSelection = {
-                        text: selectedText,
-                        start: startOffset,
-                        end: endOffset,
-                        isWorkspace: false
-                    };
-
-                    const rect = range.getBoundingClientRect();
-                    showRevisionBubble(rect);
-                    return;
-                }
-            }
-        }
-
-        if (bubble && !bubble.contains(e.target)) {
-            const isInteractive = e.target.closest('button, a, .btn, .nav-btn, #back-to-top');
-            if (!isInteractive) hideRevisionBubble();
-        }
+        }, 50);
     });
 }
 

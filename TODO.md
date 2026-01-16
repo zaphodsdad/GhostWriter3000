@@ -1,6 +1,6 @@
 # Prose Pipeline - TODO
 
-**Last Updated:** 2026-01-15
+**Last Updated:** 2026-01-16
 
 ---
 
@@ -44,13 +44,16 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Global settings on start page - API keys, default models, credits display
 - [x] Unified Scene Workspace - merged Generate tab and Reading View into one adaptive workspace
 - [x] Removed hamburger menu settings modal (settings now on start page)
+- [x] Fixed floating AI bubble - uses getComputedStyle() for reliable visibility detection
+- [x] Fixed sidebar refresh after canon toggle - workspace functions now call render functions
 
 ---
 
 ## BUGS: Fix First
 
-- [ ] Floating AI bubble inconsistent - sometimes appears, mostly doesn't
-- [ ] Sidebar not updating after canon toggle - requires full page reload
+- [x] Floating AI bubble inconsistent - fixed with getComputedStyle() and proper event listeners
+- [x] Sidebar not updating after canon toggle - fixed by removing invalid updateWordCount() call
+- [ ] Word count in header not updating after marking scene as canon
 
 ---
 
