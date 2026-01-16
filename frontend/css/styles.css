@@ -898,6 +898,46 @@ nav {
     }
 }
 
+/* Collapsible Critique Panel */
+.two-col.critique-collapsed {
+    grid-template-columns: 1fr auto;
+}
+
+.two-col.critique-collapsed #ws-critique-column {
+    display: none;
+}
+
+.two-col.critique-collapsed #ws-critique-expand {
+    display: flex !important;
+}
+
+.critique-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.critique-header h3 {
+    margin: 0;
+}
+
+.critique-expand-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    padding: 8px 4px;
+    cursor: pointer;
+    align-self: flex-start;
+    margin-top: 30px;
+}
+
+.critique-expand-btn:hover {
+    color: var(--text);
+    border-color: var(--accent);
+}
+
 /* Action Bar */
 .action-bar {
     display: flex;

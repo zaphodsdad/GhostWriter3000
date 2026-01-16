@@ -1018,10 +1018,15 @@ This will be included in the AI prompt during generation."></textarea>
 
                                 <!-- State: Review (awaiting approval) -->
                                 <div id="ws-review" class="workspace-state" style="display: none;">
+                                    <!-- Unsaved Changes Indicator for Review State -->
+                                    <div id="ws-review-dirty-indicator" class="reading-dirty-indicator" style="display: none;">
+                                        <span class="dirty-text">You have unsaved changes</span>
+                                        <button class="btn btn-primary save-btn" onclick="saveWorkspaceReviewProse()">Save Draft</button>
+                                    </div>
                                     <p class="text-muted mb-20">Revision <span id="ws-iteration">1</span> <span class="badge" id="ws-revision-mode-badge">Full</span></p>
 
-                                    <div class="two-col">
-                                        <div>
+                                    <div class="two-col" id="ws-review-columns">
+                                        <div id="ws-prose-column">
                                             <div class="prose-header">
                                                 <h3>Generated Prose <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="ws-gen-model-used"></span></h3>
                                                 <button class="btn btn-small" id="ws-diff-toggle-btn" onclick="toggleWorkspaceDiff()" style="display: none;">
@@ -1035,10 +1040,14 @@ This will be included in the AI prompt during generation."></textarea>
                                                 <span id="ws-diff-stats" class="diff-stats" style="display: none;"></span>
                                             </div>
                                         </div>
-                                        <div>
-                                            <h3>AI Critique <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="ws-critique-model-used"></span></h3>
+                                        <div id="ws-critique-column">
+                                            <div class="critique-header">
+                                                <h3>AI Critique <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="ws-critique-model-used"></span></h3>
+                                                <button class="btn btn-small" id="ws-critique-toggle" onclick="toggleCritiquePanel()" title="Hide critique">◀</button>
+                                            </div>
                                             <div class="prose-box" id="ws-critique"></div>
                                         </div>
+                                        <button class="critique-expand-btn" id="ws-critique-expand" onclick="toggleCritiquePanel()" style="display: none;" title="Show critique">▶</button>
                                     </div>
 
                                     <!-- Revision Instructions -->

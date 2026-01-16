@@ -662,3 +662,19 @@ When clicking "Start Revision" from the evaluate panel:
 - Remove from Canon button in header for canon scenes
 - Approve & Revise, Accept as Canon, Reject buttons in header for review state
 - Floating AI bubble now works in review state (can select text in prose column during critique review)
+- Collapsible critique panel: click ◀ to hide critique and expand prose column, click ▶ to restore
+
+**Sidebar/Word Count Refresh After Accept as Canon:**
+- Issue: After accepting prose as canon from review state, sidebar and cumulative word count didn't update
+- Root cause: `showWorkspaceComplete()` called non-existent `updateWordCount()` and didn't await async `loadScenes()`
+- Fix: Made function async, awaited `loadScenes()` and `loadChapters()`, called correct `updateStats()` function
+
+**Save Draft in Review State:**
+- Issue: Floating AI bubble edits in review state had no save mechanism
+- Fix: Added `ws-review-dirty-indicator` with "Save Draft" button
+- `saveWorkspaceReviewProse()` saves prose without marking as canon
+- Dirty indicator shows when edits are made, hides on save or state change
+
+**Floating AI Bubble in Review State:**
+- Issue: Bubble was updating wrong element (always `ws-prose-content`, not `ws-review-prose`)
+- Fix: Store `elementId` in `readingSelection`, update correct container after revision

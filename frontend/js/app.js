@@ -3308,6 +3308,20 @@ function toggleWorkspaceSettings() {
     toggle.textContent = isHidden ? '▼' : '▶';
 }
 
+function toggleCritiquePanel() {
+    const columns = document.getElementById('ws-review-columns');
+    if (!columns) return;
+
+    const isCollapsed = columns.classList.contains('critique-collapsed');
+    if (isCollapsed) {
+        // Expand
+        columns.classList.remove('critique-collapsed');
+    } else {
+        // Collapse
+        columns.classList.add('critique-collapsed');
+    }
+}
+
 async function startWorkspaceGeneration() {
     if (!currentWorkspaceScene) return;
 
@@ -3435,6 +3449,15 @@ function getWorkspaceStatusDetail(status) {
 function showWorkspaceReview(data) {
     hideAllWorkspaceStates();
 
+    // Reset critique panel to expanded state
+    const columns = document.getElementById('ws-review-columns');
+    if (columns) {
+        columns.classList.remove('critique-collapsed');
+    }
+
+    // Reset dirty indicator
+    document.getElementById('ws-review-dirty-indicator').style.display = 'none';
+
     document.getElementById('ws-iteration').textContent = data.current_iteration || data.iteration || 1;
     document.getElementById('ws-revision-mode-badge').textContent = data.revision_mode === 'polish' ? 'Polish' : 'Full';
     document.getElementById('ws-review-prose').textContent = data.current_prose || '';
@@ -3455,16 +3478,21 @@ function showWorkspaceReview(data) {
     workspacePreviousProse = data.current_prose;
 }
 
-function showWorkspaceComplete(data) {
+async function showWorkspaceComplete(data) {
     hideAllWorkspaceStates();
 
     document.getElementById('ws-summary').textContent = data.summary || 'Summary generated.';
     document.getElementById('ws-complete').style.display = 'block';
 
-    // Refresh scene data and sidebar
+    // Refresh scene data and sidebar (await to ensure data is loaded before updating stats)
+    await loadScenes();
+    await loadChapters();
+    updateStats();
+    renderOutlineTree();
+    renderStructureTree();
+
+    // Refresh workspace scene data
     refreshWorkspaceScene();
-    loadScenes();
-    updateWordCount();
 }
 
 async function workspaceApproveAndRevise() {
@@ -3863,6 +3891,30 @@ async function saveWorkspaceProse() {
 
         document.getElementById('ws-dirty-indicator').style.display = 'none';
         showToast('Success', 'Prose saved', 'success');
+        loadScenes();
+
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+    }
+}
+
+async function saveWorkspaceReviewProse() {
+    // For saving AI revision changes from floating bubble in review state
+    if (!currentWorkspaceScene) return;
+
+    const prose = document.getElementById('ws-review-prose').textContent;
+
+    try {
+        const response = await fetch(apiUrl(`/scenes/${currentWorkspaceScene.id}/save-prose`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prose: prose })
+        });
+
+        if (!response.ok) throw new Error('Failed to save prose');
+
+        document.getElementById('ws-review-dirty-indicator').style.display = 'none';
+        showToast('Success', 'Draft saved', 'success');
         loadScenes();
 
     } catch (e) {
@@ -4601,7 +4653,8 @@ function handleTextSelection(e) {
                     text: selectedText,
                     start: startOffset,
                     end: endOffset,
-                    isWorkspace: container.isWorkspace
+                    isWorkspace: container.isWorkspace,
+                    elementId: container.element.id
                 };
 
                 const rect = range.getBoundingClientRect();
@@ -4804,15 +4857,30 @@ async function applyBubbleRevision(quickAction = null) {
         const result = await response.json();
 
         if (isWorkspace) {
-            // Update workspace content
-            document.getElementById('ws-prose-content').textContent = result.merged_prose;
-            document.getElementById('ws-prose-stats').textContent = `${result.word_count.toLocaleString()} words`;
+            // Update the correct prose container based on which element was selected from
+            const proseElement = document.getElementById(readingSelection.elementId);
+            if (proseElement) {
+                proseElement.textContent = result.merged_prose;
+            }
+
+            // Update word count - check which stats element is visible
+            const proseStats = document.getElementById('ws-prose-stats');
+            const reviewWordCount = document.getElementById('ws-review-word-count');
+            if (proseStats && isElementVisible(proseStats.parentElement)) {
+                proseStats.textContent = `${result.word_count.toLocaleString()} words`;
+            } else if (reviewWordCount) {
+                reviewWordCount.textContent = `${result.word_count.toLocaleString()} words`;
+            }
 
             // Update workspace scene data
             currentWorkspaceScene.prose = result.merged_prose;
 
-            // Show dirty indicator
-            document.getElementById('ws-dirty-indicator').style.display = 'flex';
+            // Show appropriate dirty indicator based on which state we're in
+            if (readingSelection.elementId === 'ws-review-prose') {
+                document.getElementById('ws-review-dirty-indicator').style.display = 'flex';
+            } else {
+                document.getElementById('ws-dirty-indicator').style.display = 'flex';
+            }
 
         } else {
             // Old reading view logic

@@ -57,7 +57,9 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Floating AI bubble inconsistent - fixed with getComputedStyle() and proper event listeners
 - [x] Sidebar not updating after canon toggle - fixed by removing invalid updateWordCount() call
 - [x] Word count in header not updating after marking scene as canon - fixed by sending prose when marking as canon
-- [ ] Sidebar (green scene name) and cumulative word count not updating after Accept as Canon from review state - requires page refresh
+- [x] Sidebar (green scene name) and cumulative word count not updating after Accept as Canon from review state - fixed by awaiting loadScenes() and calling updateStats()
+- [x] Collapsible critique panel in review state - toggle button to hide/show critique for more prose space
+- [ ] Show Changes button in review state shows blank - diff view not populating
 
 ---
 
@@ -153,6 +155,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 *Nice to have, not blocking main workflow.*
 
 ### Structural
+- [ ] Grammar/style checker integration - LanguageTool or similar for inline highlighting (requires Java)
 - [ ] Startup validation - check API key on boot, fail fast
 - [ ] Error recovery - retry logic, stuck-state recovery
 - [ ] Cost tracking - tokens per generation, running totals
