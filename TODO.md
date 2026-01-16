@@ -12,9 +12,36 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 |--------|--------|----------|
 | **Continuity System** | Complete | Done |
 | **Generation** | Working | Done |
-| **Editing Module** | In Progress | **NOW** |
+| **Editing Module** | Paused | Later |
 | **UX Simplification** | Complete | Done |
-| **Outlining Module** | Not started | Future |
+| **Outlining Module** | **In Progress** | **NOW** |
+
+---
+
+## CURRENT: Outlining Module (Phase 1)
+
+**See `outline_plan.md` for full design document.**
+
+### Completed This Session
+- [x] Core prose philosophy implemented (no AI tells, banned vocabulary)
+- [x] Planning document created (`outline_plan.md`)
+- [x] UX decision: Outline is a tab within projects
+- [x] Data models extended:
+  - Scene: `beats`, `depends_on`, `outline_status`
+  - Project: `outline_only` flag
+  - New Beat model: `id`, `text`, `notes`, `tags`, `order`
+
+### Next Up (Phase 1 Remaining)
+- [ ] Beat CRUD API endpoints (add/edit/delete/reorder beats within scenes)
+- [ ] Frontend: Outline tab in project view
+- [ ] Frontend: Beat editor UI within scenes
+- [ ] "Start from outline" checkbox on new project form
+
+### Future Phases
+- Phase 2: Guided Mode (conversational outline building)
+- Phase 3: Series Continuity (arc tracking, book summaries as canon)
+- Phase 4: Dependency System (tag-based linking, change flagging)
+- Phase 5: Auto Mode (seed → structure generation)
 
 ---
 
@@ -134,17 +161,16 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 
 ---
 
-## FUTURE: Outlining Module
+## Outlining Module (Detailed Plan)
 
-*AI-assisted story planning. Currently outlines are imported manually.*
+**See `outline_plan.md` for complete design document.**
 
-**Potential features:**
-- [ ] Synopsis → Structure - expand premise into acts/chapters/scenes
-- [ ] Beat sheet expansion - flesh out plot beats to scene outlines
-- [ ] Pacing analysis - flag pacing issues, suggest beats
-- [ ] POV planning - suggest POV character for each scene
-- [ ] What-if exploration - explore alternate plot paths
-- [ ] Scene card view - visual outline manipulation
+Summary:
+- Two modes: Guided (quality-focused) and Auto (speed-focused)
+- Beats as planning artifacts within scenes
+- Dependency tracking via tags
+- Series continuity via structured reference docs
+- Human decides, AI proposes
 
 ---
 
