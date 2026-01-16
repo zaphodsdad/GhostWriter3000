@@ -661,3 +661,4 @@ When clicking "Start Revision" from the evaluate panel:
 - Evaluate, Mark as Canon, Edit buttons in header for prose scenes
 - Remove from Canon button in header for canon scenes
 - Approve & Revise, Accept as Canon, Reject buttons in header for review state
+- Floating AI bubble now works in review state (can select text in prose column during critique review)
