@@ -4536,6 +4536,19 @@ function getActiveProseContainer() {
         }
     }
 
+    // Also check review state (prose in left column during review)
+    const wsReviewState = document.getElementById('ws-review');
+    const wsReviewProse = document.getElementById('ws-review-prose');
+
+    if (workspace && workspace.classList.contains('active') &&
+        wsReviewState && isElementVisible(wsReviewState) && wsReviewProse) {
+
+        // Review state is always for non-canon scenes
+        if (currentWorkspaceScene) {
+            return { element: wsReviewProse, isWorkspace: true };
+        }
+    }
+
     // Fall back to reading view (for legacy support)
     const readingView = document.getElementById('reading-view');
     const readingContent = document.getElementById('reading-content');
