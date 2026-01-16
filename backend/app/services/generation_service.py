@@ -246,7 +246,7 @@ class GenerationService:
             critique_model=None,  # Not needed - critique already provided
             edit_mode=True,
             revision_mode=revision_mode,
-            history=[iteration]
+            iterations=[iteration]
         )
 
         # Save state
