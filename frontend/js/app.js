@@ -3767,6 +3767,220 @@ async function startRevisionFromEvaluate() {
     }
 }
 
+// ==================== Grammar Checking ====================
+
+let lastGrammarResults = null;
+
+async function workspaceCheckGrammar() {
+    if (!currentWorkspaceScene) return;
+
+    const prose = currentWorkspaceScene.prose || currentWorkspaceScene.original_prose;
+    if (!prose || !prose.trim()) {
+        showToast('Error', 'No prose content to check', 'error');
+        return;
+    }
+
+    // Show the panel with loading state
+    showGrammarPanel();
+    document.getElementById('grammar-loading').style.display = 'block';
+    document.getElementById('grammar-results').style.display = 'none';
+    document.getElementById('grammar-no-issues').style.display = 'none';
+    document.getElementById('grammar-unavailable').style.display = 'none';
+
+    try {
+        const enableAllRules = document.getElementById('grammar-show-all')?.checked || false;
+
+        const response = await fetch(apiUrl(`/grammar/check`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prose: prose,
+                enable_all_rules: enableAllRules
+            })
+        });
+
+        if (response.status === 503) {
+            // Service unavailable (no Java)
+            const error = await response.json();
+            document.getElementById('grammar-loading').style.display = 'none';
+            document.getElementById('grammar-unavailable').style.display = 'block';
+            document.getElementById('grammar-unavailable-reason').textContent = error.detail;
+            return;
+        }
+
+        if (!response.ok) {
+            throw new Error('Grammar check failed');
+        }
+
+        const data = await response.json();
+        lastGrammarResults = data;
+
+        document.getElementById('grammar-loading').style.display = 'none';
+
+        if (data.issue_count === 0) {
+            document.getElementById('grammar-no-issues').style.display = 'block';
+        } else {
+            displayGrammarResults(data);
+            document.getElementById('grammar-results').style.display = 'block';
+        }
+
+    } catch (e) {
+        document.getElementById('grammar-loading').style.display = 'none';
+        document.getElementById('grammar-unavailable').style.display = 'block';
+        document.getElementById('grammar-unavailable-reason').textContent = e.message;
+    }
+}
+
+function showGrammarPanel() {
+    document.getElementById('grammar-panel').style.display = 'flex';
+}
+
+function hideGrammarPanel() {
+    document.getElementById('grammar-panel').style.display = 'none';
+    lastGrammarResults = null;
+}
+
+function displayGrammarResults(data) {
+    // Build summary
+    const summaryHtml = buildGrammarSummary(data);
+    document.getElementById('grammar-summary').innerHTML = summaryHtml;
+
+    // Build issues list
+    const issuesHtml = data.issues.map((issue, index) => buildGrammarIssueHtml(issue, index)).join('');
+    document.getElementById('grammar-issues-list').innerHTML = issuesHtml;
+}
+
+function buildGrammarSummary(data) {
+    const categoryMap = {
+        'GRAMMAR': { label: 'Grammar', class: 'grammar' },
+        'TYPOS': { label: 'Typos', class: 'typos' },
+        'STYLE': { label: 'Style', class: 'style' },
+        'PUNCTUATION': { label: 'Punctuation', class: 'punctuation' }
+    };
+
+    let countsHtml = '';
+    for (const [category, count] of Object.entries(data.categories)) {
+        const info = categoryMap[category] || { label: category, class: 'other' };
+        countsHtml += `
+            <div class="grammar-count-item">
+                <span class="grammar-count-badge ${info.class}">${count}</span>
+                <span>${info.label}</span>
+            </div>
+        `;
+    }
+
+    return `
+        <div style="margin-bottom: 8px; font-weight: 600;">${data.issue_count} issue${data.issue_count !== 1 ? 's' : ''} found</div>
+        <div class="grammar-summary-counts">${countsHtml}</div>
+    `;
+}
+
+function buildGrammarIssueHtml(issue, index) {
+    // Highlight the problematic text in context
+    const contextParts = issue.context.split(issue.context.substring(
+        issue.context.indexOf('...') === 0 ? issue.offset - (issue.offset > 50 ? issue.offset - 50 : 0) + 3 : issue.offset,
+        (issue.context.indexOf('...') === 0 ? issue.offset - (issue.offset > 50 ? issue.offset - 50 : 0) + 3 : issue.offset) + issue.length
+    ));
+
+    // Build suggestions
+    let suggestionsHtml = '';
+    if (issue.replacements && issue.replacements.length > 0) {
+        suggestionsHtml = `
+            <div class="grammar-issue-suggestions">
+                ${issue.replacements.map(r => `<button class="grammar-suggestion" onclick="applyGrammarSuggestion(${index}, '${escapeHtml(r)}')">${escapeHtml(r)}</button>`).join('')}
+            </div>
+        `;
+    }
+
+    return `
+        <div class="grammar-issue" data-index="${index}" onclick="scrollToGrammarIssue(${index})">
+            <div class="grammar-issue-header">
+                <span class="grammar-issue-category ${issue.category}">${issue.category}</span>
+            </div>
+            <div class="grammar-issue-message">${escapeHtml(issue.message)}</div>
+            <div class="grammar-issue-context">${escapeHtml(issue.context)}</div>
+            ${suggestionsHtml}
+        </div>
+    `;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function scrollToGrammarIssue(index) {
+    if (!lastGrammarResults || !lastGrammarResults.issues[index]) return;
+
+    const issue = lastGrammarResults.issues[index];
+
+    // Find the prose container
+    const proseElement = document.getElementById('ws-prose-content') ||
+                        document.getElementById('ws-review-prose') ||
+                        document.getElementById('ws-canon-content');
+
+    if (!proseElement) return;
+
+    // For now, just show a toast with the location
+    showToast('Issue Location', `Character ${issue.offset}: "${issue.context.substring(0, 50)}..."`, 'info');
+}
+
+async function applyGrammarSuggestion(index, replacement) {
+    if (!lastGrammarResults || !lastGrammarResults.issues[index] || !currentWorkspaceScene) return;
+
+    const issue = lastGrammarResults.issues[index];
+    let prose = currentWorkspaceScene.prose || currentWorkspaceScene.original_prose;
+
+    if (!prose) return;
+
+    // Apply the replacement
+    const before = prose.substring(0, issue.offset);
+    const after = prose.substring(issue.offset + issue.length);
+    const newProse = before + replacement + after;
+
+    // Update the scene in memory
+    if (currentWorkspaceScene.prose) {
+        currentWorkspaceScene.prose = newProse;
+    } else {
+        currentWorkspaceScene.original_prose = newProse;
+    }
+
+    // Update the display
+    const proseElement = document.getElementById('ws-prose-content');
+    if (proseElement) {
+        proseElement.textContent = newProse;
+    }
+
+    // Show dirty indicator
+    document.getElementById('ws-dirty-indicator').style.display = 'flex';
+
+    // Remove this issue from the results
+    lastGrammarResults.issues.splice(index, 1);
+    lastGrammarResults.issue_count--;
+
+    // Recalculate categories
+    lastGrammarResults.categories = {};
+    for (const iss of lastGrammarResults.issues) {
+        lastGrammarResults.categories[iss.category] = (lastGrammarResults.categories[iss.category] || 0) + 1;
+    }
+
+    // Re-render the results
+    if (lastGrammarResults.issue_count === 0) {
+        document.getElementById('grammar-results').style.display = 'none';
+        document.getElementById('grammar-no-issues').style.display = 'block';
+    } else {
+        displayGrammarResults(lastGrammarResults);
+    }
+
+    showToast('Fixed', `Applied: "${replacement}"`, 'success');
+}
+
+function toggleGrammarHighlights() {
+    // Re-run the grammar check with updated settings
+    workspaceCheckGrammar();
+}
+
 async function workspaceMarkCanon() {
     if (!currentWorkspaceScene) return;
 

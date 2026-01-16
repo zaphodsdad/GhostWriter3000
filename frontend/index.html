@@ -939,6 +939,7 @@ This will be included in the AI prompt during generation."></textarea>
                                         </div>
                                         <div class="workspace-actions" id="ws-header-actions" style="display: none;">
                                             <button class="btn btn-primary btn-sm" onclick="workspaceEvaluate()">Evaluate</button>
+                                            <button class="btn btn-info btn-sm" onclick="workspaceCheckGrammar()">Check Grammar</button>
                                             <button class="btn btn-success btn-sm" onclick="workspaceMarkCanon()">Mark as Canon</button>
                                             <button class="btn btn-secondary btn-sm" onclick="workspaceEditProse()">Edit</button>
                                         </div>
@@ -1472,6 +1473,42 @@ This will be included in the AI prompt during generation."></textarea>
         <div class="evaluate-panel-footer" id="evaluate-footer" style="display: none;">
             <button class="btn btn-primary" onclick="startRevisionFromEvaluate()">Start Revision</button>
             <button class="btn btn-secondary" onclick="hideEvaluateModal()">Done</button>
+        </div>
+    </div>
+
+    <!-- Grammar Check Panel -->
+    <div id="grammar-panel" class="grammar-panel" style="display: none;">
+        <div class="grammar-panel-header">
+            <h3>Grammar & Style Check</h3>
+            <button class="panel-close" onclick="hideGrammarPanel()">&times;</button>
+        </div>
+        <div class="grammar-panel-body">
+            <div id="grammar-loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p class="text-muted">Checking grammar and style...</p>
+            </div>
+            <div id="grammar-unavailable" style="display: none;">
+                <p class="text-warning">Grammar checking is unavailable.</p>
+                <p class="text-muted" id="grammar-unavailable-reason"></p>
+            </div>
+            <div id="grammar-results" style="display: none;">
+                <div class="grammar-summary" id="grammar-summary">
+                    <!-- Summary: X issues found -->
+                </div>
+                <div class="grammar-issues-list" id="grammar-issues-list">
+                    <!-- Individual issues -->
+                </div>
+            </div>
+            <div id="grammar-no-issues" style="display: none;">
+                <p class="text-success">No issues found! Your prose looks good.</p>
+            </div>
+        </div>
+        <div class="grammar-panel-footer">
+            <label class="toggle-inline">
+                <input type="checkbox" id="grammar-show-all" onchange="toggleGrammarHighlights()">
+                <span>Show all rules (strict)</span>
+            </label>
+            <button class="btn btn-secondary" onclick="hideGrammarPanel()">Close</button>
         </div>
     </div>
 

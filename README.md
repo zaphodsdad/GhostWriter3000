@@ -24,6 +24,7 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **Floating AI Bubble**: Select text for inline AI-powered revisions with quick actions
 - **Polish Mode**: Choose between full structural revision or light line-edits only
 - **Failed Generation Recovery**: Error handling with retry/dismiss options
+- **Grammar & Style Checker**: Integrated LanguageTool for grammar, style, and typo detection
 - **Docker Support**: Easy deployment with Docker and docker-compose
 
 ## Technology Stack
