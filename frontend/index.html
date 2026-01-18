@@ -781,7 +781,10 @@ Chapter markers like 'Chapter 1' or 'CHAPTER ONE' will be detected automatically
                                         <h2>Story Outline</h2>
                                         <p class="text-muted">Plan your story with beats. Scenes with beats are ready for prose generation.</p>
                                     </div>
-                                    <button class="btn btn-primary" onclick="openTemplateModal()">Apply Template</button>
+                                    <div style="display: flex; gap: 10px;">
+                                        <button class="btn btn-secondary" onclick="openTemplateModal()">Apply Template</button>
+                                        <button class="btn btn-primary" onclick="openAutoGenerateModal()">Auto-Generate</button>
+                                    </div>
                                 </div>
 
                                 <!-- Outline Tree -->
@@ -842,6 +845,115 @@ Chapter markers like 'Chapter 1' or 'CHAPTER ONE' will be detected automatically
                                             <span>Clear existing structure first</span>
                                         </label>
                                         <p class="text-muted" style="margin-left: 24px; font-size: 0.85em;">Warning: This will delete all existing acts, chapters, and scenes!</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Auto-Generate Modal -->
+                            <div id="auto-generate-modal" class="modal" style="display: none;">
+                                <div class="modal-backdrop" onclick="closeAutoGenerateModal()"></div>
+                                <div class="modal-content" style="max-width: 700px; padding: 24px;">
+                                    <div class="modal-header" style="padding: 0 0 16px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px;">
+                                        <h3 style="margin: 0;">Auto-Generate Outline</h3>
+                                        <button class="modal-close" onclick="closeAutoGenerateModal()">&times;</button>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Story Premise / Synopsis</label>
+                                        <textarea id="auto-gen-seed" rows="4" placeholder="Describe your story idea... The more detail you provide, the better the outline will be."></textarea>
+                                    </div>
+
+                                    <div class="form-row" style="display: flex; gap: 16px;">
+                                        <div class="form-group" style="flex: 1;">
+                                            <label>Genre (optional)</label>
+                                            <select id="auto-gen-genre">
+                                                <option value="">-- Select genre --</option>
+                                                <option value="Fantasy">Fantasy</option>
+                                                <option value="Science Fiction">Science Fiction</option>
+                                                <option value="Mystery">Mystery</option>
+                                                <option value="Thriller">Thriller</option>
+                                                <option value="Romance">Romance</option>
+                                                <option value="Horror">Horror</option>
+                                                <option value="Literary Fiction">Literary Fiction</option>
+                                                <option value="Historical Fiction">Historical Fiction</option>
+                                                <option value="Young Adult">Young Adult</option>
+                                                <option value="Other">Other</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group" style="flex: 1;">
+                                            <label>Scope</label>
+                                            <select id="auto-gen-scope" onchange="updateAutoGenEstimate()">
+                                                <option value="quick">Quick (~9 scenes)</option>
+                                                <option value="standard" selected>Standard (~15 scenes)</option>
+                                                <option value="detailed">Detailed (~24 scenes)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div id="auto-gen-estimate" class="auto-gen-estimate" style="background: var(--bg-input); padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                                            <span class="text-muted">Estimated output:</span>
+                                            <span id="auto-gen-estimate-items">~15 scenes, ~60 beats</span>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                                            <span class="text-muted">Estimated cost:</span>
+                                            <span id="auto-gen-estimate-cost" style="color: var(--success); font-weight: 500;">~$0.18</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label>Budget Limit (optional)</label>
+                                        <div style="display: flex; align-items: center; gap: 8px;">
+                                            <span>$</span>
+                                            <input type="number" id="auto-gen-budget" placeholder="0.50" step="0.05" min="0.05" max="5.00" style="width: 100px;">
+                                            <span class="text-muted">Leave blank for no limit. Generation stops if budget reached.</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group" style="padding-top: 16px; border-top: 1px solid var(--border);">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                                            <input type="checkbox" id="auto-gen-clear-existing">
+                                            <span>Clear existing structure first</span>
+                                        </label>
+                                    </div>
+
+                                    <div class="action-bar" style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px;">
+                                        <button class="btn btn-secondary" onclick="startAutoGenerate('staged')">Step-by-Step</button>
+                                        <button class="btn btn-primary" onclick="startAutoGenerate('full')">Generate Full Outline</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Auto-Generate Progress Modal -->
+                            <div id="auto-generate-progress-modal" class="modal" style="display: none;">
+                                <div class="modal-backdrop"></div>
+                                <div class="modal-content" style="max-width: 500px; padding: 24px; text-align: center;">
+                                    <h3 style="margin-bottom: 16px;">Generating Outline...</h3>
+                                    <div id="auto-gen-progress-status" class="text-muted" style="margin-bottom: 16px;">Starting generation...</div>
+                                    <div class="progress-bar" style="height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden;">
+                                        <div id="auto-gen-progress-bar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s;"></div>
+                                    </div>
+                                    <div id="auto-gen-progress-cost" class="text-muted" style="margin-top: 12px; font-size: 0.9rem;">Cost so far: $0.00</div>
+                                </div>
+                            </div>
+
+                            <!-- Auto-Generate Review Modal -->
+                            <div id="auto-generate-review-modal" class="modal" style="display: none;">
+                                <div class="modal-backdrop" onclick="closeAutoGenerateReviewModal()"></div>
+                                <div class="modal-content" style="max-width: 900px; max-height: 80vh; padding: 0;">
+                                    <div class="modal-header" style="padding: 16px 24px; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg-card); z-index: 1;">
+                                        <h3 style="margin: 0;">Review Generated Outline</h3>
+                                        <button class="modal-close" onclick="closeAutoGenerateReviewModal()">&times;</button>
+                                    </div>
+                                    <div id="auto-gen-review-content" style="padding: 24px; overflow-y: auto; max-height: calc(80vh - 140px);">
+                                        <!-- Generated outline tree will be rendered here -->
+                                    </div>
+                                    <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+                                        <div id="auto-gen-review-stats" class="text-muted"></div>
+                                        <div style="display: flex; gap: 12px;">
+                                            <button class="btn btn-secondary" onclick="closeAutoGenerateReviewModal()">Cancel</button>
+                                            <button class="btn btn-success" onclick="applyGeneratedOutline()">Apply to Project</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

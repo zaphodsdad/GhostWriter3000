@@ -1961,6 +1961,319 @@ async function applyTemplate(templateId, event) {
 }
 
 // ============================================
+// Auto-Generate Outline
+// ============================================
+
+let generatedOutline = null;  // Store generated outline for review/apply
+
+const SCOPE_ESTIMATES = {
+    quick: { scenes: 9, beats: 27, cost: "$0.08" },
+    standard: { scenes: 15, beats: 60, cost: "$0.18" },
+    detailed: { scenes: 24, beats: 120, cost: "$0.35" }
+};
+
+function openAutoGenerateModal() {
+    document.getElementById('auto-generate-modal').style.display = 'flex';
+    document.getElementById('auto-gen-seed').value = '';
+    document.getElementById('auto-gen-genre').value = '';
+    document.getElementById('auto-gen-scope').value = 'standard';
+    document.getElementById('auto-gen-budget').value = '';
+    document.getElementById('auto-gen-clear-existing').checked = false;
+    updateAutoGenEstimate();
+}
+
+function closeAutoGenerateModal() {
+    document.getElementById('auto-generate-modal').style.display = 'none';
+}
+
+function updateAutoGenEstimate() {
+    const scope = document.getElementById('auto-gen-scope').value;
+    const estimate = SCOPE_ESTIMATES[scope] || SCOPE_ESTIMATES.standard;
+
+    document.getElementById('auto-gen-estimate-items').textContent =
+        `~${estimate.scenes} scenes, ~${estimate.beats} beats`;
+    document.getElementById('auto-gen-estimate-cost').textContent =
+        `~${estimate.cost}`;
+}
+
+async function startAutoGenerate(mode) {
+    const seed = document.getElementById('auto-gen-seed').value.trim();
+    if (!seed) {
+        showToast('Please enter a story premise', 'error');
+        return;
+    }
+
+    const genre = document.getElementById('auto-gen-genre').value || null;
+    const scope = document.getElementById('auto-gen-scope').value;
+    const budgetStr = document.getElementById('auto-gen-budget').value;
+    const budget = budgetStr ? parseFloat(budgetStr) : null;
+
+    closeAutoGenerateModal();
+
+    if (mode === 'full') {
+        await runFullGeneration(seed, scope, genre, budget);
+    } else {
+        await runStagedGeneration(seed, scope, genre, budget);
+    }
+}
+
+async function runFullGeneration(seed, scope, genre, budget) {
+    // Show progress modal
+    const progressModal = document.getElementById('auto-generate-progress-modal');
+    const progressBar = document.getElementById('auto-gen-progress-bar');
+    const progressStatus = document.getElementById('auto-gen-progress-status');
+    const progressCost = document.getElementById('auto-gen-progress-cost');
+
+    progressModal.style.display = 'flex';
+    progressBar.style.width = '10%';
+    progressStatus.textContent = 'Generating outline structure...';
+    progressCost.textContent = 'Cost so far: $0.00';
+
+    try {
+        const response = await fetch(`/api/projects/${currentProject.id}/auto-generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                seed,
+                scope,
+                mode: 'full',
+                genre,
+                budget_limit: budget
+            })
+        });
+
+        progressBar.style.width = '90%';
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Generation failed');
+        }
+
+        const result = await response.json();
+
+        progressBar.style.width = '100%';
+        progressStatus.textContent = 'Generation complete!';
+
+        if (result.usage) {
+            progressCost.textContent = `Total cost: ${result.usage.cost_formatted}`;
+        }
+
+        // Brief pause to show completion
+        await new Promise(r => setTimeout(r, 500));
+
+        progressModal.style.display = 'none';
+
+        if (result.success) {
+            if (result.partial) {
+                showToast(`Generation stopped at ${result.stopped_at} (budget limit reached)`, 'warning');
+            }
+            generatedOutline = result.outline;
+            showOutlineReview(result.outline, result.usage);
+        } else {
+            throw new Error(result.error || 'Generation failed');
+        }
+
+    } catch (err) {
+        progressModal.style.display = 'none';
+        console.error('Auto-generation error:', err);
+        showToast(err.message, 'error');
+    }
+}
+
+async function runStagedGeneration(seed, scope, genre, budget) {
+    // For staged mode, we start with acts only
+    const progressModal = document.getElementById('auto-generate-progress-modal');
+    const progressBar = document.getElementById('auto-gen-progress-bar');
+    const progressStatus = document.getElementById('auto-gen-progress-status');
+
+    progressModal.style.display = 'flex';
+    progressBar.style.width = '20%';
+    progressStatus.textContent = 'Generating act structure...';
+
+    try {
+        const response = await fetch(`/api/projects/${currentProject.id}/auto-generate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                seed,
+                scope,
+                mode: 'staged',
+                level: 'acts',
+                genre
+            })
+        });
+
+        progressBar.style.width = '100%';
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Generation failed');
+        }
+
+        const result = await response.json();
+
+        await new Promise(r => setTimeout(r, 300));
+        progressModal.style.display = 'none';
+
+        if (result.success) {
+            // For staged mode, show acts for review first
+            // TODO: Implement staged review UI where user can approve acts,
+            // then generate chapters, etc.
+            showToast('Staged generation: Acts generated. Full staged UI coming soon!', 'info');
+            console.log('Generated acts:', result.acts);
+
+            // For now, wrap in outline structure and show review
+            generatedOutline = {
+                seed,
+                scope,
+                genre,
+                acts: result.acts.map(a => ({ ...a, chapters: [] }))
+            };
+            showOutlineReview(generatedOutline, result.usage);
+        } else {
+            throw new Error(result.error || 'Generation failed');
+        }
+
+    } catch (err) {
+        progressModal.style.display = 'none';
+        console.error('Staged generation error:', err);
+        showToast(err.message, 'error');
+    }
+}
+
+function showOutlineReview(outline, usage) {
+    const reviewModal = document.getElementById('auto-generate-review-modal');
+    const reviewContent = document.getElementById('auto-gen-review-content');
+    const reviewStats = document.getElementById('auto-gen-review-stats');
+
+    // Count items
+    let actCount = 0, chapterCount = 0, sceneCount = 0, beatCount = 0;
+
+    let html = '<div class="generated-outline-tree">';
+
+    for (const act of outline.acts || []) {
+        actCount++;
+        html += `
+            <div class="gen-act">
+                <div class="gen-act-header">
+                    <strong>Act ${actCount}: ${escapeHtml(act.title)}</strong>
+                </div>
+                <div class="gen-act-desc text-muted">${escapeHtml(act.description || '')}</div>
+        `;
+
+        if (act.chapters && act.chapters.length > 0) {
+            html += '<div class="gen-chapters">';
+            for (const chapter of act.chapters) {
+                chapterCount++;
+                html += `
+                    <div class="gen-chapter">
+                        <div class="gen-chapter-header">
+                            Chapter ${chapterCount}: ${escapeHtml(chapter.title)}
+                        </div>
+                        <div class="gen-chapter-desc text-muted">${escapeHtml(chapter.description || '')}</div>
+                `;
+
+                if (chapter.scenes && chapter.scenes.length > 0) {
+                    html += '<div class="gen-scenes">';
+                    for (const scene of chapter.scenes) {
+                        sceneCount++;
+                        html += `
+                            <div class="gen-scene">
+                                <div class="gen-scene-header">${escapeHtml(scene.title)}</div>
+                                <div class="gen-scene-outline">${escapeHtml(scene.outline || '')}</div>
+                        `;
+
+                        if (scene.beats && scene.beats.length > 0) {
+                            html += '<div class="gen-beats">';
+                            for (const beat of scene.beats) {
+                                beatCount++;
+                                html += `<div class="gen-beat">• ${escapeHtml(beat.text)}</div>`;
+                            }
+                            html += '</div>';
+                        }
+
+                        html += '</div>';
+                    }
+                    html += '</div>';
+                }
+
+                html += '</div>';
+            }
+            html += '</div>';
+        } else {
+            html += '<div class="text-muted" style="padding: 8px 16px; font-style: italic;">No chapters generated yet (staged mode)</div>';
+        }
+
+        html += '</div>';
+    }
+
+    html += '</div>';
+
+    reviewContent.innerHTML = html;
+
+    // Update stats
+    let statsText = `${actCount} acts`;
+    if (chapterCount > 0) statsText += `, ${chapterCount} chapters`;
+    if (sceneCount > 0) statsText += `, ${sceneCount} scenes`;
+    if (beatCount > 0) statsText += `, ${beatCount} beats`;
+    if (usage) statsText += ` • Cost: ${usage.cost_formatted}`;
+    reviewStats.textContent = statsText;
+
+    reviewModal.style.display = 'flex';
+}
+
+function closeAutoGenerateReviewModal() {
+    document.getElementById('auto-generate-review-modal').style.display = 'none';
+    generatedOutline = null;
+}
+
+async function applyGeneratedOutline() {
+    if (!generatedOutline) {
+        showToast('No outline to apply', 'error');
+        return;
+    }
+
+    const clearExisting = document.getElementById('auto-gen-clear-existing').checked;
+
+    if (clearExisting) {
+        if (!confirm('This will DELETE all existing acts, chapters, and scenes. Are you sure?')) {
+            return;
+        }
+    }
+
+    try {
+        const response = await fetch(`/api/projects/${currentProject.id}/auto-generate/apply?clear_existing=${clearExisting}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(generatedOutline)
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Failed to apply outline');
+        }
+
+        const result = await response.json();
+
+        closeAutoGenerateReviewModal();
+
+        // Refresh data
+        await loadActs();
+        await loadChapters();
+        await loadScenes();
+        renderOutlineView();
+        renderStructureTree();
+        renderOutlineTree();
+
+        showToast(`Applied outline: ${result.created.acts} acts, ${result.created.chapters} chapters, ${result.created.scenes} scenes, ${result.created.beats} beats`, 'success');
+
+    } catch (err) {
+        console.error('Error applying outline:', err);
+        showToast(err.message, 'error');
+    }
+}
+
+// ============================================
 // Navigation
 // ============================================
 function setupNavigation() {

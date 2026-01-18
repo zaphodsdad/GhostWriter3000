@@ -579,3 +579,282 @@ async def apply_template_to_project(project_id: str, request: ApplyTemplateReque
         "template_name": template["name"],
         "created": created
     }
+
+
+# ============================================
+# Auto-Generate Outline
+# ============================================
+
+from app.services.outline_generator import (
+    OutlineGenerator, GenerationScope, GenerationMode,
+    estimate_generation_cost, SCOPE_CONFIG
+)
+
+
+class AutoGenerateRequest(BaseModel):
+    seed: str = Field(..., description="Story premise/synopsis")
+    scope: str = Field(default="standard", description="Generation scope: quick, standard, detailed")
+    mode: str = Field(default="full", description="Generation mode: staged, full")
+    genre: Optional[str] = Field(default=None, description="Story genre")
+    character_names: Optional[List[str]] = Field(default=None, description="Character names to include")
+    budget_limit: Optional[float] = Field(default=None, description="Max cost in dollars")
+    level: Optional[str] = Field(default=None, description="For staged mode: acts, chapters, scenes, beats")
+    context: Optional[dict] = Field(default=None, description="For staged mode: previously approved structure")
+
+
+@router.get("/auto-generate/estimate")
+async def estimate_auto_generate_cost(scope: str = "standard"):
+    """
+    Get cost estimate for auto-generating an outline.
+
+    Args:
+        scope: Generation scope (quick, standard, detailed)
+
+    Returns:
+        Token and cost estimates
+    """
+    try:
+        gen_scope = GenerationScope(scope)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid scope: {scope}. Use: quick, standard, detailed")
+
+    return estimate_generation_cost(gen_scope)
+
+
+@router.get("/auto-generate/scopes")
+async def get_generation_scopes():
+    """
+    Get available generation scopes with descriptions.
+
+    Returns:
+        List of scopes with their configurations
+    """
+    scopes = []
+    for scope in GenerationScope:
+        estimate = estimate_generation_cost(scope)
+        scopes.append({
+            "id": scope.value,
+            "name": scope.value.title(),
+            "description": estimate["description"],
+            "estimates": estimate["estimates"],
+            "cost": estimate["cost"]
+        })
+    return scopes
+
+
+@router.post("/{project_id}/auto-generate")
+async def auto_generate_outline(project_id: str, request: AutoGenerateRequest):
+    """
+    Auto-generate a story outline from a seed premise.
+
+    Supports two modes:
+    - full: Generate complete outline in one operation
+    - staged: Generate one level at a time (acts -> chapters -> scenes -> beats)
+
+    Args:
+        project_id: Project ID
+        request: Generation parameters
+
+    Returns:
+        Generated outline structure
+    """
+    # Verify project exists
+    project_dir = settings.project_dir(project_id)
+    if not project_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+    # Parse scope
+    try:
+        scope = GenerationScope(request.scope)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid scope: {request.scope}")
+
+    # Create generator
+    generator = OutlineGenerator()
+
+    if request.mode == "full":
+        # Full generation mode
+        result = await generator.generate_full_outline(
+            seed=request.seed,
+            scope=scope,
+            genre=request.genre,
+            characters=request.character_names,
+            budget_limit=request.budget_limit
+        )
+
+        return result
+
+    elif request.mode == "staged":
+        # Staged generation mode
+        if not request.level:
+            raise HTTPException(status_code=400, detail="Staged mode requires 'level' parameter")
+
+        if request.level == "acts":
+            result = await generator.generate_acts(
+                seed=request.seed,
+                scope=scope,
+                genre=request.genre,
+                characters=request.character_names
+            )
+        elif request.level == "chapters":
+            if not request.context or "acts" not in request.context:
+                raise HTTPException(status_code=400, detail="Chapters generation requires acts in context")
+            if "act_index" not in request.context:
+                raise HTTPException(status_code=400, detail="Chapters generation requires act_index in context")
+
+            result = await generator.generate_chapters(
+                seed=request.seed,
+                acts=request.context["acts"],
+                act_index=request.context["act_index"],
+                scope=scope
+            )
+        elif request.level == "scenes":
+            if not request.context or "act" not in request.context or "chapter" not in request.context:
+                raise HTTPException(status_code=400, detail="Scenes generation requires act and chapter in context")
+
+            result = await generator.generate_scenes(
+                seed=request.seed,
+                act=request.context["act"],
+                chapter=request.context["chapter"],
+                scope=scope
+            )
+        elif request.level == "beats":
+            if not request.context or "scene" not in request.context:
+                raise HTTPException(status_code=400, detail="Beats generation requires scene in context")
+
+            result = await generator.generate_beats(
+                seed=request.seed,
+                scene=request.context["scene"],
+                scope=scope
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid level: {request.level}")
+
+        result["usage"] = generator._get_usage()
+        return result
+
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid mode: {request.mode}. Use: full, staged")
+
+
+@router.post("/{project_id}/auto-generate/apply")
+async def apply_generated_outline(project_id: str, outline: dict, clear_existing: bool = False):
+    """
+    Apply a generated outline to a project, creating acts/chapters/scenes/beats.
+
+    Args:
+        project_id: Project ID
+        outline: Generated outline structure from auto-generate endpoint
+        clear_existing: Whether to clear existing structure first
+
+    Returns:
+        Summary of created items
+    """
+    import time as time_module
+
+    # Verify project exists
+    project_dir = settings.project_dir(project_id)
+    if not project_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+    # Create backup
+    await create_snapshot(project_id, "Before applying auto-generated outline")
+
+    # Optionally clear existing
+    if clear_existing:
+        import shutil
+        for subdir in ["acts", "chapters", "scenes"]:
+            dir_path = project_dir / subdir
+            if dir_path.exists():
+                shutil.rmtree(dir_path)
+            dir_path.mkdir(parents=True, exist_ok=True)
+
+    # Ensure directories exist
+    acts_dir = project_dir / "acts"
+    chapters_dir = project_dir / "chapters"
+    scenes_dir = settings.scenes_dir(project_id)
+    acts_dir.mkdir(parents=True, exist_ok=True)
+    chapters_dir.mkdir(parents=True, exist_ok=True)
+    scenes_dir.mkdir(parents=True, exist_ok=True)
+
+    created = {"acts": 0, "chapters": 0, "scenes": 0, "beats": 0}
+    now = datetime.utcnow().isoformat()
+    global_chapter_num = 0
+
+    for act_num, act_data in enumerate(outline.get("acts", []), 1):
+        # Create act
+        act_id = slugify(f"act-{act_num}-{act_data['title']}")
+        act = {
+            "id": act_id,
+            "title": act_data["title"],
+            "description": act_data.get("description", ""),
+            "act_number": act_num,
+            "created_at": now,
+            "updated_at": now
+        }
+        await write_json_file(acts_dir / f"{act_id}.json", act)
+        created["acts"] += 1
+
+        for chapter_data in act_data.get("chapters", []):
+            global_chapter_num += 1
+
+            # Create chapter
+            chapter_id = slugify(f"ch-{global_chapter_num}-{chapter_data['title']}")
+            chapter = {
+                "id": chapter_id,
+                "title": chapter_data["title"],
+                "description": chapter_data.get("description", ""),
+                "chapter_number": global_chapter_num,
+                "act_id": act_id,
+                "created_at": now,
+                "updated_at": now
+            }
+            await write_json_file(chapters_dir / f"{chapter_id}.json", chapter)
+            created["chapters"] += 1
+
+            for scene_num, scene_data in enumerate(chapter_data.get("scenes", []), 1):
+                # Create scene with beats
+                scene_id = slugify(f"scene-{global_chapter_num}-{scene_num}-{scene_data['title']}")
+
+                # Convert beats
+                beats = []
+                for beat_num, beat_data in enumerate(scene_data.get("beats", [])):
+                    beats.append({
+                        "id": f"beat-{int(time_module.time() * 1000)}-{beat_num}",
+                        "text": beat_data.get("text", ""),
+                        "notes": beat_data.get("notes"),
+                        "tags": [],
+                        "order": beat_num
+                    })
+                    created["beats"] += 1
+                    time_module.sleep(0.001)
+
+                scene = {
+                    "id": scene_id,
+                    "title": scene_data["title"],
+                    "outline": scene_data.get("outline", ""),
+                    "scene_number": scene_num,
+                    "chapter_id": chapter_id,
+                    "character_ids": [],
+                    "world_context_ids": [],
+                    "previous_scene_ids": [],
+                    "is_canon": False,
+                    "prose": None,
+                    "summary": None,
+                    "edit_mode": False,
+                    "original_prose": None,
+                    "beats": beats,
+                    "depends_on": [],
+                    "outline_status": "idea",
+                    "pov": scene_data.get("pov"),
+                    "tone": scene_data.get("tone"),
+                    "created_at": now,
+                    "updated_at": now
+                }
+                await write_json_file(scenes_dir / f"{scene_id}.json", scene)
+                created["scenes"] += 1
+
+    return {
+        "message": "Applied auto-generated outline",
+        "created": created
+    }

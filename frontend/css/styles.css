@@ -3496,4 +3496,94 @@ nav {
     width: 100%;
 }
 
+/* Generated Outline Review */
+.generated-outline-tree {
+    font-size: 0.95rem;
+}
+
+.gen-act {
+    margin-bottom: 24px;
+    padding: 16px;
+    background: var(--bg-input);
+    border-radius: 8px;
+    border-left: 4px solid var(--primary);
+}
+
+.gen-act-header {
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+}
+
+.gen-act-desc {
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+}
+
+.gen-chapters {
+    margin-left: 8px;
+    padding-left: 16px;
+    border-left: 2px solid var(--border);
+}
+
+.gen-chapter {
+    margin: 12px 0;
+    padding: 12px;
+    background: var(--bg-card);
+    border-radius: 6px;
+}
+
+.gen-chapter-header {
+    font-weight: 500;
+    margin-bottom: 4px;
+}
+
+.gen-chapter-desc {
+    font-size: 0.85rem;
+}
+
+.gen-scenes {
+    margin-top: 12px;
+    margin-left: 8px;
+    padding-left: 12px;
+    border-left: 2px solid var(--border);
+}
+
+.gen-scene {
+    margin: 8px 0;
+    padding: 10px;
+    background: var(--bg-dark);
+    border-radius: 4px;
+}
+
+.gen-scene-header {
+    font-weight: 500;
+    color: var(--success);
+    margin-bottom: 4px;
+}
+
+.gen-scene-outline {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.gen-beats {
+    padding: 8px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 4px;
+}
+
+.gen-beat {
+    font-size: 0.85rem;
+    color: var(--text);
+    padding: 4px 0;
+    line-height: 1.4;
+}
+
+.gen-beat:not(:last-child) {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+}
+
 
