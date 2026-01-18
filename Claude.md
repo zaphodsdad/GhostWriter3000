@@ -722,3 +722,52 @@ When clicking "Start Revision" from the evaluate panel:
 **Floating AI Bubble in Review State:**
 - Issue: Bubble was updating wrong element (always `ws-prose-content`, not `ws-review-prose`)
 - Fix: Store `elementId` in `readingSelection`, update correct container after revision
+
+### 23. Auto-Generate Outline (2026-01-18)
+
+Generate a complete story structure from a seed premise using AI.
+
+**How it works:**
+1. Go to Structure tab → click "Auto-Generate Outline"
+2. Enter a seed premise (1-2 sentences describing your story)
+3. Select scope: Quick (~9 scenes), Standard (~15 scenes), or Detailed (~24 scenes)
+4. AI generates full structure: Acts → Chapters → Scenes → Beats
+
+**Backend Components:**
+- `OutlineGenerator` service orchestrates multi-step generation
+- `LLMService.generate()` method for structured responses with usage tracking
+- `extract_json()` helper handles AI responses wrapped in markdown code blocks
+
+**Progress UI:**
+- Spinner with indeterminate progress bar (slides back and forth)
+- Clear messaging about expected wait time (3-6 minutes for detailed)
+- Status updates as generation progresses
+
+**Clear All Structure:**
+- Nuclear delete button in Structure and Outline tabs
+- Confirmation dialog prevents accidental deletion
+- Removes all acts, chapters, scenes, and generations
+
+### 24. Queue and Workspace Generation Fixes (2026-01-18)
+
+**Workspace Loads Active Generations:**
+- Queue data now loaded on project open (`loadAllData` includes `loadQueue`)
+- `openSceneWorkspace` checks for active generations in queue
+- If generation is `awaiting_approval`: loads for review
+- If generation is in progress: shows generating state with polling
+
+**New Synchronous Revision Endpoint:**
+- `/generations/{id}/revise-selection-direct` for inline bubble edits
+- Runs revision synchronously (no async background task)
+- Updates prose in-place (no new iteration created)
+- Keeps status as `AWAITING_APPROVAL`
+- Fixes issue where Accept as Canon failed after bubble revision
+
+**Floating AI Bubble in Queue Review:**
+- `getActiveProseContainer()` now detects queue review panel
+- Selection stores `isQueueReview` and `genId` for context
+- `applyBubbleRevision()` handles queue review case
+
+**workspaceGenId Fix:**
+- `loadGenerationForReview` now sets both `currentGenId` and `workspaceGenId`
+- Fixes Accept as Canon button in workspace header after loading from queue
