@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
-from app.models.scene import Scene, SceneCreate, SceneUpdate
+from app.models.scene import Scene, SceneCreate, SceneUpdate, Beat, BeatCreate, BeatUpdate
 from app.config import settings
 from app.utils.file_utils import write_json_file, read_json_file, delete_file
 from app.utils.backup import backup_scene
@@ -739,3 +739,299 @@ async def evaluate_scene(project_id: str, scene_id: str, request: EvaluateReques
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Evaluation failed: {str(e)}")
+
+
+# ==================== Beat CRUD Endpoints ====================
+# Beats are planning artifacts within scenes for the Outline Module
+
+
+class BeatListResponse(BaseModel):
+    """Response for listing beats."""
+    scene_id: str
+    beats: List[Beat]
+    count: int
+
+
+class BeatResponse(BaseModel):
+    """Response for single beat operations."""
+    scene_id: str
+    beat: Beat
+    message: str
+
+
+class ReorderBeatsRequest(BaseModel):
+    """Request to reorder beats."""
+    beat_ids: List[str] = Field(..., description="Beat IDs in desired order")
+
+
+@router.get("/{scene_id}/beats", response_model=BeatListResponse)
+async def list_beats(project_id: str, scene_id: str):
+    """
+    List all beats for a scene.
+
+    Args:
+        project_id: Project ID
+        scene_id: Scene ID
+
+    Returns:
+        List of beats in order
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
+        data = await read_json_file(filepath)
+
+        beats = data.get("beats", [])
+        # Ensure beats have proper structure
+        beat_objects = [Beat(**b) if isinstance(b, dict) else b for b in beats]
+
+        return BeatListResponse(
+            scene_id=scene_id,
+            beats=beat_objects,
+            count=len(beat_objects)
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Scene not found: {scene_id}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{scene_id}/beats", response_model=BeatResponse)
+async def create_beat(project_id: str, scene_id: str, beat_data: BeatCreate):
+    """
+    Add a new beat to a scene.
+
+    Args:
+        project_id: Project ID
+        scene_id: Scene ID
+        beat_data: Beat data
+
+    Returns:
+        Created beat
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
+        data = await read_json_file(filepath)
+
+        beats = data.get("beats", [])
+
+        # Generate beat ID
+        beat_id = f"beat-{int(datetime.utcnow().timestamp() * 1000)}"
+
+        # Determine order
+        if beat_data.order is not None:
+            order = beat_data.order
+        else:
+            # Append to end
+            order = max([b.get("order", 0) for b in beats], default=-1) + 1
+
+        # Create beat
+        new_beat = Beat(
+            id=beat_id,
+            text=beat_data.text,
+            notes=beat_data.notes,
+            tags=beat_data.tags,
+            order=order
+        )
+
+        # Add to beats list
+        beats.append(new_beat.model_dump())
+
+        # Sort by order
+        beats.sort(key=lambda b: b.get("order", 0))
+
+        # Update scene
+        data["beats"] = beats
+        data["updated_at"] = datetime.utcnow().isoformat()
+
+        await write_json_file(filepath, data)
+
+        return BeatResponse(
+            scene_id=scene_id,
+            beat=new_beat,
+            message="Beat created successfully"
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Scene not found: {scene_id}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/{scene_id}/beats/{beat_id}", response_model=BeatResponse)
+async def update_beat(project_id: str, scene_id: str, beat_id: str, beat_data: BeatUpdate):
+    """
+    Update an existing beat.
+
+    Args:
+        project_id: Project ID
+        scene_id: Scene ID
+        beat_id: Beat ID
+        beat_data: Updated beat data
+
+    Returns:
+        Updated beat
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
+        data = await read_json_file(filepath)
+
+        beats = data.get("beats", [])
+
+        # Find beat
+        beat_index = None
+        for i, b in enumerate(beats):
+            if b.get("id") == beat_id:
+                beat_index = i
+                break
+
+        if beat_index is None:
+            raise HTTPException(status_code=404, detail=f"Beat not found: {beat_id}")
+
+        # Update fields
+        if beat_data.text is not None:
+            beats[beat_index]["text"] = beat_data.text
+        if beat_data.notes is not None:
+            beats[beat_index]["notes"] = beat_data.notes
+        if beat_data.tags is not None:
+            beats[beat_index]["tags"] = beat_data.tags
+        if beat_data.order is not None:
+            beats[beat_index]["order"] = beat_data.order
+
+        # Sort by order
+        beats.sort(key=lambda b: b.get("order", 0))
+
+        # Update scene
+        data["beats"] = beats
+        data["updated_at"] = datetime.utcnow().isoformat()
+
+        await write_json_file(filepath, data)
+
+        updated_beat = Beat(**beats[beat_index])
+
+        return BeatResponse(
+            scene_id=scene_id,
+            beat=updated_beat,
+            message="Beat updated successfully"
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Scene not found: {scene_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/{scene_id}/beats/{beat_id}")
+async def delete_beat(project_id: str, scene_id: str, beat_id: str):
+    """
+    Delete a beat from a scene.
+
+    Args:
+        project_id: Project ID
+        scene_id: Scene ID
+        beat_id: Beat ID
+
+    Returns:
+        Deletion confirmation
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
+        data = await read_json_file(filepath)
+
+        beats = data.get("beats", [])
+
+        # Find and remove beat
+        original_count = len(beats)
+        beats = [b for b in beats if b.get("id") != beat_id]
+
+        if len(beats) == original_count:
+            raise HTTPException(status_code=404, detail=f"Beat not found: {beat_id}")
+
+        # Update scene
+        data["beats"] = beats
+        data["updated_at"] = datetime.utcnow().isoformat()
+
+        await write_json_file(filepath, data)
+
+        return {"message": f"Beat {beat_id} deleted", "scene_id": scene_id}
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Scene not found: {scene_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{scene_id}/beats/reorder", response_model=BeatListResponse)
+async def reorder_beats(project_id: str, scene_id: str, request: ReorderBeatsRequest):
+    """
+    Reorder beats within a scene.
+
+    Args:
+        project_id: Project ID
+        scene_id: Scene ID
+        request: New order of beat IDs
+
+    Returns:
+        Reordered beats list
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        filepath = settings.scenes_dir(project_id) / f"{scene_id}.json"
+        data = await read_json_file(filepath)
+
+        beats = data.get("beats", [])
+
+        # Create a map of beat_id -> beat
+        beat_map = {b.get("id"): b for b in beats}
+
+        # Verify all beat IDs exist
+        for bid in request.beat_ids:
+            if bid not in beat_map:
+                raise HTTPException(status_code=400, detail=f"Beat not found: {bid}")
+
+        # Reorder based on provided order
+        reordered = []
+        for i, bid in enumerate(request.beat_ids):
+            beat = beat_map[bid]
+            beat["order"] = i
+            reordered.append(beat)
+
+        # Add any beats not in the request (shouldn't happen but be safe)
+        for beat in beats:
+            if beat.get("id") not in request.beat_ids:
+                beat["order"] = len(reordered)
+                reordered.append(beat)
+
+        # Update scene
+        data["beats"] = reordered
+        data["updated_at"] = datetime.utcnow().isoformat()
+
+        await write_json_file(filepath, data)
+
+        beat_objects = [Beat(**b) for b in reordered]
+
+        return BeatListResponse(
+            scene_id=scene_id,
+            beats=beat_objects,
+            count=len(beat_objects)
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Scene not found: {scene_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
