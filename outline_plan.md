@@ -1,29 +1,23 @@
 # Outline Module - Planning Document
 
-**Last Updated:** 2026-01-16
+**Last Updated:** 2026-01-18
 
 ---
 
 ## SESSION HANDOFF (For Next Claude)
 
-**What happened this session (2026-01-16):**
+**What happened this session (2026-01-18):**
 
-1. **Core Prose Philosophy implemented** - All prompts now enforce "no AI tells" with banned vocabulary (delve, tapestry, myriad, etc.) and pattern detection. See `backend/app/utils/prompt_templates.py` for `PROSE_PHILOSOPHY` constants.
-
-2. **Outline Module planned** - This document captures the full design after extensive discussion with user.
-
-3. **Phase 1 partially complete:**
-   - **DONE**: Data models extended
-     - `Scene` has: `beats: List[Beat]`, `depends_on: List[str]`, `outline_status: str`
-     - `Project` has: `outline_only: bool`
-     - New `Beat` model in `backend/app/models/scene.py`
-   - **NEXT**: Beat CRUD API endpoints, then frontend Outline tab
+1. **Phase 1 COMPLETE:**
+   - Beat CRUD API endpoints implemented (list, create, update, delete, reorder)
+   - Outline tab UI built (HTML structure, CSS styling, JS functions)
+   - Beat editor modal for creating/editing beats
+   - Navigation wired to render outline view
 
 **Where to pick up:**
-1. Create API endpoints for beat operations (add/edit/delete/reorder within a scene)
-2. Add "Outline" tab to project view in frontend
-3. Build beat editor UI (probably inline within scene cards)
-4. Add "Start from outline" checkbox to new project form
+1. Phase 2: Guided Mode - outline-aware chat, structured question flows
+2. "Start from outline" checkbox on new project form (deferred from Phase 1)
+3. Consider: inline beat reordering via drag-and-drop
 
 **Key design decisions made:**
 - Outline is a TAB within a project (not separate entity)
@@ -35,8 +29,10 @@
 - `outline_plan.md` - This document (full design)
 - `TODO.md` - Current task tracking
 - `CLAUDE.md` - Project architecture (has new "Core Philosophy" section)
+- `backend/app/api/routes/scenes.py` - Beat CRUD endpoints
 - `backend/app/models/scene.py` - Beat model lives here
 - `backend/app/models/project.py` - outline_only flag
+- `frontend/js/app.js` - renderOutlineView() and beat management functions
 
 ---
 
@@ -265,14 +261,14 @@ No strict "lock" - if minimum criteria met, generate button works.
 
 ## Build Order
 
-### Phase 1: Foundation (IN PROGRESS)
+### Phase 1: Foundation (COMPLETE)
 - [x] Extend Scene model with beats, depends_on, status
 - [x] Extend Project model with outline_only flag
 - [x] Create Beat model (id, text, notes, tags, order)
-- [ ] Beat CRUD API endpoints
-- [ ] Frontend: Outline tab in project view
-- [ ] Frontend: Beat editor UI within scenes
-- [ ] "Start from outline" checkbox on new project form
+- [x] Beat CRUD API endpoints (list, create, update, delete, reorder)
+- [x] Frontend: Outline tab in project view
+- [x] Frontend: Beat editor UI within scenes
+- [ ] "Start from outline" checkbox on new project form (deferred to Phase 2)
 
 ### Phase 2: Guided Mode
 - Outline-aware chat context
