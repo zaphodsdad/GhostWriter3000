@@ -1,6 +1,6 @@
 # Prose Pipeline - TODO
 
-**Last Updated:** 2026-01-16
+**Last Updated:** 2026-01-18
 
 ---
 
@@ -18,11 +18,11 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 
 ---
 
-## CURRENT: Outlining Module (Phase 1)
+## CURRENT: Outlining Module
 
 **See `outline_plan.md` for full design document.**
 
-### Completed This Session
+### Phase 1: Core Structure (COMPLETE)
 - [x] Core prose philosophy implemented (no AI tells, banned vocabulary)
 - [x] Planning document created (`outline_plan.md`)
 - [x] UX decision: Outline is a tab within projects
@@ -30,18 +30,29 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
   - Scene: `beats`, `depends_on`, `outline_status`
   - Project: `outline_only` flag
   - New Beat model: `id`, `text`, `notes`, `tags`, `order`
+- [x] Beat CRUD API endpoints
+- [x] Frontend: Outline tab in project view
+- [x] Frontend: Beat editor UI within scenes
+- [x] Story structure templates (3-act, 4-act, 5-act, hero's journey, etc.)
 
-### Next Up (Phase 1 Remaining)
-- [ ] Beat CRUD API endpoints (add/edit/delete/reorder beats within scenes)
-- [ ] Frontend: Outline tab in project view
-- [ ] Frontend: Beat editor UI within scenes
-- [ ] "Start from outline" checkbox on new project form
+### Phase 5: Auto Mode (COMPLETE)
+- [x] Auto-generate outline from seed premise
+- [x] Scope selection (quick/standard/detailed)
+- [x] AI generates full structure: Acts → Chapters → Scenes → Beats
+- [x] Progress modal with spinner and indeterminate progress bar
+- [x] Clear All structure button (nuclear delete with confirmation)
+- [x] JSON parsing fixes for AI responses (extract_json helper)
+- [x] LLMService.generate() method for structured responses
+
+### Next Up: Phase 2 - Guided Mode
+- [ ] Conversational outline building
+- [ ] AI asks questions, user answers
+- [ ] Progressive structure building based on user input
+- [ ] Human decides, AI proposes
 
 ### Future Phases
-- Phase 2: Guided Mode (conversational outline building)
 - Phase 3: Series Continuity (arc tracking, book summaries as canon)
 - Phase 4: Dependency System (tag-based linking, change flagging)
-- Phase 5: Auto Mode (seed → structure generation)
 
 ---
 
@@ -80,6 +91,10 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Banned vocabulary list (delve, tapestry, myriad, whilst, etc.) enforced across all prose operations
 - [x] Critique prompts now flag AI tells as top-priority issues
 - [x] Quick action instructions updated to prevent AI vocabulary
+- [x] **Auto-generate outline** - AI generates full structure from seed premise (Acts → Chapters → Scenes → Beats)
+- [x] Floating AI bubble works in queue review panel
+- [x] Workspace loads active generations from queue on scene click
+- [x] New `/revise-selection-direct` endpoint for synchronous inline edits (no new iteration)
 
 ---
 
@@ -90,6 +105,8 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [x] Word count in header not updating after marking scene as canon - fixed by sending prose when marking as canon
 - [x] Sidebar (green scene name) and cumulative word count not updating after Accept as Canon from review state - fixed by awaiting loadScenes() and calling updateStats()
 - [x] Collapsible critique panel in review state - toggle button to hide/show critique for more prose space
+- [x] Accept as Canon broken in workspace header after loading from queue - fixed by setting workspaceGenId
+- [x] Accept as Canon broken after bubble revision in queue - fixed with new synchronous revision endpoint
 - [ ] Show Changes button in review state shows blank - diff view not populating
 
 ---
