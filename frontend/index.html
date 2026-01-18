@@ -282,6 +282,7 @@
                         <button class="nav-btn" data-view="characters">Characters</button>
                         <button class="nav-btn" data-view="worlds">Worlds</button>
                         <button class="nav-btn" data-view="structure">Structure</button>
+                        <button class="nav-btn" data-view="outline">Outline</button>
                         <button class="nav-btn" data-view="style">Style</button>
                         <button class="nav-btn" data-view="references">References</button>
                         <button class="nav-btn" data-view="queue" id="queue-nav-btn">Queue <span class="queue-badge" id="queue-badge" style="display: none;">0</span></button>
@@ -768,6 +769,54 @@ Chapter markers like 'Chapter 1' or 'CHAPTER ONE' will be detected automatically
                                     <div class="action-bar">
                                         <button class="btn btn-primary" onclick="hideImportOutlineModal()">Done</button>
                                     </div>
+                                </div>
+                            </div>
+                        </section>
+
+                        <!-- Outline View -->
+                        <section id="outline-view" class="view">
+                            <div class="card">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <div>
+                                        <h2>Story Outline</h2>
+                                        <p class="text-muted">Plan your story with beats. Scenes with beats are ready for prose generation.</p>
+                                    </div>
+                                </div>
+
+                                <!-- Outline Tree -->
+                                <div id="outline-tree" class="outline-tree">
+                                    <p class="text-muted">Loading outline...</p>
+                                </div>
+                            </div>
+
+                            <!-- Beat Editor Modal -->
+                            <div id="beat-editor-modal" class="modal" style="display: none;">
+                                <div class="modal-content" style="max-width: 600px;">
+                                    <h3 id="beat-editor-title">Edit Beat</h3>
+                                    <form onsubmit="saveBeat(event)">
+                                        <input type="hidden" id="beat-scene-id">
+                                        <input type="hidden" id="beat-id">
+
+                                        <div class="form-group">
+                                            <label>What happens in this beat?</label>
+                                            <textarea id="beat-text" rows="3" placeholder="Describe the action, revelation, or moment..." required></textarea>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label>Notes (optional)</label>
+                                            <textarea id="beat-notes" rows="2" placeholder="Writer's notes, reminders, etc."></textarea>
+                                        </div>
+
+                                        <div class="form-group">
+                                            <label>Tags (for dependencies)</label>
+                                            <input type="text" id="beat-tags" placeholder="e.g., letter-discovery, marcus-secret (comma-separated)">
+                                        </div>
+
+                                        <div class="action-bar">
+                                            <button type="button" class="btn btn-secondary" onclick="closeBeatEditor()">Cancel</button>
+                                            <button type="submit" class="btn btn-primary">Save Beat</button>
+                                        </div>
+                                    </form>
                                 </div>
                             </div>
                         </section>

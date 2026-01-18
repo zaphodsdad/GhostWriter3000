@@ -1593,6 +1593,274 @@ function renderOutlineChapter(chapter) {
 }
 
 // ============================================
+// Outline View (Full Outline Tab with Beats)
+// ============================================
+
+function renderOutlineView() {
+    const container = document.getElementById('outline-tree');
+    if (!container) return;
+
+    if (chapters.length === 0) {
+        container.innerHTML = `
+            <div class="outline-empty">
+                <h3>No Structure Yet</h3>
+                <p>Create chapters and scenes in the Structure tab first, then plan your beats here.</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Group chapters by act
+    const actChapters = {};
+    const noActChapters = [];
+
+    chapters.forEach(ch => {
+        if (ch.act_id) {
+            if (!actChapters[ch.act_id]) actChapters[ch.act_id] = [];
+            actChapters[ch.act_id].push(ch);
+        } else {
+            noActChapters.push(ch);
+        }
+    });
+
+    let html = '';
+
+    // Render acts with their chapters
+    acts.forEach(act => {
+        const actChapterList = (actChapters[act.id] || []).sort((a, b) =>
+            (a.chapter_number || 0) - (b.chapter_number || 0)
+        );
+
+        html += `
+            <div class="outline-act">
+                <div class="outline-act-header" onclick="toggleOutlineSection(this)">
+                    <span class="outline-act-title">${escapeHtml(act.title)}</span>
+                    <span>${actChapterList.length} chapters</span>
+                </div>
+                <div class="outline-act-content">
+                    ${actChapterList.map(ch => renderOutlineViewChapter(ch)).join('')}
+                </div>
+            </div>
+        `;
+    });
+
+    // Render chapters without acts
+    if (noActChapters.length > 0) {
+        noActChapters.sort((a, b) => (a.chapter_number || 0) - (b.chapter_number || 0));
+        html += `
+            <div class="outline-act">
+                <div class="outline-act-header" onclick="toggleOutlineSection(this)">
+                    <span class="outline-act-title">Unassigned Chapters</span>
+                    <span>${noActChapters.length} chapters</span>
+                </div>
+                <div class="outline-act-content">
+                    ${noActChapters.map(ch => renderOutlineViewChapter(ch)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    container.innerHTML = html;
+}
+
+function renderOutlineViewChapter(chapter) {
+    const chapterScenes = scenes.filter(s => s.chapter_id === chapter.id);
+    chapterScenes.sort((a, b) => (a.scene_number || 0) - (b.scene_number || 0));
+
+    return `
+        <div class="outline-chapter">
+            <div class="outline-chapter-header" onclick="toggleOutlineSection(this)">
+                <span class="outline-chapter-title">Chapter ${chapter.chapter_number || '?'}: ${escapeHtml(chapter.title)}</span>
+                <span>${chapterScenes.length} scenes</span>
+            </div>
+            <div class="outline-chapter-content">
+                ${chapterScenes.map(s => renderOutlineViewScene(s)).join('')}
+                ${chapterScenes.length === 0 ? '<p class="text-muted" style="padding: 10px;">No scenes in this chapter</p>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+function renderOutlineViewScene(scene) {
+    const beats = scene.beats || [];
+    const status = scene.outline_status || 'idea';
+
+    return `
+        <div class="outline-scene" data-scene-id="${scene.id}">
+            <div class="outline-scene-header" onclick="toggleOutlineSection(this)">
+                <span class="outline-scene-title">${escapeHtml(scene.title)}</span>
+                <div class="outline-scene-status">
+                    <span class="outline-status-badge ${status}">${status}</span>
+                    <span>${beats.length} beats</span>
+                </div>
+            </div>
+            <div class="outline-scene-content">
+                <div class="outline-scene-outline">${escapeHtml(scene.outline || 'No outline')}</div>
+
+                <div class="beats-section">
+                    <div class="beats-header">
+                        <span class="beats-title">Beats</span>
+                    </div>
+                    <div class="beats-list" id="beats-${scene.id}">
+                        ${beats.length > 0 ? beats.map((beat, idx) => renderBeat(scene.id, beat, idx)).join('') : ''}
+                    </div>
+                    <button class="add-beat-btn" onclick="openBeatEditor('${scene.id}', null, event)">
+                        + Add Beat
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function renderBeat(sceneId, beat, index) {
+    const tags = beat.tags || [];
+    return `
+        <div class="beat-item" data-beat-id="${beat.id}">
+            <span class="beat-number">${index + 1}</span>
+            <div class="beat-content">
+                <div class="beat-text">${escapeHtml(beat.text)}</div>
+                ${beat.notes ? `<div class="beat-notes">${escapeHtml(beat.notes)}</div>` : ''}
+                ${tags.length > 0 ? `
+                    <div class="beat-tags">
+                        ${tags.map(t => `<span class="beat-tag">#${escapeHtml(t)}</span>`).join('')}
+                    </div>
+                ` : ''}
+            </div>
+            <div class="beat-actions">
+                <button class="beat-action-btn" onclick="openBeatEditor('${sceneId}', '${beat.id}', event)" title="Edit">Edit</button>
+                <button class="beat-action-btn delete" onclick="deleteBeat('${sceneId}', '${beat.id}', event)" title="Delete">Del</button>
+            </div>
+        </div>
+    `;
+}
+
+function toggleOutlineSection(header) {
+    const content = header.nextElementSibling;
+    if (content) {
+        content.style.display = content.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+// Beat Editor Modal
+function openBeatEditor(sceneId, beatId, event) {
+    if (event) event.stopPropagation();
+
+    document.getElementById('beat-scene-id').value = sceneId;
+    document.getElementById('beat-id').value = beatId || '';
+
+    // Clear form
+    document.getElementById('beat-text').value = '';
+    document.getElementById('beat-notes').value = '';
+    document.getElementById('beat-tags').value = '';
+
+    if (beatId) {
+        // Editing existing beat - find and populate
+        const scene = scenes.find(s => s.id === sceneId);
+        if (scene && scene.beats) {
+            const beat = scene.beats.find(b => b.id === beatId);
+            if (beat) {
+                document.getElementById('beat-text').value = beat.text || '';
+                document.getElementById('beat-notes').value = beat.notes || '';
+                document.getElementById('beat-tags').value = (beat.tags || []).join(', ');
+            }
+        }
+        document.getElementById('beat-editor-title').textContent = 'Edit Beat';
+    } else {
+        document.getElementById('beat-editor-title').textContent = 'Add Beat';
+    }
+
+    document.getElementById('beat-editor-modal').style.display = 'flex';
+}
+
+function closeBeatEditor() {
+    document.getElementById('beat-editor-modal').style.display = 'none';
+}
+
+async function saveBeat(event) {
+    event.preventDefault();
+
+    const sceneId = document.getElementById('beat-scene-id').value;
+    const beatId = document.getElementById('beat-id').value;
+    const text = document.getElementById('beat-text').value.trim();
+    const notes = document.getElementById('beat-notes').value.trim();
+    const tagsRaw = document.getElementById('beat-tags').value;
+    const tags = tagsRaw ? tagsRaw.split(',').map(t => t.trim().replace(/^#/, '')).filter(t => t) : [];
+
+    if (!text) {
+        showToast('Beat text is required', 'error');
+        return;
+    }
+
+    try {
+        let url, method, body;
+
+        if (beatId) {
+            // Update existing beat
+            url = `${API_BASE}/projects/${currentProject}/scenes/${sceneId}/beats/${beatId}`;
+            method = 'PUT';
+            body = { text, notes: notes || null, tags };
+        } else {
+            // Create new beat
+            url = `${API_BASE}/projects/${currentProject}/scenes/${sceneId}/beats`;
+            method = 'POST';
+            body = { text, notes: notes || null, tags };
+        }
+
+        const response = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Failed to save beat');
+        }
+
+        closeBeatEditor();
+
+        // Refresh scenes to get updated beats
+        await loadScenes();
+        renderOutlineView();
+
+        showToast(beatId ? 'Beat updated' : 'Beat added', 'success');
+
+    } catch (err) {
+        console.error('Error saving beat:', err);
+        showToast(err.message, 'error');
+    }
+}
+
+async function deleteBeat(sceneId, beatId, event) {
+    if (event) event.stopPropagation();
+
+    if (!confirm('Delete this beat?')) return;
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/projects/${currentProject}/scenes/${sceneId}/beats/${beatId}`,
+            { method: 'DELETE' }
+        );
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Failed to delete beat');
+        }
+
+        // Refresh scenes to get updated beats
+        await loadScenes();
+        renderOutlineView();
+
+        showToast('Beat deleted', 'success');
+
+    } catch (err) {
+        console.error('Error deleting beat:', err);
+        showToast(err.message, 'error');
+    }
+}
+
+// ============================================
 // Navigation
 // ============================================
 function setupNavigation() {
@@ -1637,6 +1905,11 @@ async function navigateToView(view) {
     // Handle generate view - refresh scene dropdown
     if (view === 'generate') {
         populateFormSelects();
+    }
+
+    // Handle outline view
+    if (view === 'outline') {
+        renderOutlineView();
     }
 }
 
