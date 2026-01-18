@@ -792,7 +792,8 @@ Chapter markers like 'Chapter 1' or 'CHAPTER ONE' will be detected automatically
 
                             <!-- Beat Editor Modal -->
                             <div id="beat-editor-modal" class="modal" style="display: none;">
-                                <div class="modal-content" style="max-width: 600px;">
+                                <div class="modal-backdrop" onclick="closeBeatEditor()"></div>
+                                <div class="modal-content" style="max-width: 600px; padding: 24px;">
                                     <h3 id="beat-editor-title">Edit Beat</h3>
                                     <form onsubmit="saveBeat(event)">
                                         <input type="hidden" id="beat-scene-id">
@@ -823,24 +824,24 @@ Chapter markers like 'Chapter 1' or 'CHAPTER ONE' will be detected automatically
 
                             <!-- Template Selection Modal -->
                             <div id="template-modal" class="modal" style="display: none;">
-                                <div class="modal-content" style="max-width: 700px;">
-                                    <h3>Apply Story Structure Template</h3>
-                                    <p class="text-muted">Choose a narrative framework to scaffold your outline. This will create acts, chapters, and scenes with beats.</p>
+                                <div class="modal-backdrop" onclick="closeTemplateModal()"></div>
+                                <div class="modal-content" style="max-width: 800px; padding: 24px;">
+                                    <div class="modal-header" style="padding: 0 0 16px 0; border-bottom: 1px solid var(--border); margin-bottom: 16px;">
+                                        <h3 style="margin: 0;">Apply Story Structure Template</h3>
+                                        <button class="modal-close" onclick="closeTemplateModal()">&times;</button>
+                                    </div>
+                                    <p class="text-muted" style="margin-bottom: 20px;">Choose a narrative framework to scaffold your outline. This will create acts, chapters, and scenes with beats.</p>
 
-                                    <div id="template-list" style="margin: 20px 0;">
+                                    <div id="template-list">
                                         <p class="text-muted">Loading templates...</p>
                                     </div>
 
-                                    <div class="form-group">
-                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                    <div class="form-group" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+                                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                                             <input type="checkbox" id="template-clear-existing">
                                             <span>Clear existing structure first</span>
                                         </label>
                                         <p class="text-muted" style="margin-left: 24px; font-size: 0.85em;">Warning: This will delete all existing acts, chapters, and scenes!</p>
-                                    </div>
-
-                                    <div class="action-bar">
-                                        <button type="button" class="btn btn-secondary" onclick="closeTemplateModal()">Cancel</button>
                                     </div>
                                 </div>
                             </div>

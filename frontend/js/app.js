@@ -1797,12 +1797,12 @@ async function saveBeat(event) {
 
         if (beatId) {
             // Update existing beat
-            url = `${API_BASE}/projects/${currentProject}/scenes/${sceneId}/beats/${beatId}`;
+            url = apiUrl(`/scenes/${sceneId}/beats/${beatId}`);
             method = 'PUT';
             body = { text, notes: notes || null, tags };
         } else {
             // Create new beat
-            url = `${API_BASE}/projects/${currentProject}/scenes/${sceneId}/beats`;
+            url = apiUrl(`/scenes/${sceneId}/beats`);
             method = 'POST';
             body = { text, notes: notes || null, tags };
         }
@@ -1839,7 +1839,7 @@ async function deleteBeat(sceneId, beatId, event) {
 
     try {
         const response = await fetch(
-            `${API_BASE}/projects/${currentProject}/scenes/${sceneId}/beats/${beatId}`,
+            apiUrl(`/scenes/${sceneId}/beats/${beatId}`),
             { method: 'DELETE' }
         );
 
@@ -1879,7 +1879,7 @@ async function loadTemplates() {
     container.innerHTML = '<p class="text-muted">Loading templates...</p>';
 
     try {
-        const response = await fetch(`${API_BASE}/projects/templates/list`);
+        const response = await fetch('/api/projects/templates/list');
         if (!response.ok) throw new Error('Failed to load templates');
 
         const templates = await response.json();
@@ -1925,7 +1925,7 @@ async function applyTemplate(templateId, event) {
     btn.textContent = 'Applying...';
 
     try {
-        const response = await fetch(`${API_BASE}/projects/${currentProject}/apply-template`, {
+        const response = await fetch(`/api/projects/${currentProject.id}/apply-template`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
