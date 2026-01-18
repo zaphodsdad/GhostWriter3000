@@ -1597,7 +1597,7 @@ function renderOutlineChapter(chapter) {
 // ============================================
 
 function renderOutlineView() {
-    const container = document.getElementById('outline-tree');
+    const container = document.getElementById('outline-view-tree');
     if (!container) return;
 
     if (chapters.length === 0) {
