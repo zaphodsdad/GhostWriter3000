@@ -296,28 +296,28 @@ async def clear_project_structure(project_id: str):
     deleted = {"acts": 0, "chapters": 0, "scenes": 0, "generations": 0}
 
     # Delete all scenes
-    scenes_dir = settings.scenes_dir(project_id)
+    scenes_dir = project_path / "scenes"
     if scenes_dir.exists():
         for f in scenes_dir.glob("*.json"):
             f.unlink()
             deleted["scenes"] += 1
 
     # Delete all chapters
-    chapters_dir = settings.chapters_dir(project_id)
+    chapters_dir = project_path / "chapters"
     if chapters_dir.exists():
         for f in chapters_dir.glob("*.json"):
             f.unlink()
             deleted["chapters"] += 1
 
     # Delete all acts
-    acts_dir = settings.acts_dir(project_id)
+    acts_dir = project_path / "acts"
     if acts_dir.exists():
         for f in acts_dir.glob("*.json"):
             f.unlink()
             deleted["acts"] += 1
 
     # Delete all generations
-    generations_dir = settings.generations_dir(project_id)
+    generations_dir = project_path / "generations"
     if generations_dir.exists():
         for f in generations_dir.glob("*.json"):
             f.unlink()

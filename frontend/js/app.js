@@ -1961,6 +1961,49 @@ async function applyTemplate(templateId, event) {
 }
 
 // ============================================
+// Clear All Structure (Nuclear Delete)
+// ============================================
+
+async function confirmClearAllStructure() {
+    // First confirmation
+    if (!confirm('This will DELETE all acts, chapters, scenes, and beats from this project.\n\nThis action cannot be undone.\n\nAre you sure?')) {
+        return;
+    }
+
+    // Second confirmation for extra safety
+    if (!confirm('FINAL WARNING: All outline structure will be permanently deleted.\n\nA backup will be created, but are you absolutely sure?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/projects/${currentProject.id}/structure`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Failed to clear structure');
+        }
+
+        const result = await response.json();
+
+        // Refresh all data
+        await loadActs();
+        await loadChapters();
+        await loadScenes();
+        renderOutlineView();
+        renderStructureTree();
+        renderOutlineTree();
+
+        showToast(`Cleared: ${result.deleted.acts} acts, ${result.deleted.chapters} chapters, ${result.deleted.scenes} scenes`, 'success');
+
+    } catch (err) {
+        console.error('Error clearing structure:', err);
+        showToast(err.message, 'error');
+    }
+}
+
+// ============================================
 // Auto-Generate Outline
 // ============================================
 
@@ -1971,6 +2014,9 @@ const SCOPE_ESTIMATES = {
     standard: { scenes: 15, beats: 60, cost: "$0.18" },
     detailed: { scenes: 24, beats: 120, cost: "$0.35" }
 };
+
+// Store clear existing preference when generation starts
+let autoGenClearExisting = false;
 
 function openAutoGenerateModal() {
     document.getElementById('auto-generate-modal').style.display = 'flex';
@@ -2008,6 +2054,9 @@ async function startAutoGenerate(mode) {
     const budgetStr = document.getElementById('auto-gen-budget').value;
     const budget = budgetStr ? parseFloat(budgetStr) : null;
 
+    // Store clear existing preference before closing modal
+    autoGenClearExisting = document.getElementById('auto-gen-clear-existing').checked;
+
     closeAutoGenerateModal();
 
     if (mode === 'full') {
@@ -2020,14 +2069,10 @@ async function startAutoGenerate(mode) {
 async function runFullGeneration(seed, scope, genre, budget) {
     // Show progress modal
     const progressModal = document.getElementById('auto-generate-progress-modal');
-    const progressBar = document.getElementById('auto-gen-progress-bar');
     const progressStatus = document.getElementById('auto-gen-progress-status');
-    const progressCost = document.getElementById('auto-gen-progress-cost');
 
     progressModal.style.display = 'flex';
-    progressBar.style.width = '10%';
-    progressStatus.textContent = 'Generating outline structure...';
-    progressCost.textContent = 'Cost so far: $0.00';
+    progressStatus.textContent = 'Working on it...';
 
     try {
         const response = await fetch(`/api/projects/${currentProject.id}/auto-generate`, {
@@ -2042,8 +2087,6 @@ async function runFullGeneration(seed, scope, genre, budget) {
             })
         });
 
-        progressBar.style.width = '90%';
-
         if (!response.ok) {
             const err = await response.json();
             throw new Error(err.detail || 'Generation failed');
@@ -2051,12 +2094,7 @@ async function runFullGeneration(seed, scope, genre, budget) {
 
         const result = await response.json();
 
-        progressBar.style.width = '100%';
         progressStatus.textContent = 'Generation complete!';
-
-        if (result.usage) {
-            progressCost.textContent = `Total cost: ${result.usage.cost_formatted}`;
-        }
 
         // Brief pause to show completion
         await new Promise(r => setTimeout(r, 500));
@@ -2067,6 +2105,8 @@ async function runFullGeneration(seed, scope, genre, budget) {
             if (result.partial) {
                 showToast(`Generation stopped at ${result.stopped_at} (budget limit reached)`, 'warning');
             }
+            const costMsg = result.usage ? ` (Cost: ${result.usage.cost_formatted})` : '';
+            showToast(`Outline generated!${costMsg}`, 'success');
             generatedOutline = result.outline;
             showOutlineReview(result.outline, result.usage);
         } else {
@@ -2083,11 +2123,9 @@ async function runFullGeneration(seed, scope, genre, budget) {
 async function runStagedGeneration(seed, scope, genre, budget) {
     // For staged mode, we start with acts only
     const progressModal = document.getElementById('auto-generate-progress-modal');
-    const progressBar = document.getElementById('auto-gen-progress-bar');
     const progressStatus = document.getElementById('auto-gen-progress-status');
 
     progressModal.style.display = 'flex';
-    progressBar.style.width = '20%';
     progressStatus.textContent = 'Generating act structure...';
 
     try {
@@ -2102,8 +2140,6 @@ async function runStagedGeneration(seed, scope, genre, budget) {
                 genre
             })
         });
-
-        progressBar.style.width = '100%';
 
         if (!response.ok) {
             const err = await response.json();
@@ -2233,7 +2269,8 @@ async function applyGeneratedOutline() {
         return;
     }
 
-    const clearExisting = document.getElementById('auto-gen-clear-existing').checked;
+    // Use the stored value from when generation was started
+    const clearExisting = autoGenClearExisting;
 
     if (clearExisting) {
         if (!confirm('This will DELETE all existing acts, chapters, and scenes. Are you sure?')) {
@@ -2337,7 +2374,8 @@ async function loadAllData() {
         loadChapters(),
         loadScenes(),
         loadStyleGuide(),
-        loadReferences()
+        loadReferences(),
+        loadQueue()
     ]);
     updateStats();
     populateFormSelects();
@@ -3885,11 +3923,24 @@ async function openSceneWorkspace(sceneId) {
         document.getElementById('ws-canon-badge').style.display = scene.is_canon ? 'inline-flex' : 'none';
         document.getElementById('ws-edit-mode-badge').style.display = scene.edit_mode ? 'inline-flex' : 'none';
 
+        // Check for active generation in queue
+        const activeStatuses = ['pending', 'generating', 'critiquing', 'awaiting_approval', 'revising'];
+        const activeGen = queueData.find(g => g.scene_id === sceneId && activeStatuses.includes(g.status));
+
         // Determine state and show appropriate UI
         hideAllWorkspaceStates();
 
         if (scene.is_canon) {
             showWorkspaceCanon(scene);
+        } else if (activeGen && activeGen.status === 'awaiting_approval') {
+            // Has an active generation awaiting review - load it
+            await loadGenerationForReview(activeGen.generation_id);
+        } else if (activeGen && ['generating', 'critiquing', 'revising'].includes(activeGen.status)) {
+            // Generation in progress - show generating state
+            currentGenId = activeGen.generation_id;
+            workspaceGenId = activeGen.generation_id;  // Also set for accept/reject buttons
+            showWorkspaceGenerating();
+            startGenerationPolling();
         } else if (scene.prose || scene.original_prose) {
             showWorkspaceProse(scene);
         } else {
@@ -3907,6 +3958,23 @@ async function openSceneWorkspace(sceneId) {
     } catch (e) {
         console.error('Error opening workspace:', e);
         showToast('Error', 'Failed to load scene: ' + e.message, 'error');
+    }
+}
+
+async function loadGenerationForReview(generationId) {
+    try {
+        const response = await fetch(apiUrl(`/generations/${generationId}`));
+        if (!response.ok) throw new Error('Failed to load generation');
+        const data = await response.json();
+
+        currentGenId = generationId;
+        workspaceGenId = generationId;  // Also set workspace gen ID for accept/reject buttons
+        showWorkspaceReview(data);
+    } catch (e) {
+        console.error('Error loading generation for review:', e);
+        showToast('Error', 'Failed to load generation: ' + e.message, 'error');
+        // Fall back to empty state
+        showWorkspaceEmpty(currentWorkspaceScene);
     }
 }
 
@@ -3945,6 +4013,91 @@ function showWorkspaceCanon(scene) {
     document.getElementById('ws-canon').style.display = 'block';
     // Show canon actions in header
     document.getElementById('ws-canon-actions').style.display = 'flex';
+}
+
+function showWorkspaceGenerating() {
+    document.getElementById('ws-generating').style.display = 'block';
+    document.getElementById('ws-progress-fill').style.width = '10%';
+    document.getElementById('ws-progress-status').textContent = 'Generation in progress...';
+}
+
+let workspacePollingActive = false;
+
+async function startGenerationPolling() {
+    if (workspacePollingActive || !currentGenId) return;
+    workspacePollingActive = true;
+
+    const pollInterval = 2000;
+    const maxWait = 300000; // 5 minutes max
+    const startTime = Date.now();
+
+    const statusMessages = {
+        'pending': 'Waiting to start...',
+        'generating': 'Generating prose...',
+        'critiquing': 'Getting AI critique...',
+        'revising': 'Revising prose...',
+        'awaiting_approval': 'Ready for review'
+    };
+
+    while (workspacePollingActive && Date.now() - startTime < maxWait) {
+        try {
+            const response = await fetch(apiUrl(`/generations/${currentGenId}`));
+            if (!response.ok) {
+                workspacePollingActive = false;
+                break;
+            }
+
+            const data = await response.json();
+
+            // Update progress status
+            const statusEl = document.getElementById('ws-progress-status');
+            if (statusEl) {
+                statusEl.textContent = statusMessages[data.status] || data.status;
+            }
+
+            // Update progress bar based on status
+            const progressEl = document.getElementById('ws-progress-fill');
+            if (progressEl) {
+                const progressMap = {
+                    'pending': '10%',
+                    'generating': '30%',
+                    'critiquing': '60%',
+                    'revising': '80%',
+                    'awaiting_approval': '100%'
+                };
+                progressEl.style.width = progressMap[data.status] || '50%';
+            }
+
+            // Stop polling when generation reaches a terminal or review state
+            if (['awaiting_approval', 'completed', 'error', 'rejected'].includes(data.status)) {
+                workspacePollingActive = false;
+
+                if (data.status === 'awaiting_approval') {
+                    hideAllWorkspaceStates();
+                    showWorkspaceReview(data);
+                } else if (data.status === 'completed') {
+                    hideAllWorkspaceStates();
+                    await showWorkspaceComplete(data);
+                } else if (data.status === 'error') {
+                    hideAllWorkspaceStates();
+                    showWorkspaceError(data.error_message || 'Generation failed');
+                }
+                return;
+            }
+
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+        } catch (e) {
+            console.error('Error polling generation:', e);
+            workspacePollingActive = false;
+            break;
+        }
+    }
+
+    workspacePollingActive = false;
+}
+
+function stopGenerationPolling() {
+    workspacePollingActive = false;
 }
 
 function populateWorkspaceModelDropdowns() {
@@ -5332,6 +5485,21 @@ function getActiveProseContainer() {
         }
     }
 
+    // Check queue review panel
+    const queueView = document.getElementById('queue-view');
+    const queueReviewPanel = document.getElementById('queue-review-panel');
+    const queueReviewProse = document.getElementById('queue-review-prose');
+
+    if (queueView && queueView.classList.contains('active') &&
+        queueReviewPanel && isElementVisible(queueReviewPanel) && queueReviewProse) {
+
+        // Queue review is for generations awaiting approval
+        const genId = queueReviewPanel.dataset.genId;
+        if (genId) {
+            return { element: queueReviewProse, isWorkspace: false, isQueueReview: true, genId: genId };
+        }
+    }
+
     // Fall back to reading view (for legacy support)
     const readingView = document.getElementById('reading-view');
     const readingContent = document.getElementById('reading-content');
@@ -5385,6 +5553,8 @@ function handleTextSelection(e) {
                     start: startOffset,
                     end: endOffset,
                     isWorkspace: container.isWorkspace,
+                    isQueueReview: container.isQueueReview || false,
+                    genId: container.genId || null,
                     elementId: container.element.id
                 };
 
@@ -5532,11 +5702,21 @@ async function applyBubbleRevision(quickAction = null) {
         return;
     }
 
-    // Determine if we're in workspace or old reading view
+    // Determine context: workspace, queue review, or old reading view
     const isWorkspace = readingSelection.isWorkspace;
+    const isQueueReview = readingSelection.isQueueReview;
     let sceneId;
+    let generationId = readingSelection.genId;
 
-    if (isWorkspace) {
+    if (isQueueReview) {
+        // Queue review - we have genId but need sceneId for context
+        const gen = queueData.find(g => g.generation_id === generationId);
+        if (!gen) {
+            alert('Generation context not found');
+            return;
+        }
+        sceneId = gen.scene_id;
+    } else if (isWorkspace) {
         if (!currentWorkspaceScene) {
             alert('No scene context available');
             return;
@@ -5550,13 +5730,21 @@ async function applyBubbleRevision(quickAction = null) {
         sceneId = currentReadingData.id;
     }
 
-    if (!sceneId) {
+    if (!sceneId && !generationId) {
         alert('No scene context available');
         return;
     }
 
     const model = document.getElementById('bubble-model-select').value || null;
     const instructions = document.getElementById('bubble-instructions').value.trim() || null;
+
+    // Check if we're in review state (during generation, prose not saved to scene yet)
+    const isReviewState = (currentGenId && document.getElementById('ws-review')?.style.display !== 'none') || isQueueReview;
+
+    // Use the appropriate generation ID
+    if (!generationId && isReviewState && currentGenId) {
+        generationId = currentGenId;
+    }
 
     // Show loading state on all buttons
     const bubble = document.getElementById('revision-bubble');
@@ -5567,7 +5755,11 @@ async function applyBubbleRevision(quickAction = null) {
     reviseBtn.textContent = 'Revising...';
 
     try {
-        const url = apiUrl(`/scenes/${sceneId}/revise-selection`);
+        // Use direct generation endpoint if in review state (synchronous, no new iteration)
+        // Otherwise use scene endpoint for saved prose
+        const url = isReviewState
+            ? apiUrl(`/generations/${generationId}/revise-selection-direct`)
+            : apiUrl(`/scenes/${sceneId}/revise-selection`);
 
         const response = await fetch(url, {
             method: 'POST',
@@ -5596,24 +5788,47 @@ async function applyBubbleRevision(quickAction = null) {
 
         const result = await response.json();
 
-        if (isWorkspace) {
+        // Handle different response formats from scene vs generation endpoints
+        const mergedProse = result.merged_prose || result.current_prose;
+        const wordCount = result.word_count || (mergedProse ? mergedProse.split(/\s+/).filter(w => w).length : 0);
+
+        if (isQueueReview) {
+            // Queue review - update the queue review prose element
+            const proseElement = document.getElementById('queue-review-prose');
+            if (proseElement) {
+                proseElement.textContent = mergedProse;
+            }
+
+            // Update word count in queue review
+            const queueWordCount = document.getElementById('queue-review-word-count');
+            if (queueWordCount) {
+                queueWordCount.textContent = `${wordCount.toLocaleString()} words`;
+            }
+
+            // Update the generation in queueData so it persists
+            const gen = queueData.find(g => g.generation_id === generationId);
+            if (gen) {
+                gen.current_prose = mergedProse;
+            }
+
+        } else if (isWorkspace) {
             // Update the correct prose container based on which element was selected from
             const proseElement = document.getElementById(readingSelection.elementId);
             if (proseElement) {
-                proseElement.textContent = result.merged_prose;
+                proseElement.textContent = mergedProse;
             }
 
             // Update word count - check which stats element is visible
             const proseStats = document.getElementById('ws-prose-stats');
             const reviewWordCount = document.getElementById('ws-review-word-count');
             if (proseStats && isElementVisible(proseStats.parentElement)) {
-                proseStats.textContent = `${result.word_count.toLocaleString()} words`;
+                proseStats.textContent = `${wordCount.toLocaleString()} words`;
             } else if (reviewWordCount) {
-                reviewWordCount.textContent = `${result.word_count.toLocaleString()} words`;
+                reviewWordCount.textContent = `${wordCount.toLocaleString()} words`;
             }
 
             // Update workspace scene data
-            currentWorkspaceScene.prose = result.merged_prose;
+            currentWorkspaceScene.prose = mergedProse;
 
             // Show appropriate dirty indicator based on which state we're in
             if (readingSelection.elementId === 'ws-review-prose') {
@@ -5628,10 +5843,10 @@ async function applyBubbleRevision(quickAction = null) {
                 readingOriginalProse = currentReadingData.prose;
             }
 
-            readingCurrentProse = result.merged_prose;
-            document.getElementById('reading-content').textContent = result.merged_prose;
-            currentReadingData.prose = result.merged_prose;
-            document.getElementById('reading-stats').textContent = `${result.word_count.toLocaleString()} words`;
+            readingCurrentProse = mergedProse;
+            document.getElementById('reading-content').textContent = mergedProse;
+            currentReadingData.prose = mergedProse;
+            document.getElementById('reading-stats').textContent = `${wordCount.toLocaleString()} words`;
 
             setReadingDirty(true);
             autosaveToLocalStorage();

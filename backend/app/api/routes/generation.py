@@ -30,6 +30,17 @@ class SelectionRevisionRequest(BaseModel):
     selection_end: int    # End character index in prose
     selection_text: str   # The selected text (for verification)
     instructions: Optional[str] = None  # Optional revision guidance
+    model: Optional[str] = None  # Optional model override
+    quick_action: Optional[str] = None  # Quick action type
+
+
+class DirectRevisionResponse(BaseModel):
+    """Response for direct/synchronous selection revision."""
+    generation_id: str
+    revised_selection: str
+    merged_prose: str
+    word_count: int
+    message: str
 
 
 def get_effective_models(gen_model: Optional[str], critique_model: Optional[str]) -> tuple[Optional[str], Optional[str]]:
@@ -397,6 +408,110 @@ async def revise_selection(project_id: str, generation_id: str, request: Selecti
             instructions=request.instructions
         )
         return _build_response(state)
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Generation not found: {generation_id}")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# Quick action instructions (same as scenes.py)
+QUICK_ACTION_INSTRUCTIONS = {
+    "shorten": "Make this passage more concise. Remove unnecessary words while preserving meaning and voice.",
+    "lengthen": "Expand this passage with more sensory detail, interiority, or context. Keep the same voice.",
+    "rephrase": "Rewrite this passage with different word choices while keeping the same meaning and tone.",
+    "more_vivid": "Make this passage more vivid with stronger verbs, specific details, and sensory language.",
+    "more_tension": "Increase the tension and urgency in this passage. Add stakes, conflict, or uncertainty.",
+    "simplify": "Simplify this passage. Use shorter sentences and clearer, more direct language."
+}
+
+
+@router.post("/{generation_id}/revise-selection-direct", response_model=DirectRevisionResponse)
+async def revise_selection_direct(project_id: str, generation_id: str, request: SelectionRevisionRequest):
+    """
+    Revise a selected portion of generation prose synchronously.
+
+    Unlike revise-selection, this does NOT trigger a new iteration or critique cycle.
+    It simply updates the prose in-place and returns the result immediately.
+    Use this for inline bubble edits during review.
+
+    Args:
+        project_id: Project ID
+        generation_id: Unique generation identifier
+        request: Selection details and optional instructions
+
+    Returns:
+        Revised selection and merged prose
+
+    Raises:
+        HTTPException: If generation not found or not awaiting approval
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        service = get_generation_service()
+        state = await service.state_manager.load_state(project_id, generation_id)
+
+        if state.status != GenerationStatus.AWAITING_APPROVAL:
+            raise ValueError(f"Generation not awaiting approval (status: {state.status})")
+
+        # Get current prose
+        current_prose = state.iterations[-1].prose
+        if not current_prose:
+            raise HTTPException(status_code=400, detail="Generation has no prose to revise")
+
+        # Get LLM service
+        from app.services.llm_service import get_llm_service
+        from app.utils.prompt_templates import clean_prose_output
+
+        llm = get_llm_service()
+
+        # Build system prompt
+        system_prompt = "You are a skilled prose editor. Revise the selected text while maintaining consistency with the surrounding context, narrative voice, and style. CRITICAL: Your output must read as human-written. Never use AI-tell vocabulary (delve, tapestry, myriad, whilst, amidst, commence, utilize, plethora). Write with the natural voice of a published novelist."
+
+        # Combine quick_action with custom instructions
+        instructions = request.instructions or ""
+        if request.quick_action and request.quick_action in QUICK_ACTION_INSTRUCTIONS:
+            action_instruction = QUICK_ACTION_INSTRUCTIONS[request.quick_action]
+            if instructions:
+                instructions = f"{action_instruction} Additionally: {instructions}"
+            else:
+                instructions = action_instruction
+
+        # Revise the selection synchronously
+        revised_selection = await llm.revise_selection(
+            full_prose=current_prose,
+            selection=request.selection_text,
+            selection_start=request.selection_start,
+            selection_end=request.selection_end,
+            system_prompt=system_prompt,
+            critique=state.iterations[-1].critique,
+            instructions=instructions if instructions else None,
+            model=request.model or state.generation_model
+        )
+
+        # Clean any AI preambles
+        revised_selection = clean_prose_output(revised_selection)
+
+        # Splice revised selection back into prose
+        merged_prose = current_prose[:request.selection_start] + revised_selection + current_prose[request.selection_end:]
+
+        # Update the current iteration's prose in-place (no new iteration)
+        state.iterations[-1].prose = merged_prose
+        state.updated_at = state.updated_at  # Keep same timestamp
+        await service.state_manager.save_state(state)
+
+        word_count = len(merged_prose.split())
+
+        return DirectRevisionResponse(
+            generation_id=generation_id,
+            revised_selection=revised_selection,
+            merged_prose=merged_prose,
+            word_count=word_count,
+            message="Selection revised. Changes saved to generation."
+        )
 
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Generation not found: {generation_id}")

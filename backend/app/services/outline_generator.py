@@ -283,6 +283,38 @@ Respond with JSON in this exact format:
 }}"""
 
 
+def extract_json(text: str) -> str:
+    """
+    Extract JSON from text that might be wrapped in markdown code blocks.
+
+    Handles:
+    - Raw JSON
+    - ```json ... ```
+    - ``` ... ```
+    - JSON with surrounding text
+
+    Returns the extracted JSON string.
+    """
+    import re
+
+    text = text.strip()
+
+    # Try to extract from markdown code blocks
+    # Match ```json ... ``` or ``` ... ```
+    code_block_match = re.search(r'```(?:json)?\s*([\s\S]*?)```', text)
+    if code_block_match:
+        return code_block_match.group(1).strip()
+
+    # If no code block, try to find JSON object/array
+    # Look for { ... } or [ ... ]
+    json_match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', text)
+    if json_match:
+        return json_match.group(1).strip()
+
+    # Return as-is if nothing found
+    return text
+
+
 class OutlineGenerator:
     """Service for generating story outlines."""
 
@@ -313,9 +345,10 @@ class OutlineGenerator:
         # Track usage
         self._track_usage(response)
 
-        # Parse JSON response
+        # Parse JSON response (handle markdown-wrapped JSON)
         try:
-            result = json.loads(response["content"])
+            json_str = extract_json(response["content"])
+            result = json.loads(json_str)
             return {"success": True, "acts": result["acts"]}
         except (json.JSONDecodeError, KeyError) as e:
             return {"success": False, "error": f"Failed to parse response: {e}", "raw": response["content"]}
@@ -342,7 +375,8 @@ class OutlineGenerator:
         self._track_usage(response)
 
         try:
-            result = json.loads(response["content"])
+            json_str = extract_json(response["content"])
+            result = json.loads(json_str)
             return {"success": True, "chapters": result["chapters"], "act_index": act_index}
         except (json.JSONDecodeError, KeyError) as e:
             return {"success": False, "error": f"Failed to parse response: {e}", "raw": response["content"]}
@@ -369,7 +403,8 @@ class OutlineGenerator:
         self._track_usage(response)
 
         try:
-            result = json.loads(response["content"])
+            json_str = extract_json(response["content"])
+            result = json.loads(json_str)
             return {"success": True, "scenes": result["scenes"]}
         except (json.JSONDecodeError, KeyError) as e:
             return {"success": False, "error": f"Failed to parse response: {e}", "raw": response["content"]}
@@ -395,7 +430,8 @@ class OutlineGenerator:
         self._track_usage(response)
 
         try:
-            result = json.loads(response["content"])
+            json_str = extract_json(response["content"])
+            result = json.loads(json_str)
             return {"success": True, "beats": result["beats"]}
         except (json.JSONDecodeError, KeyError) as e:
             return {"success": False, "error": f"Failed to parse response: {e}", "raw": response["content"]}

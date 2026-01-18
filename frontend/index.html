@@ -483,6 +483,7 @@
                                         <button class="btn btn-outline" onclick="showImportOutlineModal()">Import</button>
                                         <button class="btn btn-secondary" onclick="showActForm()">+ Act</button>
                                         <button class="btn btn-primary" onclick="showChapterForm()">+ Chapter</button>
+                                        <button class="btn btn-danger" onclick="confirmClearStructure()">Clear All</button>
                                     </div>
                                 </div>
 
@@ -784,6 +785,7 @@ Chapter markers like 'Chapter 1' or 'CHAPTER ONE' will be detected automatically
                                     <div style="display: flex; gap: 10px;">
                                         <button class="btn btn-secondary" onclick="openTemplateModal()">Apply Template</button>
                                         <button class="btn btn-primary" onclick="openAutoGenerateModal()">Auto-Generate</button>
+                                        <button class="btn btn-danger" onclick="confirmClearStructure()">Clear All</button>
                                     </div>
                                 </div>
 
@@ -927,13 +929,19 @@ Chapter markers like 'Chapter 1' or 'CHAPTER ONE' will be detected automatically
                             <!-- Auto-Generate Progress Modal -->
                             <div id="auto-generate-progress-modal" class="modal" style="display: none;">
                                 <div class="modal-backdrop"></div>
-                                <div class="modal-content" style="max-width: 500px; padding: 24px; text-align: center;">
-                                    <h3 style="margin-bottom: 16px;">Generating Outline...</h3>
-                                    <div id="auto-gen-progress-status" class="text-muted" style="margin-bottom: 16px;">Starting generation...</div>
-                                    <div class="progress-bar" style="height: 8px; background: var(--bg-input); border-radius: 4px; overflow: hidden;">
-                                        <div id="auto-gen-progress-bar" style="width: 0%; height: 100%; background: var(--primary); transition: width 0.3s;"></div>
+                                <div class="modal-content" style="max-width: 500px; padding: 32px; text-align: center;">
+                                    <div class="spinner-large" style="margin: 0 auto 20px;"></div>
+                                    <h3 style="margin-bottom: 8px;">Generating Your Outline</h3>
+                                    <div id="auto-gen-progress-status" style="margin-bottom: 20px; color: var(--primary); font-weight: 500;">Working on it...</div>
+                                    <div class="progress-bar-indeterminate" style="height: 4px; background: var(--bg-input); border-radius: 2px; overflow: hidden; margin-bottom: 20px;">
+                                        <div class="progress-bar-slider"></div>
                                     </div>
-                                    <div id="auto-gen-progress-cost" class="text-muted" style="margin-top: 12px; font-size: 0.9rem;">Cost so far: $0.00</div>
+                                    <div class="text-muted" style="font-size: 0.9rem; line-height: 1.6;">
+                                        The AI is building your story structure:<br>
+                                        <strong>Acts → Chapters → Scenes → Beats</strong><br><br>
+                                        <span style="opacity: 0.7;">This typically takes 3-6 minutes for detailed outlines.<br>
+                                        Please don't close this window.</span>
+                                    </div>
                                 </div>
                             </div>
 

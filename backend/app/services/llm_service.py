@@ -79,6 +79,67 @@ class LLMService:
             except Exception as e:
                 raise Exception(f"LLM API generation failed: {str(e)}")
 
+    async def generate(
+        self,
+        prompt: str,
+        system_prompt: str,
+        model: Optional[str] = None,
+        max_tokens: Optional[int] = None,
+        temperature: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """
+        Generic generation method that returns structured response with usage stats.
+
+        Used by OutlineGenerator and other services that need token tracking.
+
+        Args:
+            prompt: User prompt
+            system_prompt: System prompt
+            model: Model to use
+            max_tokens: Max tokens for response
+            temperature: Temperature for generation
+
+        Returns:
+            Dict with 'content' (str) and 'usage' (dict with token counts)
+        """
+        self._check_and_refresh_client()
+        async with self.semaphore:
+            try:
+                if self.provider == "anthropic":
+                    response = await self.client.messages.create(
+                        model=model or settings.generation_model,
+                        max_tokens=max_tokens or settings.generation_max_tokens,
+                        temperature=temperature or settings.generation_temperature,
+                        system=system_prompt,
+                        messages=[{"role": "user", "content": prompt}]
+                    )
+                    return {
+                        "content": response.content[0].text,
+                        "usage": {
+                            "prompt_tokens": response.usage.input_tokens,
+                            "completion_tokens": response.usage.output_tokens
+                        }
+                    }
+                else:  # openrouter
+                    response = await self.client.chat.completions.create(
+                        model=model or settings.generation_model,
+                        max_tokens=max_tokens or settings.generation_max_tokens,
+                        temperature=temperature or settings.generation_temperature,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": prompt}
+                        ]
+                    )
+                    return {
+                        "content": response.choices[0].message.content,
+                        "usage": {
+                            "prompt_tokens": response.usage.prompt_tokens if response.usage else 0,
+                            "completion_tokens": response.usage.completion_tokens if response.usage else 0
+                        }
+                    }
+            except Exception as e:
+                raise Exception(f"LLM API generation failed: {str(e)}")
+
     async def _generate_anthropic(
         self, system_prompt: str, user_prompt: str,
         temperature: Optional[float], max_tokens: Optional[int],
