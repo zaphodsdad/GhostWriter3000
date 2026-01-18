@@ -1861,6 +1861,106 @@ async function deleteBeat(sceneId, beatId, event) {
 }
 
 // ============================================
+// Story Structure Templates
+// ============================================
+
+async function openTemplateModal() {
+    document.getElementById('template-modal').style.display = 'flex';
+    document.getElementById('template-clear-existing').checked = false;
+    await loadTemplates();
+}
+
+function closeTemplateModal() {
+    document.getElementById('template-modal').style.display = 'none';
+}
+
+async function loadTemplates() {
+    const container = document.getElementById('template-list');
+    container.innerHTML = '<p class="text-muted">Loading templates...</p>';
+
+    try {
+        const response = await fetch(`${API_BASE}/projects/templates/list`);
+        if (!response.ok) throw new Error('Failed to load templates');
+
+        const templates = await response.json();
+
+        container.innerHTML = `
+            <div class="template-grid">
+                ${templates.map(t => `
+                    <div class="template-card" data-template-id="${t.id}">
+                        <h4>${escapeHtml(t.name)}</h4>
+                        <p>${escapeHtml(t.description)}</p>
+                        <div class="template-stats">
+                            <span>${t.act_count} acts</span>
+                            <span>${t.scene_count} scenes</span>
+                        </div>
+                        <button class="btn btn-primary apply-btn" onclick="applyTemplate('${t.id}', event)">
+                            Apply This Template
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+
+    } catch (err) {
+        console.error('Error loading templates:', err);
+        container.innerHTML = '<p class="text-muted">Failed to load templates. Please try again.</p>';
+    }
+}
+
+async function applyTemplate(templateId, event) {
+    if (event) event.stopPropagation();
+
+    const clearExisting = document.getElementById('template-clear-existing').checked;
+
+    if (clearExisting) {
+        if (!confirm('This will DELETE all existing acts, chapters, and scenes. Are you sure?')) {
+            return;
+        }
+    }
+
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'Applying...';
+
+    try {
+        const response = await fetch(`${API_BASE}/projects/${currentProject}/apply-template`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                template_id: templateId,
+                clear_existing: clearExisting
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Failed to apply template');
+        }
+
+        const result = await response.json();
+
+        // Refresh data
+        await loadActs();
+        await loadChapters();
+        await loadScenes();
+        renderOutlineView();
+        renderStructureTree();
+        renderOutlineTree();
+
+        closeTemplateModal();
+        showToast(`Applied ${result.template_name}: ${result.created.acts} acts, ${result.created.chapters} chapters, ${result.created.scenes} scenes`, 'success');
+
+    } catch (err) {
+        console.error('Error applying template:', err);
+        showToast(err.message, 'error');
+        btn.disabled = false;
+        btn.textContent = originalText;
+    }
+}
+
+// ============================================
 // Navigation
 // ============================================
 function setupNavigation() {

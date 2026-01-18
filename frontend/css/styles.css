@@ -3439,4 +3439,61 @@ nav {
     color: var(--text);
 }
 
+/* Story Template Cards */
+.template-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 16px;
+}
+
+.template-card {
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.template-card:hover {
+    border-color: var(--primary);
+    transform: translateY(-2px);
+}
+
+.template-card.selected {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.template-card h4 {
+    margin: 0 0 8px 0;
+    color: var(--text);
+    font-size: 1.1rem;
+}
+
+.template-card p {
+    margin: 0 0 12px 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+
+.template-card .template-stats {
+    display: flex;
+    gap: 16px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.template-card .template-stats span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.template-card .apply-btn {
+    margin-top: 12px;
+    width: 100%;
+}
+
 

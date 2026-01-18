@@ -781,6 +781,7 @@ Chapter markers like 'Chapter 1' or 'CHAPTER ONE' will be detected automatically
                                         <h2>Story Outline</h2>
                                         <p class="text-muted">Plan your story with beats. Scenes with beats are ready for prose generation.</p>
                                     </div>
+                                    <button class="btn btn-primary" onclick="openTemplateModal()">Apply Template</button>
                                 </div>
 
                                 <!-- Outline Tree -->
@@ -817,6 +818,30 @@ Chapter markers like 'Chapter 1' or 'CHAPTER ONE' will be detected automatically
                                             <button type="submit" class="btn btn-primary">Save Beat</button>
                                         </div>
                                     </form>
+                                </div>
+                            </div>
+
+                            <!-- Template Selection Modal -->
+                            <div id="template-modal" class="modal" style="display: none;">
+                                <div class="modal-content" style="max-width: 700px;">
+                                    <h3>Apply Story Structure Template</h3>
+                                    <p class="text-muted">Choose a narrative framework to scaffold your outline. This will create acts, chapters, and scenes with beats.</p>
+
+                                    <div id="template-list" style="margin: 20px 0;">
+                                        <p class="text-muted">Loading templates...</p>
+                                    </div>
+
+                                    <div class="form-group">
+                                        <label style="display: flex; align-items: center; gap: 8px;">
+                                            <input type="checkbox" id="template-clear-existing">
+                                            <span>Clear existing structure first</span>
+                                        </label>
+                                        <p class="text-muted" style="margin-left: 24px; font-size: 0.85em;">Warning: This will delete all existing acts, chapters, and scenes!</p>
+                                    </div>
+
+                                    <div class="action-bar">
+                                        <button type="button" class="btn btn-secondary" onclick="closeTemplateModal()">Cancel</button>
+                                    </div>
                                 </div>
                             </div>
                         </section>

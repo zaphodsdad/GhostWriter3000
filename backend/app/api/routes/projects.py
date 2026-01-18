@@ -425,3 +425,157 @@ async def delete_project(project_id: str):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# Story Structure Templates
+# ============================================
+
+from app.utils.story_templates import list_templates, get_template
+from pydantic import BaseModel, Field
+
+
+class ApplyTemplateRequest(BaseModel):
+    template_id: str = Field(..., description="ID of the template to apply")
+    clear_existing: bool = Field(default=False, description="Clear existing structure before applying")
+
+
+@router.get("/templates/list")
+async def get_available_templates():
+    """
+    List all available story structure templates.
+
+    Returns:
+        List of templates with id, name, description, and counts
+    """
+    return list_templates()
+
+
+@router.post("/{project_id}/apply-template")
+async def apply_template_to_project(project_id: str, request: ApplyTemplateRequest):
+    """
+    Apply a story structure template to a project.
+
+    Creates acts, chapters, and scenes based on the selected template.
+    Optionally clears existing structure first.
+
+    Args:
+        project_id: Project ID
+        request: Template ID and options
+
+    Returns:
+        Summary of created structure
+    """
+    import time
+
+    # Verify project exists
+    project_dir = settings.project_dir(project_id)
+    if not project_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+    # Get template
+    template = get_template(request.template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail=f"Template not found: {request.template_id}")
+
+    # Create backup before modifying
+    await create_snapshot(project_id, f"Before applying template: {template['name']}")
+
+    # Optionally clear existing structure
+    if request.clear_existing:
+        import shutil
+        for subdir in ["acts", "chapters", "scenes"]:
+            dir_path = project_dir / subdir
+            if dir_path.exists():
+                shutil.rmtree(dir_path)
+            dir_path.mkdir(parents=True, exist_ok=True)
+
+    # Ensure directories exist
+    acts_dir = project_dir / "acts"
+    chapters_dir = project_dir / "chapters"
+    scenes_dir = settings.scenes_dir(project_id)
+    acts_dir.mkdir(parents=True, exist_ok=True)
+    chapters_dir.mkdir(parents=True, exist_ok=True)
+    scenes_dir.mkdir(parents=True, exist_ok=True)
+
+    created = {"acts": 0, "chapters": 0, "scenes": 0, "beats": 0}
+    now = datetime.utcnow().isoformat()
+
+    for act_num, act_data in enumerate(template["acts"], 1):
+        # Create act
+        act_id = slugify(f"act-{act_num}-{act_data['title']}")
+        act = {
+            "id": act_id,
+            "title": act_data["title"],
+            "description": act_data.get("description", ""),
+            "act_number": act_num,
+            "created_at": now,
+            "updated_at": now
+        }
+        await write_json_file(acts_dir / f"{act_id}.json", act)
+        created["acts"] += 1
+
+        for ch_num, chapter_data in enumerate(act_data["chapters"], 1):
+            # Create chapter
+            global_ch_num = sum(
+                len(a["chapters"]) for a in template["acts"][:act_num-1]
+            ) + ch_num
+
+            chapter_id = slugify(f"ch-{global_ch_num}-{chapter_data['title']}")
+            chapter = {
+                "id": chapter_id,
+                "title": chapter_data["title"],
+                "chapter_number": global_ch_num,
+                "act_id": act_id,
+                "created_at": now,
+                "updated_at": now
+            }
+            await write_json_file(chapters_dir / f"{chapter_id}.json", chapter)
+            created["chapters"] += 1
+
+            for scene_num, scene_data in enumerate(chapter_data["scenes"], 1):
+                # Create scene with beats
+                scene_id = slugify(f"scene-{global_ch_num}-{scene_num}-{scene_data['title']}")
+
+                # Convert beat data to Beat objects
+                beats = []
+                for beat_num, beat_data in enumerate(scene_data.get("beats", [])):
+                    beats.append({
+                        "id": f"beat-{int(time.time() * 1000)}-{beat_num}",
+                        "text": beat_data["text"],
+                        "notes": beat_data.get("notes"),
+                        "tags": beat_data.get("tags", []),
+                        "order": beat_num
+                    })
+                    created["beats"] += 1
+                    time.sleep(0.001)  # Ensure unique IDs
+
+                scene = {
+                    "id": scene_id,
+                    "title": scene_data["title"],
+                    "outline": scene_data.get("outline", ""),
+                    "scene_number": scene_num,
+                    "chapter_id": chapter_id,
+                    "character_ids": [],
+                    "world_context_ids": [],
+                    "previous_scene_ids": [],
+                    "is_canon": False,
+                    "prose": None,
+                    "summary": None,
+                    "edit_mode": False,
+                    "original_prose": None,
+                    "beats": beats,
+                    "depends_on": [],
+                    "outline_status": "idea",
+                    "created_at": now,
+                    "updated_at": now
+                }
+                await write_json_file(scenes_dir / f"{scene_id}.json", scene)
+                created["scenes"] += 1
+
+    return {
+        "message": f"Applied template: {template['name']}",
+        "template_id": request.template_id,
+        "template_name": template["name"],
+        "created": created
+    }
