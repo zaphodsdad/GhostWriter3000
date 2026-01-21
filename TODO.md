@@ -1,6 +1,78 @@
 # Prose Pipeline - TODO
 
-**Last Updated:** 2026-01-18
+**Last Updated:** 2026-01-21
+
+---
+
+## NEW: Backlist Revival Project (Playwright Integration)
+
+**Context:** Owner has 10-15 published novels on Kindle from a "past life" before corporate America and military service. These are sitting assets that could be refreshed and relaunched.
+
+### The Vision: Automated Backlist Management
+
+**Pipeline:**
+```
+KDP Dashboard ──Playwright──► Pull manuscripts
+                                    │
+                                    ▼
+                            prose-pipeline
+                            (Edit Mode)
+                                    │
+                                    ▼
+                        Critique → Revise → Polish
+                                    │
+                                    ▼
+KDP Dashboard ◄──Playwright──── Republish updated versions
+```
+
+### Phase 1: KDP Integration (Future)
+- [ ] Build `scrapers/kdp.py` - Kindle Direct Publishing automation
+  - [ ] Login with session persistence
+  - [ ] List all published books
+  - [ ] Download manuscript files (.doc, .docx)
+  - [ ] Pull sales data and reviews
+  - [ ] Pull current metadata (description, keywords, categories)
+- [ ] Import into prose-pipeline projects automatically
+- [ ] Track KDP-linked projects (store ASIN, KDP book ID)
+
+### Phase 2: Revision Workflow
+- [ ] Import existing novel to prose-pipeline
+- [ ] Run through chapter-by-chapter critique
+- [ ] Tighten prose, fix pacing issues
+- [ ] Update anything dated
+- [ ] Use original as style reference for consistency
+
+### Phase 3: Republish Automation
+- [ ] Push updated manuscript back to KDP via Playwright
+- [ ] Update metadata (new keywords, refreshed description)
+- [ ] Trigger "relaunch" workflow
+- [ ] Update pricing if desired
+
+### Phase 4: Monitoring
+- [ ] Scrape sales rank and reviews
+- [ ] Alert on new reviews (respond quickly to negative)
+- [ ] Track performance before/after refresh
+- [ ] Competitor monitoring in same categories
+
+### Business Angle
+- Refreshed backlist with tightened prose can spike sales
+- Authors do "relaunches" all the time - this automates 80%
+- Could become **BacklistBot** product for other authors
+
+---
+
+## Related Project: HIWC-assistant
+
+See `/root/HIWC-assistant/` for e-commerce automation work.
+Same Playwright-first philosophy being applied there for:
+- Etsy/Shopify order scraping
+- Google Ads automation
+- Competitor monitoring
+
+Shared infrastructure potential:
+- Common Playwright utilities
+- Session management patterns
+- Notification system (Discord)
 
 ---
 
@@ -234,3 +306,25 @@ Summary:
 - **The Crimson Rites** - Book 2, 160+ scenes imported, ready for generation
 - **On Storms and Tides** - Series name
 - **Magnet novella** - needs to be uploaded to reference materials
+
+---
+
+## Session Notes (2026-01-21)
+
+**Cross-Project Planning Session:**
+
+Discussed business product opportunities combining prose-pipeline and HIWC-assistant:
+
+1. **ProseForge** - SaaS version of prose-pipeline for writers ($19-149/month)
+2. **BacklistBot** - Automated backlist management for authors (KDP integration)
+3. **ContentEngine** - Combine prose generation with Playwright publishing
+
+**Key Insight:** Owner has 10-15 published novels sitting on KDP. Playwright can:
+- Pull manuscripts from KDP dashboard
+- Feed into prose-pipeline edit mode
+- Push refreshed versions back to KDP
+- Monitor sales and reviews
+
+**Priority:** E-commerce (HIWC) is bread and butter right now. Backlist revival is future project but documented here for continuity.
+
+**Shared Playwright Philosophy:** If you can log in and see it, Playwright can automate it. APIs optional.
