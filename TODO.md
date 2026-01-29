@@ -19,23 +19,30 @@ Discord (Clawdbot) ──API──► prose-pipeline backend
        Reports back, discusses changes
 ```
 
-### Phase 1: Manuscript Analysis & Extraction (PRIORITY)
+### Phase 1: Manuscript Analysis & Extraction (COMPLETE)
 When given an existing manuscript, AI should:
-- [ ] **Evaluate manuscript** - Overall quality assessment, pacing, structure
-- [ ] **Extract characters** → Auto-populate character cards
+- [x] **Evaluate manuscript** - Overall quality assessment, pacing, structure
+- [x] **Extract characters** → Auto-populate character cards
   - Names, roles, physical descriptions, personality traits
   - Relationships between characters
   - Voice/dialogue patterns
-- [ ] **Extract world/lore** → Auto-populate world context
+- [x] **Extract world/lore** → Auto-populate world context
   - Locations, magic systems, technology
   - Historical events, political structures
   - Rules and constraints of the world
-- [ ] **Generate style guide** from author's voice
+- [x] **Generate style guide** from author's voice
   - Sentence rhythm patterns (short/long variance)
   - Vocabulary tendencies (formal/casual, period-specific)
   - POV habits (deep/shallow, tense preferences)
   - Dialogue style (tags, beats, dialect handling)
   - Descriptive preferences (sparse vs lush)
+
+**Implemented Endpoints:**
+- `POST /api/extract/characters` - Extract character data from prose
+- `POST /api/extract/world` - Extract world/lore elements
+- `POST /api/extract/style` - Generate style guide from prose
+- `POST /api/extract/analyze` - Full analysis (all three combined)
+- `POST /api/extract/evaluate` - Quality evaluation with scores
 
 ### Phase 2: Editing Workflow via Discord
 - [ ] **LanguageTool integration** - Grammar, punctuation, passive voice detection
@@ -70,12 +77,13 @@ For new works that continue existing series/world:
 - Network secured via OPNsense + AdGuard
 - Consider adding user ID check to Discord bot for defense-in-depth
 
-### API Endpoints Needed
-- [ ] `POST /api/analyze/manuscript` - Full manuscript analysis
-- [ ] `POST /api/extract/characters` - Extract characters from text
-- [ ] `POST /api/extract/world` - Extract world/lore from text
-- [ ] `POST /api/extract/style` - Generate style guide from text
-- [ ] `POST /api/tools/languagetool` - Run LanguageTool checks
+### API Endpoints (Implemented)
+- [x] `POST /api/extract/analyze` - Full manuscript analysis (characters + world + style)
+- [x] `POST /api/extract/characters` - Extract characters from text
+- [x] `POST /api/extract/world` - Extract world/lore from text
+- [x] `POST /api/extract/style` - Generate style guide from text
+- [x] `POST /api/extract/evaluate` - Quality evaluation with scores
+- [ ] `POST /api/tools/languagetool` - Run LanguageTool checks (future)
 
 ---
 

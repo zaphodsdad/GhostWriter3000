@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.config import settings
-from app.api.routes import health, generation, scenes, characters, world, projects, acts, chapters, chat, style, outline_import, series, references, manuscript_import, backups
+from app.api.routes import health, generation, scenes, characters, world, projects, acts, chapters, chat, style, outline_import, series, references, manuscript_import, backups, extraction
 from app.api.routes import settings as settings_routes
 from app.middleware.auth import APIKeyAuthMiddleware
 from app.utils.logging import setup_logging, get_logger
@@ -37,6 +37,7 @@ app.add_middleware(APIKeyAuthMiddleware)
 # Include API routes
 app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(settings_routes.router)  # Already has /api/settings prefix
+app.include_router(extraction.router)  # Already has /api/extract prefix
 
 # Project routes (top-level)
 app.include_router(projects.router, prefix="/api/projects", tags=["projects"])

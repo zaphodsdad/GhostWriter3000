@@ -1,7 +1,40 @@
 """Prompt templates for Claude API interactions."""
 
+import json
 import re
 from typing import List, Dict, Any
+
+
+def extract_json(text: str) -> Any:
+    """
+    Extract JSON from text that might be wrapped in markdown code blocks.
+
+    Handles:
+    - Raw JSON
+    - ```json ... ```
+    - ``` ... ```
+    - JSON with surrounding text
+
+    Returns the parsed JSON object/array.
+    """
+    text = text.strip()
+
+    # Try to extract from markdown code blocks
+    # Match ```json ... ``` or ``` ... ```
+    code_block_match = re.search(r'```(?:json)?\s*([\s\S]*?)```', text)
+    if code_block_match:
+        json_str = code_block_match.group(1).strip()
+        return json.loads(json_str)
+
+    # If no code block, try to find JSON object/array
+    # Look for { ... } or [ ... ]
+    json_match = re.search(r'(\{[\s\S]*\}|\[[\s\S]*\])', text)
+    if json_match:
+        json_str = json_match.group(1).strip()
+        return json.loads(json_str)
+
+    # Try parsing as-is
+    return json.loads(text)
 
 
 # =============================================================================
