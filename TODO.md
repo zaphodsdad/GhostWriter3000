@@ -44,11 +44,21 @@ When given an existing manuscript, AI should:
 - `POST /api/extract/analyze` - Full analysis (all three combined)
 - `POST /api/extract/evaluate` - Quality evaluation with scores
 
-### Phase 2: Editing Workflow via Discord
+### Phase 2: Editing Workflow via Discord (IN PROGRESS)
 - [ ] **LanguageTool integration** - Grammar, punctuation, passive voice detection
+- [x] **CLI commands for full workflow** - Create characters/world from extractions, save style, import manuscripts, generation controls
 - [ ] **One critique pass** (conservative until comfortable with models)
 - [ ] **One revision pass**
 - [ ] **Report to Discord** - Summary of changes made, areas of concern
+
+**CLI Commands Added:**
+- `create-character` - Create character in project from extracted data
+- `create-world` - Create world entry in project from extracted data
+- `save-style` - Save extracted style guide to project
+- `import-manuscript` - Import text into project as scenes
+- `start-generation` - Start prose generation for a scene
+- `approve-revision` - Approve critique and trigger revision
+- `accept-canon` - Accept prose as final
 
 ### Phase 3: Creation Workflow via Discord
 For new works that continue existing series/world:
