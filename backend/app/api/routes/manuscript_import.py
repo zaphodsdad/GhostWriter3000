@@ -114,22 +114,82 @@ def convert_docx_to_text(file_bytes: bytes) -> str:
         raise HTTPException(status_code=400, detail=f"Failed to parse .docx file: {str(e)}")
 
 
+WORD_TO_NUM = {
+    'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
+    'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
+    'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14,
+    'fifteen': 15, 'sixteen': 16, 'seventeen': 17, 'eighteen': 18,
+    'nineteen': 19, 'twenty': 20, 'twenty-one': 21, 'twenty-two': 22,
+    'twenty-three': 23, 'twenty-four': 24, 'twenty-five': 25,
+    'twenty-six': 26, 'twenty-seven': 27, 'twenty-eight': 28,
+    'twenty-nine': 29, 'thirty': 30
+}
+
+ROMAN_TO_NUM = {
+    'i': 1, 'ii': 2, 'iii': 3, 'iv': 4, 'v': 5,
+    'vi': 6, 'vii': 7, 'viii': 8, 'ix': 9, 'x': 10,
+    'xi': 11, 'xii': 12, 'xiii': 13, 'xiv': 14, 'xv': 15,
+    'xvi': 16, 'xvii': 17, 'xviii': 18, 'xix': 19, 'xx': 20
+}
+
+
+def parse_chapter_number(text: str, fallback: int) -> int:
+    """Convert various chapter number formats to int."""
+    text = text.strip().lower()
+
+    # Try as digit
+    try:
+        return int(text)
+    except ValueError:
+        pass
+
+    # Try as word
+    if text in WORD_TO_NUM:
+        return WORD_TO_NUM[text]
+
+    # Try as roman numeral
+    if text in ROMAN_TO_NUM:
+        return ROMAN_TO_NUM[text]
+
+    return fallback
+
+
 def detect_chapter_splits(text: str) -> List[ChapterSplit]:
     """
     Attempt to split text into chapters based on common patterns.
 
-    Looks for patterns like:
-    - "Chapter 1" / "CHAPTER 1" / "Chapter One"
-    - "Chapter 1: Title" / "Chapter 1 - Title"
-    - "# Chapter 1" (markdown)
+    Tries patterns in order of specificity:
+    1. "Chapter X" / "CHAPTER X" / "Chapter One" (with optional title)
+    2. "Part X" / "PART X"
+    3. Standalone number words on own line: "One", "Two", "Three"
+    4. Standalone digits on own line: "1", "2", "3"
+    5. Roman numerals on own line: "I", "II", "III"
     """
-    # Pattern to match chapter headings
-    chapter_pattern = re.compile(
-        r'^(?:#\s*)?(?:CHAPTER|Chapter)\s+(\d+|[A-Za-z]+)(?:\s*[-:]\s*(.+?))?$',
-        re.MULTILINE | re.IGNORECASE
-    )
 
-    matches = list(chapter_pattern.finditer(text))
+    # Patterns to try, in order of specificity
+    patterns = [
+        # "Chapter 1" / "Chapter One" / "CHAPTER 1: Title"
+        (r'^(?:#\s*)?(?:CHAPTER|Chapter)\s+(\d+|[A-Za-z]+(?:-[A-Za-z]+)?)(?:\s*[-:]\s*(.+?))?$', 'chapter'),
+        # "Part 1" / "Part One"
+        (r'^(?:PART|Part)\s+(\d+|[A-Za-z]+(?:-[A-Za-z]+)?)(?:\s*[-:]\s*(.+?))?$', 'part'),
+        # Standalone number word on its own line (preceded by blank line)
+        (r'(?:\n\s*\n\s*\n+)(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Eleven|Twelve|Thirteen|Fourteen|Fifteen|Sixteen|Seventeen|Eighteen|Nineteen|Twenty(?:-(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine))?)(?:\s*\n)', 'word'),
+        # Standalone digit(s) on own line (preceded by blank lines)
+        (r'(?:\n\s*\n\s*\n+)(\d{1,2})(?:\s*\n)', 'digit'),
+        # Roman numerals on own line (preceded by blank lines)
+        (r'(?:\n\s*\n\s*\n+)(I{1,3}|IV|VI{0,3}|IX|XI{0,3}|XIV|XV|XVI{0,3}|XIX|XX)(?:\s*\n)', 'roman'),
+    ]
+
+    matches = []
+    pattern_type = None
+
+    for pattern, ptype in patterns:
+        compiled = re.compile(pattern, re.MULTILINE | re.IGNORECASE)
+        found = list(compiled.finditer(text))
+        if len(found) >= 2:  # Need at least 2 chapters to consider it valid
+            matches = found
+            pattern_type = ptype
+            break
 
     if not matches:
         # No chapter markers found, return entire text as one chapter
@@ -143,23 +203,14 @@ def detect_chapter_splits(text: str) -> List[ChapterSplit]:
 
     chapters = []
     for i, match in enumerate(matches):
-        # Get chapter number (convert word numbers like "One" to digits)
         chapter_num_str = match.group(1)
-        try:
-            chapter_num = int(chapter_num_str)
-        except ValueError:
-            # Try to convert word to number
-            word_to_num = {
-                'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
-                'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
-                'eleven': 11, 'twelve': 12, 'thirteen': 13, 'fourteen': 14,
-                'fifteen': 15, 'sixteen': 16, 'seventeen': 17, 'eighteen': 18,
-                'nineteen': 19, 'twenty': 20
-            }
-            chapter_num = word_to_num.get(chapter_num_str.lower(), i + 1)
+        chapter_num = parse_chapter_number(chapter_num_str, i + 1)
 
-        # Get title if present
-        title = match.group(2).strip() if match.group(2) else f"Chapter {chapter_num}"
+        # Get title if present (only some patterns have group 2)
+        try:
+            title = match.group(2).strip() if match.group(2) else f"Chapter {chapter_num}"
+        except IndexError:
+            title = f"Chapter {chapter_num}"
 
         # Get content (from end of this match to start of next, or end of text)
         start = match.end()
@@ -174,6 +225,19 @@ def detect_chapter_splits(text: str) -> List[ChapterSplit]:
             content=content,
             word_count=word_count
         ))
+
+    # Handle content before first chapter (prologue/intro)
+    first_match_start = matches[0].start()
+    if first_match_start > 100:  # More than 100 chars before first chapter
+        prologue_content = text[:first_match_start].strip()
+        prologue_words = len(prologue_content.split())
+        if prologue_words > 50:  # Only if substantial
+            chapters.insert(0, ChapterSplit(
+                chapter_number=0,
+                title="Prologue",
+                content=prologue_content,
+                word_count=prologue_words
+            ))
 
     return chapters
 
@@ -473,3 +537,147 @@ async def import_bulk_scenes(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to import manuscript: {str(e)}")
+
+
+@router.post("/import-full", response_model=BulkImportResult)
+async def import_full_manuscript(
+    project_id: str,
+    file: UploadFile = File(...),
+    enable_edit_mode: bool = Form(True)
+):
+    """
+    One-shot manuscript import: upload file → detect chapters → create all.
+
+    This is the most efficient endpoint for automated imports.
+    Accepts .docx, .txt, .md files. Auto-detects chapter markers
+    (Chapter 1, CHAPTER ONE, etc.) and creates chapters + scenes.
+
+    Returns a small summary - no large text in response.
+    """
+    ensure_project_exists(project_id)
+
+    # Check file extension
+    filename = file.filename or "unknown"
+    ext = filename.lower().split('.')[-1] if '.' in filename else ''
+
+    if ext not in ['docx', 'txt', 'md', 'markdown']:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format: .{ext}. Supported: .docx, .txt, .md"
+        )
+
+    try:
+        # Read and convert file
+        file_bytes = await file.read()
+
+        if ext == 'docx':
+            text = convert_docx_to_text(file_bytes)
+        else:
+            text = file_bytes.decode('utf-8')
+
+        # Detect chapters
+        chapters = detect_chapter_splits(text)
+
+        if not chapters:
+            raise HTTPException(status_code=400, detail="No content found in file")
+
+        # Create snapshot before import
+        await create_snapshot(project_id, f"pre-import-{filename}", reason="pre-import")
+
+        # Set up directories
+        chapters_dir = settings.project_dir(project_id) / "chapters"
+        chapters_dir.mkdir(parents=True, exist_ok=True)
+        scenes_dir = settings.scenes_dir(project_id)
+        scenes_dir.mkdir(parents=True, exist_ok=True)
+
+        # Get starting chapter number
+        existing_chapters = list(chapters_dir.glob("*.json"))
+        starting_chapter_num = len(existing_chapters) + 1
+
+        chapter_ids = []
+        scene_ids = []
+        total_words = 0
+        now = datetime.utcnow()
+
+        for i, manuscript_chapter in enumerate(chapters):
+            chapter_number = starting_chapter_num + i
+            word_count = manuscript_chapter.word_count
+            total_words += word_count
+
+            # Create Chapter
+            chapter_id = slugify(manuscript_chapter.title)
+            if not chapter_id:
+                chapter_id = f"chapter-{chapter_number}"
+
+            chapter_filepath = chapters_dir / f"{chapter_id}.json"
+
+            if chapter_filepath.exists():
+                chapter_id = f"{chapter_id}-{int(now.timestamp())}"
+                chapter_filepath = chapters_dir / f"{chapter_id}.json"
+
+            chapter_data = {
+                "id": chapter_id,
+                "title": manuscript_chapter.title,
+                "chapter_number": chapter_number,
+                "act_id": None,
+                "description": f"Imported from {filename} ({word_count} words)",
+                "notes": None,
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat()
+            }
+
+            await write_json_file(chapter_filepath, chapter_data)
+            chapter_ids.append(chapter_id)
+
+            # Create Scene
+            scene_id = f"{chapter_id}-scene-1"
+            scene_filepath = scenes_dir / f"{scene_id}.json"
+
+            if scene_filepath.exists():
+                scene_id = f"{scene_id}-{int(now.timestamp())}"
+                scene_filepath = scenes_dir / f"{scene_id}.json"
+
+            scene_data = {
+                "id": scene_id,
+                "title": manuscript_chapter.title,
+                "outline": f"[Imported from {filename} - {word_count} words]",
+                "chapter_id": chapter_id,
+                "scene_number": 1,
+                "character_ids": [],
+                "world_context_ids": [],
+                "previous_scene_ids": [],
+                "tags": ["imported"],
+                "additional_notes": None,
+                "tone": None,
+                "pov": None,
+                "target_length": None,
+                "is_canon": False,
+                "prose": None,
+                "summary": None,
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat()
+            }
+
+            if enable_edit_mode:
+                scene_data["edit_mode"] = True
+                scene_data["original_prose"] = manuscript_chapter.content
+                scene_data["edit_mode_started_at"] = now.isoformat()
+
+            await write_json_file(scene_filepath, scene_data)
+            scene_ids.append(scene_id)
+
+        return BulkImportResult(
+            chapters_created=len(chapter_ids),
+            scenes_created=len(scene_ids),
+            total_words=total_words,
+            chapter_ids=chapter_ids,
+            scene_ids=scene_ids,
+            message=f"Imported '{filename}': {len(chapter_ids)} chapters, {total_words} words"
+        )
+
+    except HTTPException:
+        raise
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Failed to decode file. Ensure UTF-8 encoding.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Import failed: {str(e)}")

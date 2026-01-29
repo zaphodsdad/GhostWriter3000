@@ -227,7 +227,10 @@
             <div class="project-header card">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                        <h2 id="current-project-title">Project Name</h2>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <h2 id="current-project-title">Project Name</h2>
+                            <button class="btn btn-small btn-outline" onclick="showEditProjectModal()" title="Edit project details" style="padding: 4px 8px; font-size: 12px;">Edit</button>
+                        </div>
                         <p class="text-muted" id="current-project-description">Project description</p>
                         <div id="project-series-info" style="margin-top: 8px; display: none;">
                             <span class="badge series-badge" id="project-series-badge"></span>
@@ -1582,6 +1585,39 @@ This will be included in the AI prompt during generation."></textarea>
             <div class="modal-footer">
                 <button class="btn btn-success" onclick="importProseForEdit()">Import & Enable Edit Mode</button>
                 <button class="btn btn-secondary" onclick="hideImportProseModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Project Modal -->
+    <div id="edit-project-modal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="hideEditProjectModal()"></div>
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Edit Project</h2>
+                <button class="modal-close" onclick="hideEditProjectModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="edit-project-title" placeholder="Book title">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="edit-project-description" rows="3" placeholder="Brief description of the book"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Author</label>
+                    <input type="text" id="edit-project-author" placeholder="Author name">
+                </div>
+                <div class="form-group">
+                    <label>Genre</label>
+                    <input type="text" id="edit-project-genre" placeholder="e.g., Fantasy, Thriller, Romance">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveProjectEdits()">Save Changes</button>
+                <button class="btn btn-secondary" onclick="hideEditProjectModal()">Cancel</button>
             </div>
         </div>
     </div>

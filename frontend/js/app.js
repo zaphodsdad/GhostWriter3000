@@ -138,6 +138,17 @@ function populateSettingsModelDropdowns(currentGenModel, currentCritiqueModel) {
         return;
     }
 
+    // Helper to get model display name
+    const getModelName = (modelId) => {
+        if (!modelId) return 'Not Set';
+        const model = availableModels.find(m => m.id === modelId);
+        if (model) return model.name;
+        const baseId = modelId.replace(/-\d{8}$/, '');
+        const partialMatch = availableModels.find(m => m.id.startsWith(baseId) || m.id.includes(baseId.split('/')[1]));
+        if (partialMatch) return partialMatch.name;
+        return modelId.split('/').pop().replace(/-/g, ' ').replace(/\d{8}$/, '').trim();
+    };
+
     // Group models by provider
     const modelsByProvider = {};
     availableModels.forEach(model => {
@@ -154,21 +165,31 @@ function populateSettingsModelDropdowns(currentGenModel, currentCritiqueModel) {
         'google': 'Google',
         'meta-llama': 'Meta Llama',
         'mistralai': 'Mistral AI',
-        'cohere': 'Cohere'
+        'cohere': 'Cohere',
+        'deepseek': 'DeepSeek',
+        'qwen': 'Qwen'
     };
 
-    let optionsHtml = '<option value="">System Default</option>';
+    // Build options with system default shown
+    const genDefaultName = systemGenModel ? getModelName(systemGenModel) : 'Not Set';
+    let genOptionsHtml = `<option value="">Default Model - ${genDefaultName}</option>`;
+
+    const critiqueDefaultName = systemCritiqueModel ? getModelName(systemCritiqueModel) : 'Not Set';
+    let critiqueOptionsHtml = `<option value="">Default Model - ${critiqueDefaultName}</option>`;
+
     for (const [provider, models] of Object.entries(modelsByProvider)) {
         const providerLabel = providerNames[provider] || provider;
-        optionsHtml += `<optgroup label="${providerLabel}">`;
+        const optgroup = `<optgroup label="${providerLabel}">`;
+        let modelOptions = '';
         models.forEach(model => {
-            optionsHtml += `<option value="${model.id}">${model.name}</option>`;
+            modelOptions += `<option value="${model.id}">${model.name}</option>`;
         });
-        optionsHtml += '</optgroup>';
+        genOptionsHtml += optgroup + modelOptions + '</optgroup>';
+        critiqueOptionsHtml += optgroup + modelOptions + '</optgroup>';
     }
 
-    genSelect.innerHTML = optionsHtml;
-    critiqueSelect.innerHTML = optionsHtml;
+    genSelect.innerHTML = genOptionsHtml;
+    critiqueSelect.innerHTML = critiqueOptionsHtml;
 
     // Set current values
     if (currentGenModel) genSelect.value = currentGenModel;
@@ -310,6 +331,10 @@ async function loadStartSettings() {
         const response = await fetch('/api/settings');
         const data = await response.json();
 
+        // Store system defaults for display in dropdowns
+        systemGenModel = data.system_generation_model || '';
+        systemCritiqueModel = data.system_critique_model || '';
+
         // Update status indicators
         updateStartKeyStatus('openrouter', data.openrouter_api_key_set);
         updateStartKeyStatus('anthropic', data.anthropic_api_key_set);
@@ -324,7 +349,7 @@ async function loadStartSettings() {
             sourceEl.className = 'badge' + (data.data_dir_from === 'config' ? ' canon' : '');
         }
 
-        // Populate default model dropdowns
+        // Populate default model dropdowns (pass system defaults for display)
         populateStartModelDropdowns(data.default_generation_model, data.default_critique_model);
 
         // Load credit alert settings
@@ -337,6 +362,9 @@ async function loadStartSettings() {
         document.getElementById('start-openrouter-key').value = '';
         document.getElementById('start-anthropic-key').value = '';
         document.getElementById('start-data-dir').value = '';
+
+        // Re-populate workspace dropdowns if they exist (uses stored system defaults)
+        populateModelDropdowns();
 
     } catch (e) {
         console.error('Failed to load start settings:', e);
@@ -369,6 +397,17 @@ function populateStartModelDropdowns(currentGenModel, currentCritiqueModel) {
         return;
     }
 
+    // Helper to get model display name
+    const getModelName = (modelId) => {
+        if (!modelId) return 'Not Set';
+        const model = availableModels.find(m => m.id === modelId);
+        if (model) return model.name;
+        const baseId = modelId.replace(/-\d{8}$/, '');
+        const partialMatch = availableModels.find(m => m.id.startsWith(baseId) || m.id.includes(baseId.split('/')[1]));
+        if (partialMatch) return partialMatch.name;
+        return modelId.split('/').pop().replace(/-/g, ' ').replace(/\d{8}$/, '').trim();
+    };
+
     // Group models by provider
     const modelsByProvider = {};
     availableModels.forEach(model => {
@@ -385,21 +424,33 @@ function populateStartModelDropdowns(currentGenModel, currentCritiqueModel) {
         'google': 'Google',
         'meta-llama': 'Meta Llama',
         'mistralai': 'Mistral AI',
-        'cohere': 'Cohere'
+        'cohere': 'Cohere',
+        'deepseek': 'DeepSeek',
+        'qwen': 'Qwen'
     };
 
-    let optionsHtml = '<option value="">System Default</option>';
+    // Build options with system default shown
+    const genDefaultName = systemGenModel ? getModelName(systemGenModel) : 'Not Set';
+    let genOptionsHtml = `<option value="">Default Model - ${genDefaultName}</option>`;
+
+    const critiqueDefaultName = systemCritiqueModel ? getModelName(systemCritiqueModel) : 'Not Set';
+    let critiqueOptionsHtml = `<option value="">Default Model - ${critiqueDefaultName}</option>`;
+
     for (const [provider, models] of Object.entries(modelsByProvider)) {
         const providerLabel = providerNames[provider] || provider;
-        optionsHtml += `<optgroup label="${providerLabel}">`;
+        const optgroup = `<optgroup label="${providerLabel}">`;
+        let modelOptions = '';
         models.forEach(model => {
-            optionsHtml += `<option value="${model.id}">${model.name}</option>`;
+            modelOptions += `<option value="${model.id}">${model.name}</option>`;
         });
-        optionsHtml += '</optgroup>';
+        const closeOptgroup = '</optgroup>';
+
+        genOptionsHtml += optgroup + modelOptions + closeOptgroup;
+        critiqueOptionsHtml += optgroup + modelOptions + closeOptgroup;
     }
 
-    genSelect.innerHTML = optionsHtml;
-    critiqueSelect.innerHTML = optionsHtml;
+    genSelect.innerHTML = genOptionsHtml;
+    critiqueSelect.innerHTML = critiqueOptionsHtml;
 
     // Set current values
     if (currentGenModel) genSelect.value = currentGenModel;
@@ -588,6 +639,10 @@ async function loadAvailableModels() {
     }
 }
 
+// Store system defaults for display
+let systemGenModel = '';
+let systemCritiqueModel = '';
+
 function populateModelDropdowns() {
     const genModelSelect = document.getElementById('gen-model');
     const critiqueModelSelect = document.getElementById('critique-model');
@@ -604,32 +659,65 @@ function populateModelDropdowns() {
         modelsByProvider[provider].push(model);
     });
 
-    // Build HTML with optgroups
-    let optionsHtml = '<option value="">Use Default</option>';
-
     const providerNames = {
         'anthropic': 'Anthropic',
         'openai': 'OpenAI',
         'google': 'Google',
         'meta-llama': 'Meta Llama',
         'mistralai': 'Mistral AI',
-        'cohere': 'Cohere'
+        'cohere': 'Cohere',
+        'deepseek': 'DeepSeek',
+        'qwen': 'Qwen'
     };
+
+    // Helper to get model display name from ID
+    const getModelName = (modelId) => {
+        if (!modelId) return 'Not Set';
+        // Try to find in available models
+        const model = availableModels.find(m => m.id === modelId);
+        if (model) return model.name;
+        // Try partial match (in case version suffix differs)
+        const baseId = modelId.replace(/-\d{8}$/, ''); // Remove date suffix like -20250514
+        const partialMatch = availableModels.find(m => m.id.startsWith(baseId) || m.id.includes(baseId.split('/')[1]));
+        if (partialMatch) return partialMatch.name;
+        // Fallback to cleaned-up ID
+        return modelId.split('/').pop().replace(/-/g, ' ').replace(/\d{8}$/, '').trim();
+    };
+
+    // Build HTML with optgroups - for generation
+    const genDefaultName = systemGenModel ? getModelName(systemGenModel) : 'Not Set';
+    let genOptionsHtml = `<option value="">Default Model - ${genDefaultName}</option>`;
 
     for (const [provider, models] of Object.entries(modelsByProvider)) {
         const providerLabel = providerNames[provider] || provider;
-        optionsHtml += `<optgroup label="${providerLabel}">`;
+        genOptionsHtml += `<optgroup label="${providerLabel}">`;
         models.forEach(model => {
             const priceInfo = model.pricing_prompt
                 ? ` ($${model.pricing_prompt.toFixed(2)}/M)`
                 : '';
-            optionsHtml += `<option value="${model.id}">${model.name}${priceInfo}</option>`;
+            genOptionsHtml += `<option value="${model.id}">${model.name}${priceInfo}</option>`;
         });
-        optionsHtml += '</optgroup>';
+        genOptionsHtml += '</optgroup>';
     }
 
-    genModelSelect.innerHTML = optionsHtml;
-    critiqueModelSelect.innerHTML = optionsHtml;
+    // Build HTML for critique
+    const critiqueDefaultName = systemCritiqueModel ? getModelName(systemCritiqueModel) : 'Not Set';
+    let critiqueOptionsHtml = `<option value="">Default Model - ${critiqueDefaultName}</option>`;
+
+    for (const [provider, models] of Object.entries(modelsByProvider)) {
+        const providerLabel = providerNames[provider] || provider;
+        critiqueOptionsHtml += `<optgroup label="${providerLabel}">`;
+        models.forEach(model => {
+            const priceInfo = model.pricing_prompt
+                ? ` ($${model.pricing_prompt.toFixed(2)}/M)`
+                : '';
+            critiqueOptionsHtml += `<option value="${model.id}">${model.name}${priceInfo}</option>`;
+        });
+        critiqueOptionsHtml += '</optgroup>';
+    }
+
+    genModelSelect.innerHTML = genOptionsHtml;
+    critiqueModelSelect.innerHTML = critiqueOptionsHtml;
 }
 
 // ============================================
@@ -873,6 +961,79 @@ function switchProject() {
     document.getElementById('project-selector').classList.add('active');
 
     loadProjects();
+}
+
+// ============================================
+// Edit Project
+// ============================================
+function showEditProjectModal() {
+    if (!currentProject) return;
+
+    document.getElementById('edit-project-title').value = currentProject.title || '';
+    document.getElementById('edit-project-description').value = currentProject.description || '';
+    document.getElementById('edit-project-author').value = currentProject.author || '';
+    document.getElementById('edit-project-genre').value = currentProject.genre || '';
+
+    document.getElementById('edit-project-modal').style.display = 'flex';
+    document.getElementById('edit-project-title').focus();
+}
+
+function hideEditProjectModal() {
+    document.getElementById('edit-project-modal').style.display = 'none';
+}
+
+async function saveProjectEdits() {
+    if (!currentProject) return;
+
+    const title = document.getElementById('edit-project-title').value.trim();
+    const description = document.getElementById('edit-project-description').value.trim();
+    const author = document.getElementById('edit-project-author').value.trim();
+    const genre = document.getElementById('edit-project-genre').value.trim();
+
+    if (!title) {
+        alert('Title is required');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/projects/${currentProject.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                title: title,
+                description: description || null,
+                author: author || null,
+                genre: genre || null
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to update project');
+        }
+
+        const updated = await response.json();
+
+        // Update local state
+        currentProject.title = updated.title;
+        currentProject.description = updated.description;
+        currentProject.author = updated.author;
+        currentProject.genre = updated.genre;
+
+        // Update UI
+        document.getElementById('current-project-title').textContent = updated.title;
+        document.getElementById('current-project-description').textContent =
+            updated.description || 'No description';
+
+        hideEditProjectModal();
+        showToast('Success', 'Project updated', 'success');
+
+        // Refresh project list in case title changed
+        loadProjects();
+
+    } catch (e) {
+        alert('Error updating project: ' + e.message);
+    }
 }
 
 // ============================================
@@ -4106,6 +4267,17 @@ function populateWorkspaceModelDropdowns() {
 
     if (!genSelect || !critiqueSelect || availableModels.length === 0) return;
 
+    // Helper to get model display name
+    const getModelName = (modelId) => {
+        if (!modelId) return 'Not Set';
+        const model = availableModels.find(m => m.id === modelId);
+        if (model) return model.name;
+        const baseId = modelId.replace(/-\d{8}$/, '');
+        const partialMatch = availableModels.find(m => m.id.startsWith(baseId) || m.id.includes(baseId.split('/')[1]));
+        if (partialMatch) return partialMatch.name;
+        return modelId.split('/').pop().replace(/-/g, ' ').replace(/\d{8}$/, '').trim();
+    };
+
     // Group models by provider
     const modelsByProvider = {};
     availableModels.forEach(model => {
@@ -4122,21 +4294,31 @@ function populateWorkspaceModelDropdowns() {
         'google': 'Google',
         'meta-llama': 'Meta Llama',
         'mistralai': 'Mistral AI',
-        'cohere': 'Cohere'
+        'cohere': 'Cohere',
+        'deepseek': 'DeepSeek',
+        'qwen': 'Qwen'
     };
 
-    let optionsHtml = '<option value="">Use Default</option>';
+    // Build options with default model name shown
+    const genDefaultName = systemGenModel ? getModelName(systemGenModel) : 'Not Set';
+    let genOptionsHtml = `<option value="">Default Model - ${genDefaultName}</option>`;
+
+    const critiqueDefaultName = systemCritiqueModel ? getModelName(systemCritiqueModel) : 'Not Set';
+    let critiqueOptionsHtml = `<option value="">Default Model - ${critiqueDefaultName}</option>`;
+
     for (const [provider, models] of Object.entries(modelsByProvider)) {
         const providerLabel = providerNames[provider] || provider;
-        optionsHtml += `<optgroup label="${providerLabel}">`;
+        const optgroup = `<optgroup label="${providerLabel}">`;
+        let modelOptions = '';
         models.forEach(model => {
-            optionsHtml += `<option value="${model.id}">${model.name}</option>`;
+            modelOptions += `<option value="${model.id}">${model.name}</option>`;
         });
-        optionsHtml += '</optgroup>';
+        genOptionsHtml += optgroup + modelOptions + '</optgroup>';
+        critiqueOptionsHtml += optgroup + modelOptions + '</optgroup>';
     }
 
-    genSelect.innerHTML = optionsHtml;
-    critiqueSelect.innerHTML = optionsHtml;
+    genSelect.innerHTML = genOptionsHtml;
+    critiqueSelect.innerHTML = critiqueOptionsHtml;
 }
 
 function toggleWorkspaceSettings() {
@@ -5519,6 +5701,11 @@ function getActiveProseContainer() {
 
 // Handle text selection and show bubble
 function handleTextSelection(e) {
+    // Skip if we're inside a modal (don't interfere with modal inputs)
+    if (e && e.target && e.target.closest('.modal')) {
+        return;
+    }
+
     const bubble = document.getElementById('revision-bubble');
     const container = getActiveProseContainer();
 
@@ -5576,6 +5763,11 @@ function handleTextSelection(e) {
 
 // Handle selection changes (for when selection is cleared)
 function handleSelectionChange() {
+    // Skip if focus is inside a modal (don't interfere with modal inputs)
+    if (document.activeElement && document.activeElement.closest('.modal')) {
+        return;
+    }
+
     const selection = window.getSelection();
     const bubble = document.getElementById('revision-bubble');
 
@@ -5600,6 +5792,11 @@ function setupReadingSelectionTracking() {
 
     // Selection start: hide bubble when starting a new selection
     document.addEventListener('selectstart', (e) => {
+        // Skip if we're inside a modal (don't interfere with modal inputs)
+        if (e.target && e.target.closest('.modal')) {
+            return;
+        }
+
         const bubble = document.getElementById('revision-bubble');
         // Don't process if the selectstart is inside the bubble (e.g., selecting in input)
         if (bubble && bubble.contains(e.target)) {
@@ -5682,10 +5879,22 @@ function populateBubbleModelSelect() {
     const select = document.getElementById('bubble-model-select');
     if (!select) return;
 
-    // Keep "Use Default" option
-    select.innerHTML = '<option value="">Use Default</option>';
+    // Helper to get model display name
+    const getModelName = (modelId) => {
+        if (!modelId) return 'Not Set';
+        const model = availableModels.find(m => m.id === modelId);
+        if (model) return model.name;
+        const baseId = modelId.replace(/-\d{8}$/, '');
+        const partialMatch = availableModels.find(m => m.id.startsWith(baseId) || m.id.includes(baseId.split('/')[1]));
+        if (partialMatch) return partialMatch.name;
+        return modelId.split('/').pop().replace(/-/g, ' ').replace(/\d{8}$/, '').trim();
+    };
 
-    // Add available models (reuse the availableModels from the app)
+    // Default option showing the actual default model
+    const defaultName = systemGenModel ? getModelName(systemGenModel) : 'Not Set';
+    select.innerHTML = `<option value="">Default Model - ${defaultName}</option>`;
+
+    // Add available models
     if (typeof availableModels !== 'undefined' && availableModels.length > 0) {
         availableModels.forEach(model => {
             const option = document.createElement('option');
