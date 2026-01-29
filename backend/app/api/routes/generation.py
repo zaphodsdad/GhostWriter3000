@@ -90,7 +90,8 @@ async def start_generation(project_id: str, request: GenerationStart, background
             max_iterations=request.max_iterations,
             generation_model=gen_model,
             critique_model=critique_model,
-            revision_mode=request.revision_mode
+            revision_mode=request.revision_mode,
+            use_beats=request.use_beats
         )
 
         return _build_response(state)
@@ -130,7 +131,8 @@ async def queue_generation(project_id: str, request: GenerationStart):
             max_iterations=request.max_iterations,
             generation_model=gen_model,
             critique_model=critique_model,
-            revision_mode=request.revision_mode
+            revision_mode=request.revision_mode,
+            use_beats=request.use_beats
         )
         return _build_response(state)
 

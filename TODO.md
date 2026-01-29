@@ -47,18 +47,21 @@ When given an existing manuscript, AI should:
 ### Phase 2: Editing Workflow via Discord (IN PROGRESS)
 - [ ] **LanguageTool integration** - Grammar, punctuation, passive voice detection
 - [x] **CLI commands for full workflow** - Create characters/world from extractions, save style, import manuscripts, generation controls
+- [x] **One-shot manuscript import** - Upload .docx → auto-detect chapters → create all
+- [x] **Evaluation endpoint** - Get critique/scores without starting revision
 - [ ] **One critique pass** (conservative until comfortable with models)
 - [ ] **One revision pass**
 - [ ] **Report to Discord** - Summary of changes made, areas of concern
 
-**CLI Commands Added:**
-- `create-character` - Create character in project from extracted data
-- `create-world` - Create world entry in project from extracted data
-- `save-style` - Save extracted style guide to project
-- `import-manuscript` - Import text into project as scenes
-- `start-generation` - Start prose generation for a scene
-- `approve-revision` - Approve critique and trigger revision
-- `accept-canon` - Accept prose as final
+**New Endpoints (2026-01-29):**
+- `POST /api/projects/{id}/manuscript/import-full` - One-shot: upload file → detect chapters → import all
+- Improved chapter detection: "Chapter X", "Part X", standalone numbers (One, Two), digits, roman numerals
+
+**TOOLS.md on Clawdbot updated with:**
+- Series creation (create BEFORE projects that reference them)
+- One-shot import workflow
+- Evaluation/critique workflow
+- Overnight batch processing pattern
 
 ### Phase 3: Creation Workflow via Discord
 For new works that continue existing series/world:
@@ -73,13 +76,29 @@ For new works that continue existing series/world:
 - [x] Create Clawdbot skill (~/.clawdbot/skills/prose-pipeline/)
 - [x] Update TOOLS.md with prose-pipeline connection info
 - [x] Test API connectivity from Clawdbot VM
-- [ ] Implement conversation flows:
-  - "Here's my manuscript, analyze it"
-  - "Extract characters from chapter 3"
-  - "Generate style guide from this book"
-  - "Edit chapters 1-5 and tell me what you changed"
-  - "Write the next scene matching my style"
+- [x] **First successful import!** - "Flesh Worn Stone" imported with 10 chapters, 11 characters, 1 world entry
+- [x] Conversation flows working:
+  - [x] "Here's my manuscript, analyze it" → extracts characters, world, style
+  - [x] "Import this as book 1 in The Game series" → creates series + project + imports
+  - [ ] "Evaluate chapter 1" → needs testing
+  - [ ] "Edit chapters 1-5 overnight" → needs testing
 - [ ] User ID restriction (only owner can command)
+
+### Cost Optimization (TODO)
+Current defaults are expensive (Claude Opus/Sonnet). Consider:
+- [ ] Change default generation model to DeepSeek V3 or Llama 3.1 70B
+- [ ] Change default critique model to Haiku or DeepSeek
+- [ ] Update TOOLS.md to use cheaper models by default
+- [ ] Add model cost estimates to documentation
+
+**Model cost comparison:**
+| Model | Input/Output per M tokens | Use case |
+|-------|---------------------------|----------|
+| Claude Opus 4 | $15/$75 | Final polish only |
+| Claude Sonnet 4 | $3/$15 | Quality critique |
+| Claude Haiku 3.5 | $0.25/$1.25 | Extraction, orchestration |
+| DeepSeek V3 | $0.27/$1.10 | Great for generation/critique |
+| Llama 3.1 70B | $0.50/$0.75 | Good all-rounder |
 
 ### Security Notes (2026-01-29)
 - prose-pipeline has **no shell execution** - safe from RCE attacks
@@ -284,10 +303,20 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - Single-scene edit mode (import prose, skip to critique)
 - Critique → revise loop works
 - **Manuscript import** - upload .docx/.txt/.md files (mammoth for .docx)
-- **Auto chapter detection** - splits by "Chapter 1", "CHAPTER ONE", etc.
+- **Auto chapter detection** - improved patterns (2026-01-29):
+  - "Chapter 1", "CHAPTER ONE", "Chapter 1: Title"
+  - "Part 1", "Part One"
+  - Standalone number words: "One", "Two", "Three" (preceded by blank lines)
+  - Standalone digits: "1", "2", "3" (preceded by blank lines)
+  - Roman numerals: "I", "II", "III" (preceded by blank lines)
+  - Auto-detects prologue content before first chapter
+- **One-shot import endpoint** - `POST /manuscript/import-full` does upload → detect → import
 - **Bulk scene creation** - each chapter becomes a Chapter + Scene in edit mode
 - **Edit mode display** - imported prose visible in reading pane with "Edit Mode - Ready for Critique" status
 - **Backup on prose edit** - auto-backup before manual prose changes
+
+**GUI Gap:**
+- [ ] Add manuscript upload with chapter preview to GUI (currently API-only via Clawdbot)
 - **Polish mode** - choose between full structural revision or light line edits
 - **Unified workspace** - click any scene to open adaptive workspace
 

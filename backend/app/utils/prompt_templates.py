@@ -305,7 +305,7 @@ def build_generation_prompt(scene_outline: Dict[str, Any]) -> str:
     Build prompt for initial prose generation.
 
     Args:
-        scene_outline: Scene data dictionary
+        scene_outline: Scene data dictionary (may include beats)
 
     Returns:
         Formatted generation prompt
@@ -319,6 +319,20 @@ def build_generation_prompt(scene_outline: Dict[str, Any]) -> str:
         ""
     ]
 
+    # Add beats if present - these provide structured scaffolding for the prose
+    beats = scene_outline.get('beats', [])
+    if beats:
+        parts.append("**Scene Beats (write prose covering each beat in order):**")
+        # Sort by order field, falling back to list position
+        sorted_beats = sorted(beats, key=lambda b: b.get('order', 0))
+        for i, beat in enumerate(sorted_beats, 1):
+            beat_text = beat.get('text', '')
+            if beat_text:
+                parts.append(f"{i}. {beat_text}")
+                if beat.get('notes'):
+                    parts.append(f"   *(Note: {beat['notes']})*")
+        parts.append("")
+
     if scene_outline.get('tone'):
         parts.append(f"**Tone:** {scene_outline['tone']}")
 
@@ -331,12 +345,26 @@ def build_generation_prompt(scene_outline: Dict[str, Any]) -> str:
     if scene_outline.get('additional_notes'):
         parts.append(f"\n**Additional Notes:** {scene_outline['additional_notes']}")
 
+    # Adjust instructions based on whether beats are present
+    if beats:
+        parts.extend([
+            "",
+            "Write the prose for this scene, incorporating the character and world context provided in the system prompt.",
+            "Ensure your prose covers each beat in the order listed, weaving them into a cohesive narrative.",
+            "",
+            "REMEMBER: Your prose must read as human-written. Follow the baseline prose standards and project style guide.",
+            "Avoid all banned vocabulary and AI patterns. Write with the confidence of a published novelist.",
+        ])
+    else:
+        parts.extend([
+            "",
+            "Write the prose for this scene, incorporating the character and world context provided in the system prompt.",
+            "",
+            "REMEMBER: Your prose must read as human-written. Follow the baseline prose standards and project style guide.",
+            "Avoid all banned vocabulary and AI patterns. Write with the confidence of a published novelist.",
+        ])
+
     parts.extend([
-        "",
-        "Write the prose for this scene, incorporating the character and world context provided in the system prompt.",
-        "",
-        "REMEMBER: Your prose must read as human-written. Follow the baseline prose standards and project style guide.",
-        "Avoid all banned vocabulary and AI patterns. Write with the confidence of a published novelist.",
         "",
         "CRITICAL: Output ONLY the prose itself. Do not include:",
         "- Any preamble or introduction (e.g., \"Here's the scene...\", \"Here is the narrative...\")",

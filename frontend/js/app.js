@@ -4349,6 +4349,7 @@ async function startWorkspaceGeneration() {
     const genModel = document.getElementById('ws-gen-model').value || undefined;
     const critiqueModel = document.getElementById('ws-critique-model').value || undefined;
     const revisionMode = document.querySelector('input[name="ws-revision-mode"]:checked')?.value || 'full';
+    const useBeats = document.getElementById('ws-use-beats')?.checked ?? true;
 
     // Validate models
     if (genModel && critiqueModel && genModel === critiqueModel) {
@@ -4374,7 +4375,8 @@ async function startWorkspaceGeneration() {
                 max_iterations: 99,
                 generation_model: genModel,
                 critique_model: critiqueModel,
-                revision_mode: revisionMode
+                revision_mode: revisionMode,
+                use_beats: useBeats
             })
         });
 

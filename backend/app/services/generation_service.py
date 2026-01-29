@@ -37,7 +37,8 @@ class GenerationService:
         max_iterations: int = 5,
         generation_model: Optional[str] = None,
         critique_model: Optional[str] = None,
-        revision_mode: str = "full"
+        revision_mode: str = "full",
+        use_beats: bool = True
     ) -> GenerationState:
         """
         Start a new generation pipeline for a scene.
@@ -48,6 +49,8 @@ class GenerationService:
             max_iterations: Maximum revision iterations allowed
             generation_model: Optional model for prose generation (uses .env default if None)
             critique_model: Optional model for critique (uses .env default if None)
+            revision_mode: Revision approach ('full' or 'polish')
+            use_beats: Include scene beats in generation prompt (if beats exist)
 
         Returns:
             Initial generation state
@@ -80,7 +83,8 @@ class GenerationService:
             previous_scene_ids=previous_scene_ids,
             generation_model=generation_model,
             critique_model=critique_model,
-            revision_mode=revision_mode
+            revision_mode=revision_mode,
+            use_beats=use_beats
         )
 
         # Save initial state
@@ -104,7 +108,8 @@ class GenerationService:
         max_iterations: int = 5,
         generation_model: Optional[str] = None,
         critique_model: Optional[str] = None,
-        revision_mode: str = "full"
+        revision_mode: str = "full",
+        use_beats: bool = True
     ) -> GenerationState:
         """
         Add a scene to the generation queue without starting it.
@@ -116,6 +121,7 @@ class GenerationService:
             generation_model: Optional model for prose generation
             critique_model: Optional model for critique
             revision_mode: Revision approach
+            use_beats: Include scene beats in generation prompt
 
         Returns:
             Generation state with QUEUED status
@@ -139,7 +145,8 @@ class GenerationService:
             previous_scene_ids=previous_scene_ids,
             generation_model=generation_model,
             critique_model=critique_model,
-            revision_mode=revision_mode
+            revision_mode=revision_mode,
+            use_beats=use_beats
         )
 
         # Save state
@@ -441,7 +448,13 @@ class GenerationService:
                 references=all_references,
                 previous_books=previous_books
             )
-            user_prompt = build_generation_prompt(scene.model_dump())
+
+            # Get scene data for prompt, optionally excluding beats
+            scene_data = scene.model_dump()
+            if not state.use_beats:
+                scene_data['beats'] = []  # Remove beats if user opted out
+
+            user_prompt = build_generation_prompt(scene_data)
 
             # Generate prose (use custom model if specified)
             prose = await self.llm.generate_prose(
