@@ -771,3 +771,39 @@ Generate a complete story structure from a seed premise using AI.
 **workspaceGenId Fix:**
 - `loadGenerationForReview` now sets both `currentGenId` and `workspaceGenId`
 - Fixes Accept as Canon button in workspace header after loading from queue
+
+### 25. Clawdbot/Discord Integration (2026-01-29)
+
+Control prose-pipeline through Discord via Clawdbot (Moltbot).
+
+**Architecture:**
+```
+Discord (Clawdbot) ──API──► prose-pipeline (192.168.2.187:8000)
+       │                          │
+       │                          ▼
+       │                   Analyze / Extract / Generate
+       │                          │
+       ◄──────────────────────────┘
+       Reports back, discusses changes
+```
+
+**Clawdbot Skill Created:**
+- Location: `~/.clawdbot/skills/prose-pipeline/` on Clawdbot VM (192.168.2.197)
+- `SKILL.md` - Skill definition with triggers for writing-related requests
+- `references/api.md` - Full API endpoint documentation
+- `scripts/prose_api.py` - Python CLI for common operations
+
+**TOOLS.md Updated:**
+- Prose-pipeline connection info added to Clawdbot's workspace
+- API base URL, key endpoints, workflow commands documented
+
+**Workflow Capabilities:**
+1. "Analyze my manuscript" → Import, extract characters/world/style
+2. "Edit chapters X-Y" → Run critique-revision loop
+3. "Generate next scene" → Use style guide + characters
+4. "Show my projects" → List projects via API
+
+**Security:**
+- Private Discord server (single user)
+- No shell execution in prose-pipeline
+- Network secured via OPNsense + AdGuard

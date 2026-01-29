@@ -65,3 +65,9 @@ data/generations/*
 *.tmp
 *.bak
 *.swp
+
+# Credentials - NEVER commit
+SSH_CREDENTIALS.md
+*_CREDENTIALS*
+*.credentials
+secrets/

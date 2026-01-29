@@ -268,20 +268,14 @@ async def get_available_models():
             response.raise_for_status()
             data = response.json()
 
-        # Filter and format models - focus on capable text generation models
+        # Filter and format models - exclude non-text-generation models
         models = []
-        preferred_providers = ["anthropic", "openai", "google", "meta-llama", "mistralai", "cohere"]
 
         for model in data.get("data", []):
             model_id = model.get("id", "")
-            provider = model_id.split("/")[0] if "/" in model_id else ""
-
-            # Skip models that aren't from preferred providers
-            if provider not in preferred_providers:
-                continue
 
             # Skip vision-only, embedding, or moderation models
-            if any(x in model_id.lower() for x in ["vision", "embed", "moderat", "whisper", "tts", "dall-e"]):
+            if any(x in model_id.lower() for x in ["vision", "embed", "moderat", "whisper", "tts", "dall-e", "image"]):
                 continue
 
             # Get pricing info

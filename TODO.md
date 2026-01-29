@@ -1,6 +1,81 @@
 # Prose Pipeline - TODO
 
-**Last Updated:** 2026-01-21
+**Last Updated:** 2026-01-29
+
+---
+
+## NEW: Clawdbot/Discord Integration
+
+**Goal:** Control prose-pipeline through Discord via Clawdbot (Moltbot), enabling autonomous editing workflows and conversational interaction with the pipeline.
+
+### Architecture
+```
+Discord (Clawdbot) ──API──► prose-pipeline backend
+       │                          │
+       │                          ▼
+       │                   Analyze / Extract / Generate
+       │                          │
+       ◄──────────────────────────┘
+       Reports back, discusses changes
+```
+
+### Phase 1: Manuscript Analysis & Extraction (PRIORITY)
+When given an existing manuscript, AI should:
+- [ ] **Evaluate manuscript** - Overall quality assessment, pacing, structure
+- [ ] **Extract characters** → Auto-populate character cards
+  - Names, roles, physical descriptions, personality traits
+  - Relationships between characters
+  - Voice/dialogue patterns
+- [ ] **Extract world/lore** → Auto-populate world context
+  - Locations, magic systems, technology
+  - Historical events, political structures
+  - Rules and constraints of the world
+- [ ] **Generate style guide** from author's voice
+  - Sentence rhythm patterns (short/long variance)
+  - Vocabulary tendencies (formal/casual, period-specific)
+  - POV habits (deep/shallow, tense preferences)
+  - Dialogue style (tags, beats, dialect handling)
+  - Descriptive preferences (sparse vs lush)
+
+### Phase 2: Editing Workflow via Discord
+- [ ] **LanguageTool integration** - Grammar, punctuation, passive voice detection
+- [ ] **One critique pass** (conservative until comfortable with models)
+- [ ] **One revision pass**
+- [ ] **Report to Discord** - Summary of changes made, areas of concern
+
+### Phase 3: Creation Workflow via Discord
+For new works that continue existing series/world:
+- [ ] Load existing style guide, characters, world
+- [ ] Match author's voice from style guide
+- [ ] Maintain continuity with previous work
+- [ ] Generate new scenes matching established patterns
+
+### Phase 4: Discord Bot Integration
+- [x] Identify Clawdbot code location (192.168.2.197, /home/john/clawd)
+- [x] Add prose-pipeline API client functions (prose_api.py)
+- [x] Create Clawdbot skill (~/.clawdbot/skills/prose-pipeline/)
+- [x] Update TOOLS.md with prose-pipeline connection info
+- [x] Test API connectivity from Clawdbot VM
+- [ ] Implement conversation flows:
+  - "Here's my manuscript, analyze it"
+  - "Extract characters from chapter 3"
+  - "Generate style guide from this book"
+  - "Edit chapters 1-5 and tell me what you changed"
+  - "Write the next scene matching my style"
+- [ ] User ID restriction (only owner can command)
+
+### Security Notes (2026-01-29)
+- prose-pipeline has **no shell execution** - safe from RCE attacks
+- Discord bot in private server (single user) - minimal prompt injection risk
+- Network secured via OPNsense + AdGuard
+- Consider adding user ID check to Discord bot for defense-in-depth
+
+### API Endpoints Needed
+- [ ] `POST /api/analyze/manuscript` - Full manuscript analysis
+- [ ] `POST /api/extract/characters` - Extract characters from text
+- [ ] `POST /api/extract/world` - Extract world/lore from text
+- [ ] `POST /api/extract/style` - Generate style guide from text
+- [ ] `POST /api/tools/languagetool` - Run LanguageTool checks
 
 ---
 
