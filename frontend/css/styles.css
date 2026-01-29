@@ -763,6 +763,19 @@ nav {
     font-size: 0.8rem;
 }
 
+.series-book .book-delete {
+    opacity: 0;
+    padding: 2px 8px;
+    font-size: 1rem;
+    line-height: 1;
+    margin-left: auto;
+    transition: opacity 0.2s;
+}
+
+.series-book:hover .book-delete {
+    opacity: 1;
+}
+
 /* Standalone books section */
 .standalone-section {
     background: var(--bg-input);

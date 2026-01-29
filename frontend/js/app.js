@@ -1262,6 +1262,7 @@ function renderSeriesList() {
                         <span class="book-number">${book.book_number ? `Book ${book.book_number}:` : ''}</span>
                         <span class="book-title">${escapeHtml(book.title)}</span>
                         <span class="book-stats">${book.scene_count} scenes${book.canon_scene_count > 0 ? `, ${book.canon_scene_count} canon` : ''}</span>
+                        <button class="btn btn-small btn-danger book-delete" onclick="event.stopPropagation(); deleteProject('${book.id}')" title="Delete book">×</button>
                     </div>
                 `).join('')}
                </div>`
@@ -1299,6 +1300,7 @@ function renderSeriesList() {
                         <div class="series-book" onclick="selectProject('${book.id}')">
                             <span class="book-title">${escapeHtml(book.title)}</span>
                             <span class="book-stats">${book.scene_count} scenes${book.canon_scene_count > 0 ? `, ${book.canon_scene_count} canon` : ''}</span>
+                            <button class="btn btn-small btn-danger book-delete" onclick="event.stopPropagation(); deleteProject('${book.id}')" title="Delete book">×</button>
                         </div>
                     `).join('')}
                 </div>
