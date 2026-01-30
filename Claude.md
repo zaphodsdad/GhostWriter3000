@@ -443,6 +443,12 @@ prose_api.py extract-style -f <file> --author "Name"
 prose_api.py start-generation <project> <scene-id>
 prose_api.py approve-revision <project> <gen-id>
 prose_api.py accept-canon <project> <gen-id>
+
+# Grammar checking (LanguageTool)
+prose_api.py grammar-check -t "He dont have money."    # Check text
+prose_api.py grammar-check -f manuscript.txt           # Check file
+prose_api.py grammar-check-scene <project> <scene-id>  # Check scene prose
+prose_api.py grammar-correct -t "Its a beatiful day."  # Auto-correct
 ```
 
 ## API Endpoints
@@ -520,6 +526,18 @@ prose_api.py accept-canon <project> <gen-id>
 - `POST /api/projects/{project_id}/manuscript/split` - Split text into chapters
 - `POST /api/projects/{project_id}/manuscript/import-scene` - Import as single scene
 - `POST /api/projects/{project_id}/manuscript/import-bulk` - Import chapters as scenes
+
+### Extraction (AI-powered)
+- `POST /api/extract/characters` - Extract characters from prose
+- `POST /api/extract/world` - Extract world/lore elements
+- `POST /api/extract/style` - Generate style guide from prose
+- `POST /api/extract/analyze` - Full analysis (characters + world + style)
+- `POST /api/extract/evaluate` - Quality evaluation with structured scores
+
+### Tools
+- `POST /api/tools/languagetool` - Grammar/spelling/style check
+- `POST /api/tools/languagetool/correct` - Auto-correct text
+- `GET /api/tools/languagetool/health` - Check LanguageTool status
 
 ## Configuration
 

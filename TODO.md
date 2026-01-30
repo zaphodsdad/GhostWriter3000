@@ -480,3 +480,10 @@ Discussed business product opportunities combining prose-pipeline and HIWC-assis
 **Books Imported:**
 - "The Game" series: Books 1, 2, 3 imported via manuscript import
 - Chapter detection working well on all three
+
+**LanguageTool Integration:**
+- Backend: `/api/tools/languagetool` and `/api/tools/languagetool/correct` endpoints
+- CLI: `grammar-check`, `grammar-check-scene`, `grammar-correct` commands
+- Uses local LanguageTool server (no rate limits, requires Java)
+- Categories: TYPOS, GRAMMAR, PUNCTUATION, STYLE
+- Returns offsets, suggestions, and context for each issue
