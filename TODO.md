@@ -80,7 +80,7 @@ For new works that continue existing series/world:
 - [x] Conversation flows working:
   - [x] "Here's my manuscript, analyze it" → extracts characters, world, style
   - [x] "Import this as book 1 in The Game series" → creates series + project + imports
-  - [ ] "Evaluate chapter 1" → needs testing
+  - [x] "Evaluate chapter 1" → CLI commands: evaluate-scene, evaluate-chapter, evaluate-act, evaluate-book
   - [ ] "Edit chapters 1-5 overnight" → needs testing
 - [ ] User ID restriction (only owner can command)
 
@@ -325,7 +325,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - [ ] Consistency pass - critique focused on continuity errors across scenes
 - [ ] Side-by-side version comparison (pick any two versions)
 - [x] Evaluate-only mode - get critique report without entering revision loop (with token-efficient "Start Revision" option)
-- [ ] Project-level evaluation - evaluate entire book once manuscript is complete
+- [x] Project-level evaluation - evaluate-book CLI command evaluates entire project (with word count warnings)
 
 ---
 
@@ -450,3 +450,29 @@ Discussed business product opportunities combining prose-pipeline and HIWC-assis
 **Priority:** E-commerce (HIWC) is bread and butter right now. Backlist revival is future project but documented here for continuity.
 
 **Shared Playwright Philosophy:** If you can log in and see it, Playwright can automate it. APIs optional.
+
+---
+
+## Session Notes (2026-01-30)
+
+**Features Added:**
+
+1. **Optional beats toggle** - Checkbox to include/exclude scene beats in generation prompts
+2. **Delete buttons in series view** - Can now delete individual books from series list (hover to show ×)
+3. **UI refresh fix** - Manuscript import now properly refreshes sidebar/structure view
+4. **Evaluation CLI commands** - Clawdbot can now evaluate prose at multiple levels:
+   - `evaluate-scene <project> <scene-id>` - Single scene
+   - `evaluate-chapter <project> <chapter-id>` - All scenes in chapter
+   - `evaluate-act <project> <act-id>` - All scenes in act
+   - `evaluate-book <project>` - Entire book
+5. **Configurable word count warning** - `eval_word_count_warning` setting (default 6000)
+
+**Clawdbot Integration:**
+- Evaluation commands use prose-pipeline's OpenRouter connection (not Clawdbot's AI)
+- Returns structured scores: pacing, structure, character development, dialogue, prose quality
+- Fetches prose from `prose` field (canon) or `original_prose` (imports/drafts)
+- SKILL.md updated with new evaluation commands
+
+**Books Imported:**
+- "The Game" series: Books 1, 2, 3 imported via manuscript import
+- Chapter detection working well on all three

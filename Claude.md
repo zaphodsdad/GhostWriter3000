@@ -395,6 +395,56 @@ Total context:                 ~19,000 tokens
 Remaining for output:         ~181,000 tokens ✅
 ```
 
+## Clawdbot/Discord Integration
+
+Control prose-pipeline through Discord via Clawdbot. The integration uses a CLI tool on the Clawdbot machine.
+
+### CLI Location
+```
+/home/john/.clawdbot/skills/prose-pipeline/scripts/prose_api.py
+```
+
+### Evaluation Commands
+Evaluate prose quality at multiple levels:
+```bash
+prose_api.py evaluate-scene <project> <scene-id>    # Single scene
+prose_api.py evaluate-chapter <project> <chapter-id> # All scenes in chapter
+prose_api.py evaluate-act <project> <act-id>        # All scenes in act
+prose_api.py evaluate-book <project>                # Entire book
+```
+
+**Options:**
+- `-m <model>` - Specify model (default: anthropic/claude-sonnet-4)
+
+**Output includes:**
+- Word count and token estimate
+- Warning if >6K words (configurable via `eval_word_count_warning` setting)
+- Structured scores: pacing, structure, character development, dialogue, prose quality
+- Specific feedback and recommendations
+
+**Prose sources (in priority order):**
+1. `prose` field - canon/accepted prose
+2. `original_prose` field - imported drafts in edit mode
+
+### Other CLI Commands
+```bash
+# Projects
+prose_api.py projects                    # List all
+prose_api.py create-project "Title"      # Create
+prose_api.py delete-project <id>         # Delete
+
+# Import & Extract
+prose_api.py import-manuscript <project> -f <file>
+prose_api.py extract-characters -f <file>
+prose_api.py extract-world -f <file>
+prose_api.py extract-style -f <file> --author "Name"
+
+# Generation workflow
+prose_api.py start-generation <project> <scene-id>
+prose_api.py approve-revision <project> <gen-id>
+prose_api.py accept-canon <project> <gen-id>
+```
+
 ## API Endpoints
 
 ### Health
