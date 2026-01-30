@@ -29,3 +29,7 @@ mammoth==1.8.0
 # Utilities
 python-dotenv==1.0.1
 python-slugify==8.0.4
+
+# Grammar checking
+language_tool_python==2.8
+setuptools>=65.0  # Required for language_tool_python on Python 3.12+

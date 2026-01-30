@@ -45,7 +45,10 @@ When given an existing manuscript, AI should:
 - `POST /api/extract/evaluate` - Quality evaluation with scores
 
 ### Phase 2: Editing Workflow via Discord (IN PROGRESS)
-- [ ] **LanguageTool integration** - Grammar, punctuation, passive voice detection
+- [x] **LanguageTool integration** - Grammar, punctuation, passive voice detection
+  - Endpoints: `/api/tools/languagetool`, `/api/tools/languagetool/correct`
+  - CLI: `grammar-check`, `grammar-check-scene`, `grammar-correct`
+  - Local server (no rate limits), requires Java
 - [x] **CLI commands for full workflow** - Create characters/world from extractions, save style, import manuscripts, generation controls
 - [x] **One-shot manuscript import** - Upload .docx → auto-detect chapters → create all
 - [x] **Evaluation endpoint** - Get critique/scores without starting revision
@@ -112,7 +115,8 @@ Current defaults are expensive (Claude Opus/Sonnet). Consider:
 - [x] `POST /api/extract/world` - Extract world/lore from text
 - [x] `POST /api/extract/style` - Generate style guide from text
 - [x] `POST /api/extract/evaluate` - Quality evaluation with scores
-- [ ] `POST /api/tools/languagetool` - Run LanguageTool checks (future)
+- [x] `POST /api/tools/languagetool` - Run LanguageTool checks (grammar, spelling, style)
+- [x] `POST /api/tools/languagetool/correct` - Auto-correct text
 
 ---
 
