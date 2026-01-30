@@ -96,6 +96,9 @@ async def list_chapters(project_id: str, act_id: Optional[str] = None):
                     description=data.get("description"),
                     chapter_number=data.get("chapter_number", 1),
                     act_id=data.get("act_id"),
+                    pov_pattern=data.get("pov_pattern"),
+                    target_word_count=data.get("target_word_count"),
+                    function=data.get("function"),
                     scene_count=scene_count,
                     canon_scene_count=canon_count,
                     word_count=word_count
@@ -142,6 +145,9 @@ async def get_chapter(project_id: str, chapter_id: str):
             notes=data.get("notes"),
             chapter_number=data.get("chapter_number", 1),
             act_id=data.get("act_id"),
+            pov_pattern=data.get("pov_pattern"),
+            target_word_count=data.get("target_word_count"),
+            function=data.get("function"),
             created_at=datetime.fromisoformat(data.get("created_at", datetime.utcnow().isoformat())),
             updated_at=datetime.fromisoformat(data.get("updated_at", datetime.utcnow().isoformat()))
         )
@@ -198,6 +204,9 @@ async def create_chapter(project_id: str, chapter: ChapterCreate):
             "notes": chapter.notes,
             "chapter_number": chapter_number,
             "act_id": chapter.act_id,
+            "pov_pattern": chapter.pov_pattern,
+            "target_word_count": chapter.target_word_count,
+            "function": chapter.function,
             "created_at": now.isoformat(),
             "updated_at": now.isoformat()
         }
@@ -212,6 +221,9 @@ async def create_chapter(project_id: str, chapter: ChapterCreate):
             notes=chapter.notes,
             chapter_number=chapter_number,
             act_id=chapter.act_id,
+            pov_pattern=chapter.pov_pattern,
+            target_word_count=chapter.target_word_count,
+            function=chapter.function,
             created_at=now,
             updated_at=now
         )
@@ -261,6 +273,12 @@ async def update_chapter(project_id: str, chapter_id: str, update: ChapterUpdate
                 if not act_file.exists():
                     raise HTTPException(status_code=400, detail=f"Act not found: {update.act_id}")
             data["act_id"] = update.act_id
+        if update.pov_pattern is not None:
+            data["pov_pattern"] = update.pov_pattern
+        if update.target_word_count is not None:
+            data["target_word_count"] = update.target_word_count
+        if update.function is not None:
+            data["function"] = update.function
 
         data["updated_at"] = datetime.utcnow().isoformat()
 
@@ -274,6 +292,9 @@ async def update_chapter(project_id: str, chapter_id: str, update: ChapterUpdate
             notes=data.get("notes"),
             chapter_number=data["chapter_number"],
             act_id=data.get("act_id"),
+            pov_pattern=data.get("pov_pattern"),
+            target_word_count=data.get("target_word_count"),
+            function=data.get("function"),
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"])
         )

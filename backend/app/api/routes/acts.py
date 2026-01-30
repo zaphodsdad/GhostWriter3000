@@ -120,6 +120,8 @@ async def list_acts(project_id: str):
                     title=data.get("title", "Untitled"),
                     description=data.get("description"),
                     act_number=data.get("act_number", 1),
+                    function=data.get("function"),
+                    target_word_count=data.get("target_word_count"),
                     chapter_count=count_chapters_in_act(project_id, act_id),
                     scene_count=scene_count,
                     canon_scene_count=canon_count
@@ -164,6 +166,8 @@ async def get_act(project_id: str, act_id: str):
             title=data.get("title", "Untitled"),
             description=data.get("description"),
             act_number=data.get("act_number", 1),
+            function=data.get("function"),
+            target_word_count=data.get("target_word_count"),
             created_at=datetime.fromisoformat(data.get("created_at", datetime.utcnow().isoformat())),
             updated_at=datetime.fromisoformat(data.get("updated_at", datetime.utcnow().isoformat()))
         )
@@ -211,6 +215,8 @@ async def create_act(project_id: str, act: ActCreate):
             "title": act.title,
             "description": act.description,
             "act_number": act_number,
+            "function": act.function,
+            "target_word_count": act.target_word_count,
             "created_at": now.isoformat(),
             "updated_at": now.isoformat()
         }
@@ -223,6 +229,8 @@ async def create_act(project_id: str, act: ActCreate):
             title=act.title,
             description=act.description,
             act_number=act_number,
+            function=act.function,
+            target_word_count=act.target_word_count,
             created_at=now,
             updated_at=now
         )
@@ -262,6 +270,10 @@ async def update_act(project_id: str, act_id: str, update: ActUpdate):
             data["description"] = update.description
         if update.act_number is not None:
             data["act_number"] = update.act_number
+        if update.function is not None:
+            data["function"] = update.function
+        if update.target_word_count is not None:
+            data["target_word_count"] = update.target_word_count
 
         data["updated_at"] = datetime.utcnow().isoformat()
 
@@ -273,6 +285,8 @@ async def update_act(project_id: str, act_id: str, update: ActUpdate):
             title=data["title"],
             description=data.get("description"),
             act_number=data["act_number"],
+            function=data.get("function"),
+            target_word_count=data.get("target_word_count"),
             created_at=datetime.fromisoformat(data["created_at"]),
             updated_at=datetime.fromisoformat(data["updated_at"])
         )

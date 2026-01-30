@@ -342,8 +342,20 @@ def build_generation_prompt(scene_outline: Dict[str, Any]) -> str:
     if scene_outline.get('target_length'):
         parts.append(f"**Target Length:** {scene_outline['target_length']}")
 
+    if scene_outline.get('heat_level'):
+        parts.append(f"**Heat Level:** {scene_outline['heat_level']}")
+
+    if scene_outline.get('emotional_arc'):
+        parts.append(f"**Emotional Arc:** {scene_outline['emotional_arc']}")
+
+    if scene_outline.get('setting'):
+        parts.append(f"**Setting:** {scene_outline['setting']}")
+
     if scene_outline.get('additional_notes'):
         parts.append(f"\n**Additional Notes:** {scene_outline['additional_notes']}")
+
+    if scene_outline.get('generation_notes'):
+        parts.append(f"\n**Generation Guidance:** {scene_outline['generation_notes']}")
 
     # Adjust instructions based on whether beats are present
     if beats:

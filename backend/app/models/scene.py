@@ -89,6 +89,13 @@ class Scene(BaseModel):
     tone: Optional[str] = Field(None, description="Desired tone for the scene")
     pov: Optional[str] = Field(None, description="Point of view")
     target_length: Optional[str] = Field(None, description="Target word count or length")
+
+    # Enhanced outline fields (from structured outline import)
+    heat_level: Optional[str] = Field(None, description="Heat level: tension-only, sensual, or explicit")
+    emotional_arc: Optional[str] = Field(None, description="Emotional arc: starting state → ending state")
+    setting: Optional[str] = Field(None, description="Setting with sensory anchors")
+    generation_notes: Optional[str] = Field(None, description="Notes/instructions for the prose generator")
+
     is_canon: bool = Field(False, description="Whether this scene has been accepted as canon")
     prose: Optional[str] = Field(None, description="Final prose (if canon)")
     summary: Optional[str] = Field(None, description="Scene summary (if canon)")
@@ -136,6 +143,12 @@ class SceneCreate(BaseModel):
     pov: Optional[str] = Field(None, description="Point of view")
     target_length: Optional[str] = Field(None, description="Target word count or length")
 
+    # Enhanced outline fields (from structured outline import)
+    heat_level: Optional[str] = Field(None, description="Heat level: tension-only, sensual, or explicit")
+    emotional_arc: Optional[str] = Field(None, description="Emotional arc: starting state → ending state")
+    setting: Optional[str] = Field(None, description="Setting with sensory anchors")
+    generation_notes: Optional[str] = Field(None, description="Notes/instructions for the prose generator")
+
     # Edit mode - import existing prose instead of generating
     prose: Optional[str] = Field(None, description="Imported prose for edit mode")
     edit_mode: bool = Field(False, description="Start in edit mode with imported prose")
@@ -161,6 +174,13 @@ class SceneUpdate(BaseModel):
     tone: Optional[str] = Field(None, description="Desired tone for the scene")
     pov: Optional[str] = Field(None, description="Point of view")
     target_length: Optional[str] = Field(None, description="Target word count or length")
+
+    # Enhanced outline fields (from structured outline import)
+    heat_level: Optional[str] = Field(None, description="Heat level: tension-only, sensual, or explicit")
+    emotional_arc: Optional[str] = Field(None, description="Emotional arc: starting state → ending state")
+    setting: Optional[str] = Field(None, description="Setting with sensory anchors")
+    generation_notes: Optional[str] = Field(None, description="Notes/instructions for the prose generator")
+
     prose: Optional[str] = Field(None, description="Scene prose content")
     summary: Optional[str] = Field(None, description="Scene summary for continuity")
     is_canon: Optional[bool] = Field(None, description="Whether scene is accepted as canon")

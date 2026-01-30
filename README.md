@@ -16,6 +16,7 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **Reference Library**: Import style guides, published works, or notes as AI context
 - **Edit Mode**: Revise existing prose through the critique loop
 - **Manuscript Import**: Upload .docx/.txt/.md files, auto-detect chapters, create scenes in edit mode
+- **Enhanced Outline Import**: Import structured markdown outlines with full metadata extraction (POV, tone, beats, emotional arcs, settings, character IDs, generation notes)
 - **Continuity System**: Automatically includes summaries from last 10 scenes for context
 - **Backup System**: Auto-backup before destructive operations, scene version history, project snapshots, and manual checkpoints
 - **Dynamic Model Selection**: Choose from available OpenRouter models with live pricing
@@ -169,6 +170,10 @@ The kingdom is ruled by Queen Eleanor...
 
 ### Creating Scenes
 
+Scenes can be created manually or imported via structured outlines.
+
+#### Manual Scene Creation
+
 Scenes are defined as JSON files in `data/scenes/`.
 
 **Example** (`data/scenes/scene-001.json`):
@@ -185,6 +190,66 @@ Scenes are defined as JSON files in `data/scenes/`.
   "target_length": "1000-1500 words"
 }
 ```
+
+#### Outline Import
+
+Import structured markdown outlines that parse into acts, chapters, and scenes with full metadata.
+
+**Outline Format:**
+```markdown
+# Book 2: Title
+
+**Series:** Series Name
+**Target Length:** 100,000 words
+**POV Structure:** Alternating First Person
+
+## New Characters Introduced
+
+### character-id
+**Role:** Role description
+**Description:** Physical and personality description
+**Voice:** How they speak
+**First Appearance:** Chapter X, Scene Y
+
+# Act 1: Act Title
+
+**Function:** What this act accomplishes structurally
+**Target:** ~35,000 words
+
+## Chapter 1: Chapter Title
+
+**POV Pattern:** character-id
+**Chapter Target:** 3,500 words
+**Chapter Function:** What this chapter accomplishes
+
+#### Scene 1: Scene Title
+
+**POV:** First person - character-id
+**Tone:** tense, anticipation, guilt
+**Target:** 1200 words
+**Heat Level:** sensual (optional)
+
+**Emotional Arc:** starting-emotion → ending-emotion
+
+Outline paragraph describing what happens in concrete terms.
+
+**Setting:** Location - sensory detail 1, sensory detail 2
+
+**Beats:**
+1. First beat action
+2. Second beat action
+3. Third beat action
+
+**Characters:** char1, char2
+**Tags:** setup, action, revelation
+**Notes:** Generation guidance for the AI
+```
+
+**Parsed Fields:**
+- **Act**: title, number, function, target_word_count
+- **Chapter**: title, number, pov_pattern, target_word_count, function
+- **Scene**: title, pov, tone, target_length, heat_level, emotional_arc, setting, outline, beats, character_ids, tags, generation_notes
+- **Characters**: Creates placeholder stubs for new character IDs with role, description, voice
 
 ### Generation Workflow
 
@@ -264,6 +329,12 @@ GET    /api/generations/{id}               # Get generation state
 POST   /api/generations/{id}/approve       # Approve & revise
 POST   /api/generations/{id}/accept        # Accept final
 POST   /api/generations/{id}/reject        # Reject generation
+```
+
+#### Outline Import
+```
+POST   /api/projects/{id}/outline/preview  # Preview parsed outline
+POST   /api/projects/{id}/outline/import   # Import outline (creates acts, chapters, scenes, character stubs)
 ```
 
 #### Backups
