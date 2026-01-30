@@ -52,15 +52,19 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [ ] **Visual timeline/storyboard** - Novelcrafter has this
   - Low priority but nice for planning
 
-### Token Optimization (Next Priority)
+### Token Optimization
 
 Research showed competitors burn tokens by re-sending full context every call.
 Our approach: prompt caching + smart filtering.
 
-- [ ] **Prompt caching (Anthropic)** - Cache static context, pay once per session
-  - Series style guide, previous books, characters, world = cached
-  - Scene-specific content = not cached
-  - Estimated 70% reduction in input token costs
+- [x] **Prompt caching (Anthropic)** - IMPLEMENTED 2026-01-30
+  - New `build_system_prompt_cached()` returns content blocks with cache_control
+  - Static content (style, characters, world, refs, previous books) = cached
+  - Dynamic content (previous scene summaries) = not cached, placed at end
+  - LLM service handles format conversion for OpenRouter compatibility
+  - Cache stats tracking in LLMService
+  - Estimated 70% reduction in input token costs for Anthropic
+
 - [ ] **Scene-relevant entity filtering** - Only load mentioned characters/world
   - Parse scene outline for names/locations
   - String match against file names

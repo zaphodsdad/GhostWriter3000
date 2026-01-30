@@ -467,7 +467,7 @@ async def revise_selection_direct(project_id: str, generation_id: str, request: 
         # Get LLM service and series service for context
         from app.services.llm_service import get_llm_service
         from app.services.series_service import get_series_service
-        from app.utils.prompt_templates import clean_prose_output, build_system_prompt
+        from app.utils.prompt_templates import clean_prose_output, build_system_prompt_cached
 
         llm = get_llm_service()
         series_service = get_series_service()
@@ -478,8 +478,8 @@ async def revise_selection_direct(project_id: str, generation_id: str, request: 
         previous_books = combined_context.get("previous_books", [])
         style_guide = combined_context.get("style_guide")
 
-        # Build full system prompt with context
-        system_prompt = build_system_prompt(
+        # Build full system prompt with context (cached for Anthropic)
+        system_prompt = build_system_prompt_cached(
             combined_context.get("characters", []),
             combined_context.get("worlds", []),
             [],  # No previous scene summaries needed for inline edits

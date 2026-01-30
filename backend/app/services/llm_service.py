@@ -1,21 +1,28 @@
 """LLM API integration service (supports Anthropic direct and OpenRouter)."""
 
 import asyncio
-from typing import Optional, Dict, Any
+import logging
+from typing import Optional, Dict, Any, List, Union
 from anthropic import AsyncAnthropic
 from openai import AsyncOpenAI
 from app.config import settings
 from app.api.routes.settings import get_api_key, load_user_settings
 
+logger = logging.getLogger(__name__)
+
 
 class LLMService:
-    """Service for interacting with LLM APIs (Anthropic or OpenRouter)."""
+    """Service for interacting with LLM APIs (Anthropic or OpenRouter).
+
+    Supports Anthropic prompt caching for reduced token costs on repeated context.
+    """
 
     def __init__(self):
         """Initialize LLM API client based on provider setting."""
         self.provider = settings.llm_provider
         self.semaphore = asyncio.Semaphore(3)  # Max 3 concurrent API calls
         self._current_api_key = None
+        self._cache_stats = {"cache_creation_tokens": 0, "cache_read_tokens": 0}
         self._init_client()
 
     def _init_client(self):
@@ -43,7 +50,7 @@ class LLMService:
 
     async def generate_prose(
         self,
-        system_prompt: str,
+        system_prompt: Union[str, List[Dict[str, Any]]],
         user_prompt: str,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
@@ -53,7 +60,8 @@ class LLMService:
         Generate prose using LLM API.
 
         Args:
-            system_prompt: System prompt with context
+            system_prompt: System prompt - either string or list of content blocks
+                          (for Anthropic prompt caching)
             user_prompt: User prompt with scene outline
             temperature: Optional temperature override
             max_tokens: Optional max tokens override
@@ -73,11 +81,22 @@ class LLMService:
                         system_prompt, user_prompt, temperature, max_tokens, model
                     )
                 else:  # openrouter
+                    # OpenRouter needs string, convert if needed
+                    if isinstance(system_prompt, list):
+                        system_prompt = "\n".join(block.get("text", "") for block in system_prompt)
                     return await self._generate_openrouter(
                         system_prompt, user_prompt, temperature, max_tokens, model
                     )
             except Exception as e:
                 raise Exception(f"LLM API generation failed: {str(e)}")
+
+    def get_cache_stats(self) -> Dict[str, int]:
+        """Get prompt caching statistics."""
+        return self._cache_stats.copy()
+
+    def reset_cache_stats(self):
+        """Reset cache statistics."""
+        self._cache_stats = {"cache_creation_tokens": 0, "cache_read_tokens": 0}
 
     async def generate(
         self,
@@ -141,11 +160,22 @@ class LLMService:
                 raise Exception(f"LLM API generation failed: {str(e)}")
 
     async def _generate_anthropic(
-        self, system_prompt: str, user_prompt: str,
+        self, system_prompt: Union[str, List[Dict[str, Any]]], user_prompt: str,
         temperature: Optional[float], max_tokens: Optional[int],
         model: Optional[str] = None
     ) -> str:
-        """Generate using Anthropic API."""
+        """Generate using Anthropic API with prompt caching support.
+
+        Args:
+            system_prompt: Either a string or list of content blocks with cache_control
+            user_prompt: The user message
+            temperature: Generation temperature
+            max_tokens: Max tokens for response
+            model: Model to use
+
+        Returns:
+            Generated text
+        """
         response = await self.client.messages.create(
             model=model or settings.generation_model,
             max_tokens=max_tokens or settings.generation_max_tokens,
@@ -153,6 +183,17 @@ class LLMService:
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}]
         )
+
+        # Track cache stats if available
+        if hasattr(response, 'usage'):
+            usage = response.usage
+            if hasattr(usage, 'cache_creation_input_tokens'):
+                self._cache_stats["cache_creation_tokens"] += usage.cache_creation_input_tokens or 0
+            if hasattr(usage, 'cache_read_input_tokens'):
+                self._cache_stats["cache_read_tokens"] += usage.cache_read_input_tokens or 0
+                if usage.cache_read_input_tokens:
+                    logger.info(f"Prompt cache hit: {usage.cache_read_input_tokens} tokens read from cache")
+
         return response.content[0].text
 
     async def _generate_openrouter(
@@ -292,7 +333,7 @@ class LLMService:
         self,
         original_prose: str,
         critique: str,
-        system_prompt: str,
+        system_prompt: Union[str, List[Dict[str, Any]]],
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         model: Optional[str] = None,
@@ -304,7 +345,7 @@ class LLMService:
         Args:
             original_prose: Original prose text
             critique: Critique of the prose
-            system_prompt: System prompt with context
+            system_prompt: System prompt - string or content blocks for caching
             temperature: Optional temperature override
             max_tokens: Optional max tokens override
             model: Optional model override (uses settings.generation_model if None)
@@ -332,14 +373,25 @@ class LLMService:
                         system=system_prompt,
                         messages=[{"role": "user", "content": user_prompt}]
                     )
+                    # Track cache stats
+                    if hasattr(response, 'usage'):
+                        usage = response.usage
+                        if hasattr(usage, 'cache_creation_input_tokens'):
+                            self._cache_stats["cache_creation_tokens"] += usage.cache_creation_input_tokens or 0
+                        if hasattr(usage, 'cache_read_input_tokens'):
+                            self._cache_stats["cache_read_tokens"] += usage.cache_read_input_tokens or 0
                     return response.content[0].text
                 else:  # openrouter
+                    # Convert to string if needed
+                    sys_prompt = system_prompt
+                    if isinstance(system_prompt, list):
+                        sys_prompt = "\n".join(block.get("text", "") for block in system_prompt)
                     response = await self.client.chat.completions.create(
                         model=use_model,
                         max_tokens=max_tokens or settings.generation_max_tokens,
                         temperature=temperature or settings.generation_temperature,
                         messages=[
-                            {"role": "system", "content": system_prompt},
+                            {"role": "system", "content": sys_prompt},
                             {"role": "user", "content": user_prompt}
                         ]
                     )
@@ -352,7 +404,7 @@ class LLMService:
         self,
         original_prose: str,
         critique: str,
-        system_prompt: str,
+        system_prompt: Union[str, List[Dict[str, Any]]],
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         model: Optional[str] = None,
@@ -364,7 +416,7 @@ class LLMService:
         Args:
             original_prose: Original prose text
             critique: Polish critique of the prose
-            system_prompt: System prompt with context
+            system_prompt: System prompt - string or content blocks for caching
             temperature: Optional temperature override
             max_tokens: Optional max tokens override
             model: Optional model override (uses settings.generation_model if None)
@@ -392,14 +444,24 @@ class LLMService:
                         system=system_prompt,
                         messages=[{"role": "user", "content": user_prompt}]
                     )
+                    # Track cache stats
+                    if hasattr(response, 'usage'):
+                        usage = response.usage
+                        if hasattr(usage, 'cache_creation_input_tokens'):
+                            self._cache_stats["cache_creation_tokens"] += usage.cache_creation_input_tokens or 0
+                        if hasattr(usage, 'cache_read_input_tokens'):
+                            self._cache_stats["cache_read_tokens"] += usage.cache_read_input_tokens or 0
                     return response.content[0].text
                 else:  # openrouter
+                    sys_prompt = system_prompt
+                    if isinstance(system_prompt, list):
+                        sys_prompt = "\n".join(block.get("text", "") for block in system_prompt)
                     response = await self.client.chat.completions.create(
                         model=use_model,
                         max_tokens=max_tokens or settings.generation_max_tokens,
                         temperature=temperature or settings.generation_temperature,
                         messages=[
-                            {"role": "system", "content": system_prompt},
+                            {"role": "system", "content": sys_prompt},
                             {"role": "user", "content": user_prompt}
                         ]
                     )
@@ -414,7 +476,7 @@ class LLMService:
         selection: str,
         selection_start: int,
         selection_end: int,
-        system_prompt: str,
+        system_prompt: Union[str, List[Dict[str, Any]]],
         critique: str = None,
         instructions: str = None,
         temperature: Optional[float] = None,
@@ -429,7 +491,7 @@ class LLMService:
             selection: Selected text to revise
             selection_start: Start index of selection
             selection_end: End index of selection
-            system_prompt: System prompt with context
+            system_prompt: System prompt - string or content blocks for caching
             critique: Optional critique context
             instructions: Optional user guidance
             temperature: Optional temperature override
@@ -460,14 +522,24 @@ class LLMService:
                         system=system_prompt,
                         messages=[{"role": "user", "content": user_prompt}]
                     )
+                    # Track cache stats
+                    if hasattr(response, 'usage'):
+                        usage = response.usage
+                        if hasattr(usage, 'cache_creation_input_tokens'):
+                            self._cache_stats["cache_creation_tokens"] += usage.cache_creation_input_tokens or 0
+                        if hasattr(usage, 'cache_read_input_tokens'):
+                            self._cache_stats["cache_read_tokens"] += usage.cache_read_input_tokens or 0
                     return response.content[0].text
                 else:  # openrouter
+                    sys_prompt = system_prompt
+                    if isinstance(system_prompt, list):
+                        sys_prompt = "\n".join(block.get("text", "") for block in system_prompt)
                     response = await self.client.chat.completions.create(
                         model=use_model,
                         max_tokens=max_tokens or settings.generation_max_tokens,
                         temperature=temperature or settings.generation_temperature,
                         messages=[
-                            {"role": "system", "content": system_prompt},
+                            {"role": "system", "content": sys_prompt},
                             {"role": "user", "content": user_prompt}
                         ]
                     )

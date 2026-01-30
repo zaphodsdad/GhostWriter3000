@@ -170,6 +170,9 @@ def build_system_prompt(
     Build system prompt with character, world context, previous scene summaries, style guide,
     reference documents, and previous book summaries for series continuity.
 
+    IMPORTANT: Static content (style, characters, world, refs, previous books) comes FIRST
+    to enable prompt caching. Dynamic content (previous scene summaries) comes LAST.
+
     Args:
         characters: List of character data dictionaries
         world_contexts: List of world context data dictionaries
@@ -216,16 +219,7 @@ def build_system_prompt(
 
         prompt_parts.append("")
 
-    # Add previous scene summaries for continuity
-    if previous_scene_summaries:
-        prompt_parts.append("# STORY SO FAR\n")
-        prompt_parts.append("The following scenes have already occurred in this story:\n")
-        for i, scene_summary in enumerate(previous_scene_summaries, 1):
-            scene_title = scene_summary.get('title', f'Scene {i}')
-            summary = scene_summary.get('summary', '')
-            prompt_parts.append(f"## {scene_title}\n{summary}\n")
-        prompt_parts.append("")
-
+    # STATIC CONTENT FIRST (for cache efficiency)
     if characters:
         prompt_parts.append("# CHARACTER INFORMATION\n")
         for char in characters:
@@ -285,7 +279,7 @@ def build_system_prompt(
                     content = content[:5000] + "\n...[truncated for length]"
                 prompt_parts.append(f"{content}\n")
 
-    # Add previous books in series for continuity
+    # Add previous books in series for continuity (static per series)
     if previous_books:
         prompt_parts.append("\n# EARLIER BOOKS IN SERIES\n")
         prompt_parts.append("This is part of a series. Here are summaries of earlier books for continuity:\n")
@@ -297,7 +291,146 @@ def build_system_prompt(
             prompt_parts.append(f"{summary}\n")
         prompt_parts.append("")
 
+    # DYNAMIC CONTENT LAST (changes per scene, not cached)
+    # Add previous scene summaries for continuity
+    if previous_scene_summaries:
+        prompt_parts.append("# STORY SO FAR (This Book)\n")
+        prompt_parts.append("The following scenes have already occurred in this story:\n")
+        for i, scene_summary in enumerate(previous_scene_summaries, 1):
+            scene_title = scene_summary.get('title', f'Scene {i}')
+            summary = scene_summary.get('summary', '')
+            prompt_parts.append(f"## {scene_title}\n{summary}\n")
+        prompt_parts.append("")
+
     return "\n".join(prompt_parts)
+
+
+def build_system_prompt_cached(
+    characters: List[Dict[str, Any]],
+    world_contexts: List[Dict[str, Any]],
+    previous_scene_summaries: List[Dict[str, Any]] = None,
+    style_guide: Dict[str, Any] = None,
+    references: List[Dict[str, Any]] = None,
+    previous_books: List[Dict[str, Any]] = None
+) -> List[Dict[str, Any]]:
+    """
+    Build system prompt as content blocks for Anthropic prompt caching.
+
+    Returns a list of content blocks where static content is marked for caching.
+    The static portion (style, characters, world, refs, previous books) is cached.
+    The dynamic portion (previous scene summaries) is not cached.
+
+    Args:
+        Same as build_system_prompt
+
+    Returns:
+        List of content block dicts for Anthropic's messages API
+    """
+    # Build static content (cacheable)
+    static_parts = [
+        "You are a skilled novelist writing publishable fiction.",
+        "Your prose must be indistinguishable from work by accomplished human authors.",
+        "",
+        "# BASELINE PROSE STANDARDS",
+        "",
+        PROSE_PHILOSOPHY,
+        ""
+    ]
+
+    # Add style guide
+    if style_guide:
+        static_parts.append("\n# PROJECT STYLE GUIDE")
+        static_parts.append("")
+        static_parts.append("**The following style guide is AUTHORITATIVE for this project.**")
+        static_parts.append("")
+        if style_guide.get('pov'):
+            static_parts.append(f"**Point of View:** {style_guide['pov']}")
+        if style_guide.get('tense'):
+            static_parts.append(f"**Tense:** {style_guide['tense']}")
+        if style_guide.get('tone'):
+            static_parts.append(f"**Tone:** {style_guide['tone']}")
+        if style_guide.get('heat_level'):
+            static_parts.append(f"**Heat Level:** {style_guide['heat_level']}")
+        if style_guide.get('guide'):
+            static_parts.append("\n## Full Style Guide\n")
+            static_parts.append(style_guide['guide'])
+        static_parts.append("")
+
+    # Characters
+    if characters:
+        static_parts.append("# CHARACTER INFORMATION\n")
+        for char in characters:
+            static_parts.append(f"## {char.get('metadata', {}).get('name', 'Character')}\n")
+            static_parts.append(f"**Metadata:**\n{format_metadata(char.get('metadata', {}))}\n")
+            static_parts.append(f"**Details:**\n{char.get('content', '')}\n")
+
+    # World contexts
+    if world_contexts:
+        static_parts.append("\n# WORLD CONTEXT\n")
+        for world in world_contexts:
+            static_parts.append(f"## {world.get('metadata', {}).get('name', 'World')}\n")
+            static_parts.append(f"**Metadata:**\n{format_metadata(world.get('metadata', {}))}\n")
+            static_parts.append(f"**Details:**\n{world.get('content', '')}\n")
+
+    # References
+    if references:
+        static_parts.append("\n# REFERENCE DOCUMENTS\n")
+        style_refs = [r for r in references if r.get('doc_type') == 'style_reference']
+        book_refs = [r for r in references if r.get('doc_type') == 'published_book']
+        other_refs = [r for r in references if r.get('doc_type') not in ['style_reference', 'published_book']]
+
+        for ref_group, label in [(style_refs, "Style References"), (book_refs, "Published Works"), (other_refs, "Additional References")]:
+            if ref_group:
+                static_parts.append(f"## {label}\n")
+                for ref in ref_group:
+                    static_parts.append(f"### {ref.get('title', 'Reference')}\n")
+                    if ref.get('description'):
+                        static_parts.append(f"*{ref['description']}*\n")
+                    content = ref.get('content', '')
+                    max_len = 8000 if ref.get('doc_type') in ['style_reference', 'published_book'] else 5000
+                    if len(content) > max_len:
+                        content = content[:max_len] + "\n...[truncated]"
+                    static_parts.append(f"{content}\n")
+
+    # Previous books
+    if previous_books:
+        static_parts.append("\n# EARLIER BOOKS IN SERIES\n")
+        for book in previous_books:
+            book_num = book.get('book_number', '?')
+            title = book.get('title', 'Untitled')
+            static_parts.append(f"## Book {book_num}: {title}\n")
+            static_parts.append(f"{book.get('summary', 'No summary available.')}\n")
+
+    static_content = "\n".join(static_parts)
+
+    # Build dynamic content (not cached)
+    dynamic_parts = []
+    if previous_scene_summaries:
+        dynamic_parts.append("# STORY SO FAR (This Book)\n")
+        dynamic_parts.append("The following scenes have already occurred:\n")
+        for i, scene_summary in enumerate(previous_scene_summaries, 1):
+            scene_title = scene_summary.get('title', f'Scene {i}')
+            summary = scene_summary.get('summary', '')
+            dynamic_parts.append(f"## {scene_title}\n{summary}\n")
+
+    dynamic_content = "\n".join(dynamic_parts) if dynamic_parts else None
+
+    # Return as content blocks for Anthropic API
+    blocks = [
+        {
+            "type": "text",
+            "text": static_content,
+            "cache_control": {"type": "ephemeral"}
+        }
+    ]
+
+    if dynamic_content:
+        blocks.append({
+            "type": "text",
+            "text": dynamic_content
+        })
+
+    return blocks
 
 
 def build_generation_prompt(scene_outline: Dict[str, Any]) -> str:

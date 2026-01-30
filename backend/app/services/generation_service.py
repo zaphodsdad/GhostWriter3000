@@ -11,7 +11,7 @@ from app.services.llm_service import get_llm_service
 from app.services.state_manager import get_state_manager
 from app.services.markdown_parser import MarkdownParser
 from app.services.series_service import get_series_service
-from app.utils.prompt_templates import build_system_prompt, build_generation_prompt, clean_prose_output
+from app.utils.prompt_templates import build_system_prompt, build_system_prompt_cached, build_generation_prompt, clean_prose_output
 from app.utils.file_utils import read_json_file, write_json_file
 from app.utils.logging import get_logger
 from app.utils.backup import backup_scene
@@ -440,7 +440,8 @@ class GenerationService:
             style_guide = combined_context.get("style_guide")
 
             # Build prompts with full context including references
-            system_prompt = build_system_prompt(
+            # Use cached version for Anthropic prompt caching support
+            system_prompt = build_system_prompt_cached(
                 all_characters,
                 all_worlds,
                 previous_summaries,
@@ -457,6 +458,7 @@ class GenerationService:
             user_prompt = build_generation_prompt(scene_data)
 
             # Generate prose (use custom model if specified)
+            # LLM service handles cache format for Anthropic, string for OpenRouter
             prose = await self.llm.generate_prose(
                 system_prompt, user_prompt, model=state.generation_model
             )
@@ -640,8 +642,8 @@ class GenerationService:
             previous_books = combined_context.get("previous_books", [])
             style_guide = combined_context.get("style_guide")
 
-            # Build system prompt with full context
-            system_prompt = build_system_prompt(
+            # Build system prompt with full context (cached for Anthropic)
+            system_prompt = build_system_prompt_cached(
                 all_characters,
                 all_worlds,
                 previous_summaries,
@@ -655,6 +657,7 @@ class GenerationService:
             critique = state.iterations[-1].critique
 
             # Revise prose (use polish or full mode based on revision_mode)
+            # LLM service handles cache format for Anthropic
             if state.revision_mode == "polish":
                 revised_prose = await self.llm.revise_prose_polish(
                     current_prose, critique, system_prompt, model=state.generation_model, instructions=instructions
@@ -782,8 +785,8 @@ class GenerationService:
             previous_books = combined_context.get("previous_books", [])
             style_guide = combined_context.get("style_guide")
 
-            # Build system prompt with full context
-            system_prompt = build_system_prompt(
+            # Build system prompt with full context (cached for Anthropic)
+            system_prompt = build_system_prompt_cached(
                 all_characters,
                 all_worlds,
                 previous_summaries,
