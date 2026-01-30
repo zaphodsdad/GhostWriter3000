@@ -7456,9 +7456,11 @@ async function confirmManuscriptImport() {
         document.getElementById('import-step-progress').style.display = 'none';
         document.getElementById('import-step-complete').style.display = 'block';
 
-        // Refresh data after import
+        // Refresh data and re-render UI after import
         await loadChapters();
         await loadScenes();
+        renderOutlineTree();
+        renderOutlineView();
 
         // Auto-close modal after brief delay
         setTimeout(() => {
