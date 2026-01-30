@@ -621,15 +621,34 @@ class GenerationService:
             state.updated_at = datetime.utcnow()
             await self.state_manager.save_state(state)
 
-            # Load scene and context
+            # Load scene
             scene = await self._load_scene(project_id, state.scene_id)
-            characters = await self._load_characters(project_id, state.character_ids)
-            world_contexts = await self._load_world_contexts(project_id, state.world_context_ids)
-            previous_summaries = await self._load_previous_summaries(project_id, state.previous_scene_ids)
-            style_guide = await self._load_style_guide(project_id)
 
-            # Build system prompt
-            system_prompt = build_system_prompt(characters, world_contexts, previous_summaries, style_guide)
+            # Load combined context (handles series inheritance and references)
+            # This ensures revisions have the same context as initial generation
+            combined_context = await self.series_service.get_combined_context(project_id)
+
+            # Also load scene-specific characters/world that may not be in combined context
+            scene_characters = await self._load_characters(project_id, state.character_ids)
+            scene_worlds = await self._load_world_contexts(project_id, state.world_context_ids)
+            previous_summaries = await self._load_previous_summaries(project_id, state.previous_scene_ids)
+
+            # Merge scene-specific context with combined context
+            all_characters = combined_context.get("characters", []) + scene_characters
+            all_worlds = combined_context.get("worlds", []) + scene_worlds
+            all_references = [r for r in combined_context.get("references", []) if r.get("use_in_generation", True)]
+            previous_books = combined_context.get("previous_books", [])
+            style_guide = combined_context.get("style_guide")
+
+            # Build system prompt with full context
+            system_prompt = build_system_prompt(
+                all_characters,
+                all_worlds,
+                previous_summaries,
+                style_guide,
+                references=all_references,
+                previous_books=previous_books
+            )
 
             # Get current prose and critique
             current_prose = state.iterations[-1].prose
@@ -745,15 +764,33 @@ class GenerationService:
             state.updated_at = datetime.utcnow()
             await self.state_manager.save_state(state)
 
-            # Load context
+            # Load scene
             scene = await self._load_scene(project_id, state.scene_id)
-            characters = await self._load_characters(project_id, state.character_ids)
-            world_contexts = await self._load_world_contexts(project_id, state.world_context_ids)
-            previous_summaries = await self._load_previous_summaries(project_id, state.previous_scene_ids)
-            style_guide = await self._load_style_guide(project_id)
 
-            # Build system prompt
-            system_prompt = build_system_prompt(characters, world_contexts, previous_summaries, style_guide)
+            # Load combined context (handles series inheritance and references)
+            combined_context = await self.series_service.get_combined_context(project_id)
+
+            # Also load scene-specific characters/world
+            scene_characters = await self._load_characters(project_id, state.character_ids)
+            scene_worlds = await self._load_world_contexts(project_id, state.world_context_ids)
+            previous_summaries = await self._load_previous_summaries(project_id, state.previous_scene_ids)
+
+            # Merge scene-specific context with combined context
+            all_characters = combined_context.get("characters", []) + scene_characters
+            all_worlds = combined_context.get("worlds", []) + scene_worlds
+            all_references = [r for r in combined_context.get("references", []) if r.get("use_in_generation", True)]
+            previous_books = combined_context.get("previous_books", [])
+            style_guide = combined_context.get("style_guide")
+
+            # Build system prompt with full context
+            system_prompt = build_system_prompt(
+                all_characters,
+                all_worlds,
+                previous_summaries,
+                style_guide,
+                references=all_references,
+                previous_books=previous_books
+            )
 
             # Get current prose and critique
             current_prose = state.iterations[-1].prose

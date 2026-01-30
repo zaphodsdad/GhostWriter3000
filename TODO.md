@@ -1,10 +1,86 @@
 # Prose Pipeline - TODO
 
-**Last Updated:** 2026-01-29
+**Last Updated:** 2026-01-30
 
 ---
 
-## NEW: Clawdbot/Discord Integration
+## PRIORITY: Series-Aware Generation (Book 2 Ready)
+
+**Goal:** Write book 2 of a series with full continuity from books 0 (novella) and 1 (novel).
+
+### Critical Bugs (Context Loss in Revisions) - FIXED 2026-01-30
+
+Audit revealed: Initial generation has full context, but **revisions lose everything**.
+
+- [x] **Fix revision context loading** - `_run_revision()` now calls `get_combined_context()`
+  - Now includes: series characters, series worlds, previous books, references
+  - Location: `generation_service.py:608`
+- [x] **Fix selection revision context** - `_run_selection_revision()` now has full context
+  - Location: `generation_service.py:721`
+- [x] **Fix direct selection revision** - API endpoint now builds full system prompt
+  - Location: `generation.py:433`
+- [x] **Style guide in revision prompts** - Now included via combined context
+- [x] **References in revisions** - Now passed to `build_system_prompt()` in all revision flows
+
+### Series Continuity Features
+
+- [ ] **Book-level summaries** - Structured synopsis of previous books fed to generation
+  - What happened, character arcs, world state changes
+  - Currently: `_load_previous_book_summaries()` exists but needs `summary.md` per project
+  - User is writing chapter-by-chapter summaries now
+- [ ] **Series Timeline** - Chronological tracking across books (Sudowrite has this)
+  - AI knows book order, what happened when
+  - Track major events with timestamps/book references
+- [ ] **Import Novel → Auto-populate Story Bible** - Like Sudowrite's import
+  - Currently: extraction endpoints exist but not integrated into import flow
+  - Should auto-extract characters/world/style on manuscript import
+- [ ] **Chapter Continuity Linking** - Explicit links between chapters
+  - We have `depends_on` for scenes but it's optional/manual
+  - Should auto-link sequential chapters
+
+### Competitive Feature Gaps (from Sudowrite/Novelcrafter research)
+
+- [ ] **Shared Codex across series** - Verify series characters/world flow into all prompts
+  - Currently works for initial gen, broken for revisions
+- [ ] **POV & Tense enforcement** - Automatic consistency checking
+  - We have fields but not enforced validation
+- [ ] **Per-scene reference selection** - Override which references apply to specific scenes
+  - Currently: global `use_in_generation` flag only
+- [ ] **128K+ context window** - Sudowrite reads nearly full novel
+  - Currently: 10 previous scenes max, truncated references
+  - Consider: configurable context depth, smart summarization
+- [ ] **Visual timeline/storyboard** - Novelcrafter has this
+  - Low priority but nice for planning
+
+### Token Optimization (Next Priority)
+
+Research showed competitors burn tokens by re-sending full context every call.
+Our approach: prompt caching + smart filtering.
+
+- [ ] **Prompt caching (Anthropic)** - Cache static context, pay once per session
+  - Series style guide, previous books, characters, world = cached
+  - Scene-specific content = not cached
+  - Estimated 70% reduction in input token costs
+- [ ] **Scene-relevant entity filtering** - Only load mentioned characters/world
+  - Parse scene outline for names/locations
+  - String match against file names
+  - Skip unmentioned entities
+- [ ] **Tiered book summaries** - Essential (500 words) vs Full (2500 words)
+  - Generate compressed "essential context" once per book
+  - Use essential for generation, full available for reference
+
+### Quality of Life
+
+- [ ] **GUI for manuscript import with extraction** - Currently API-only
+  - Upload → auto-detect chapters → preview → extract characters/world/style → import
+- [ ] **Series dashboard** - See all books, their status, shared resources
+- [ ] **Continuity warnings** - Flag when scene contradicts previous canon
+
+---
+
+## DEPRIORITIZED: Clawdbot/Discord Integration
+
+*Leaving API for future use, but not actively developing Discord integration. Just another layer of token usage.*
 
 **Goal:** Control prose-pipeline through Discord via Clawdbot (Moltbot), enabling autonomous editing workflows and conversational interaction with the pipeline.
 
@@ -248,7 +324,8 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 
 - [x] Fix generation prompt - add "output only prose, no preamble"
 - [x] Post-processing cleanup - `clean_prose_output()` strips AI preambles
-- [x] Data directory picker - UI to configure project storage location
+- [x] Data directory picker - UI to configure project storage location with migration option
+- [x] Full data backup download - ZIP export of all projects, series, and settings
 - [x] Word count goals and tracking with progress bar
 - [x] Dynamic model selection - fetch available models from OpenRouter API
 - [x] Default model settings - configure preferred generation/critique models
@@ -487,3 +564,56 @@ Discussed business product opportunities combining prose-pipeline and HIWC-assis
 - Uses local LanguageTool server (no rate limits, requires Java)
 - Categories: TYPOS, GRAMMAR, PUNCTUATION, STYLE
 - Returns offsets, suggestions, and context for each issue
+
+---
+
+## Session Notes (2026-01-30 continued)
+
+**Data Management Features:**
+
+1. **Data directory migration** - When changing data directory, option to migrate existing data:
+   - Checkbox: "Migrate existing data to new location"
+   - Copies projects, series, settings.json to new location
+   - Won't overwrite existing files (merges instead)
+   - `PUT /api/settings/data-dir` with `migrate_data: true`
+
+2. **Full backup download** - Download all data as ZIP:
+   - Button: "Download Backup" in settings
+   - Downloads timestamped ZIP (e.g., `prose-pipeline-backup-20260130_143022.zip`)
+   - Includes: all projects, all series, settings.json
+   - `GET /api/settings/backup` endpoint
+
+---
+
+## Competitive Research (2026-01-30)
+
+**Major Players Analyzed:**
+- [Sudowrite](https://sudowrite.com/) - $19-59/mo, proprietary "Muse" model, Story Bible, series support
+- [Novelcrafter](https://www.novelcrafter.com/) - $4-20/mo + BYOK, Codex wiki, highly configurable
+- [Squibler](https://www.squibler.io/) - More automated "generate whole novel"
+- [NovelAI](https://novelistai.com/) - Falling behind, 70B model outdated
+
+**What They Do Well:**
+1. **Sudowrite Series Timeline** - Chronological tracking, AI knows book order
+2. **Shared Codex/Story Bible** - Auto-available across all books in series
+3. **Import Novel → Auto-populate** - Extract characters/world/style on import
+4. **128K context** - Reads nearly full novel for continuity
+5. **Chapter Continuity Linking** - Explicit links for smoother arcs
+6. **POV & Tense controls** - Automatic consistency enforcement
+
+**Common User Complaints (from Reddit/forums):**
+- Memory loss - characters forget, plot threads vanish
+- AI tells - generic, clichéd prose (we already address)
+- Expensive burns - "$30 in 2 days of normal use"
+- Loss of creative control - AI writes its own story
+- Repetitive suggestions
+
+**Our Advantages:**
+- Anti-AI-tells philosophy (banned vocabulary, critique flags)
+- BYOK via OpenRouter (cost control, model choice)
+- Style extraction from existing work
+- Reference library for published examples
+- Enhanced outline import with full metadata
+
+**Key Insight:** Most tools focus on generation but break on revision.
+Our revision flow loses context - fixing this is the critical differentiator.

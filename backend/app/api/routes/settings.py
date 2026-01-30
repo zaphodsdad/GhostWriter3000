@@ -36,6 +36,7 @@ class UserSettings(BaseModel):
 class DataDirSettings(BaseModel):
     """Data directory settings."""
     data_dir: str
+    migrate_data: bool = False  # If True, copy existing data to new location
 
 
 class UserSettingsResponse(BaseModel):
@@ -185,14 +186,19 @@ async def update_data_dir(data_dir_settings: DataDirSettings):
     Update data directory location.
 
     Note: Requires server restart to take effect.
+    If migrate_data is True, copies existing projects/series to new location.
     """
+    import shutil
+
     new_path = data_dir_settings.data_dir.strip()
 
     if not new_path:
         raise HTTPException(status_code=400, detail="Data directory path cannot be empty")
 
+    # Expand user path (handles ~/...)
+    path = Path(new_path).expanduser()
+
     # Validate path exists or can be created
-    path = Path(new_path)
     if not path.exists():
         try:
             path.mkdir(parents=True, exist_ok=True)
@@ -202,16 +208,74 @@ async def update_data_dir(data_dir_settings: DataDirSettings):
     if not path.is_dir():
         raise HTTPException(status_code=400, detail="Path is not a directory")
 
+    # Check if path is writable
+    test_file = path / ".write_test"
+    try:
+        test_file.write_text("test")
+        test_file.unlink()
+    except (PermissionError, OSError) as e:
+        raise HTTPException(status_code=400, detail=f"Directory is not writable: {str(e)}")
+
+    migration_info = {"migrated": False, "items_copied": []}
+
+    # Handle data migration if requested
+    if data_dir_settings.migrate_data:
+        current_data_dir = settings.data_dir
+
+        # Don't migrate if same directory
+        if path.absolute() != current_data_dir.absolute():
+            items_to_copy = ["projects", "series", "settings.json"]
+
+            for item in items_to_copy:
+                src = current_data_dir / item
+                dst = path / item
+
+                if src.exists():
+                    try:
+                        if src.is_dir():
+                            # Don't overwrite existing directories
+                            if not dst.exists():
+                                shutil.copytree(src, dst)
+                                migration_info["items_copied"].append(item)
+                            else:
+                                # Merge: copy subdirectories that don't exist
+                                for sub in src.iterdir():
+                                    sub_dst = dst / sub.name
+                                    if not sub_dst.exists():
+                                        if sub.is_dir():
+                                            shutil.copytree(sub, sub_dst)
+                                        else:
+                                            shutil.copy2(sub, sub_dst)
+                                        migration_info["items_copied"].append(f"{item}/{sub.name}")
+                        else:
+                            # File - only copy if doesn't exist
+                            if not dst.exists():
+                                shutil.copy2(src, dst)
+                                migration_info["items_copied"].append(item)
+                    except (PermissionError, OSError) as e:
+                        raise HTTPException(
+                            status_code=500,
+                            detail=f"Failed to migrate {item}: {str(e)}"
+                        )
+
+            migration_info["migrated"] = True
+
     # Save to global config
     global_config = load_global_config()
     global_config["data_dir"] = str(path.absolute())
     save_global_config(global_config)
 
+    message = "Data directory updated."
+    if migration_info["migrated"] and migration_info["items_copied"]:
+        message += f" Migrated: {', '.join(migration_info['items_copied'])}."
+    message += " Restart the server for changes to take effect."
+
     return {
         "status": "ok",
-        "message": "Data directory updated. Restart the server for changes to take effect.",
+        "message": message,
         "data_dir": str(path.absolute()),
-        "restart_required": True
+        "restart_required": True,
+        "migration": migration_info
     }
 
 
@@ -233,6 +297,56 @@ async def reset_data_dir():
         "message": "Data directory reset to default. Restart the server for changes to take effect.",
         "restart_required": True
     }
+
+
+@router.get("/backup")
+async def backup_data():
+    """
+    Create a ZIP backup of all projects and settings.
+
+    Returns a downloadable ZIP file.
+    """
+    import io
+    import zipfile
+    from datetime import datetime
+    from fastapi.responses import StreamingResponse
+
+    data_dir = settings.data_dir
+    buffer = io.BytesIO()
+
+    with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        # Backup projects
+        projects_dir = data_dir / "projects"
+        if projects_dir.exists():
+            for project_path in projects_dir.iterdir():
+                if project_path.is_dir():
+                    for file_path in project_path.rglob("*"):
+                        if file_path.is_file():
+                            arcname = f"projects/{project_path.name}/{file_path.relative_to(project_path)}"
+                            zf.write(file_path, arcname)
+
+        # Backup series
+        series_dir = data_dir / "series"
+        if series_dir.exists():
+            for file_path in series_dir.rglob("*"):
+                if file_path.is_file():
+                    arcname = f"series/{file_path.relative_to(series_dir)}"
+                    zf.write(file_path, arcname)
+
+        # Backup settings.json
+        settings_file = data_dir / "settings.json"
+        if settings_file.exists():
+            zf.write(settings_file, "settings.json")
+
+    buffer.seek(0)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"prose-pipeline-backup-{timestamp}.zip"
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+    )
 
 
 class ModelInfo(BaseModel):

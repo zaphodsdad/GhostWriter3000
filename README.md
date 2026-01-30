@@ -12,13 +12,14 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **World Building**: Maintain world context files for consistent story elements
 - **Scene-based Generation**: Generate prose from detailed scene outlines
 - **Critique-Revision Loop**: Automatic critique with manual approval for each revision iteration
-- **Series System**: Group related books with shared characters, world-building, and style guides
+- **Series System**: Group related books with shared characters, world-building, and style guides with full context maintained across revision iterations
 - **Reference Library**: Import style guides, published works, or notes as AI context
 - **Edit Mode**: Revise existing prose through the critique loop
 - **Manuscript Import**: Upload .docx/.txt/.md files, auto-detect chapters, create scenes in edit mode
 - **Enhanced Outline Import**: Import structured markdown outlines with full metadata extraction (POV, tone, beats, emotional arcs, settings, character IDs, generation notes)
 - **Continuity System**: Automatically includes summaries from last 10 scenes for context
-- **Backup System**: Auto-backup before destructive operations, scene version history, project snapshots, and manual checkpoints
+- **Backup System**: Auto-backup before destructive operations, scene version history, project snapshots, manual checkpoints, and full data export
+- **Data Directory Management**: Configurable storage location with migration support to move existing projects/settings to new location
 - **Dynamic Model Selection**: Choose from available OpenRouter models with live pricing
 - **Default Model Settings**: Configure preferred generation and critique models
 - **Word Count Goals**: Track progress toward writing targets with visual progress bar
@@ -345,6 +346,14 @@ POST   /api/projects/{id}/backups/scenes/{scene_id}/restore    # Restore scene f
 GET    /api/projects/{id}/backups/snapshots                    # List project snapshots
 POST   /api/projects/{id}/backups/snapshots/restore            # Restore from snapshot
 POST   /api/projects/{id}/backups/checkpoint                   # Create manual checkpoint
+```
+
+#### Settings & Data Management
+```
+GET    /api/settings                    # Get all settings (API keys, data dir, models)
+PUT    /api/settings/data-dir           # Change data directory (with optional migration)
+DELETE /api/settings/data-dir           # Reset data directory to default
+GET    /api/settings/backup             # Download full backup as ZIP (all projects, series, settings)
 ```
 
 ## Configuration

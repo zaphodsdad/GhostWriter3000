@@ -507,6 +507,7 @@ async function saveStartSettings() {
 
 async function saveStartDataDir() {
     const newPath = document.getElementById('start-data-dir').value.trim();
+    const migrateData = document.getElementById('start-data-dir-migrate').checked;
 
     if (!newPath) {
         showToast('Error', 'Please enter a path', 'error');
@@ -517,24 +518,67 @@ async function saveStartDataDir() {
         const response = await fetch('/api/settings/data-dir', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data_dir: newPath })
+            body: JSON.stringify({ data_dir: newPath, migrate_data: migrateData })
         });
 
         const data = await response.json();
 
         if (response.ok) {
-            showToast('Success', 'Data directory saved. Restart server to apply.', 'success');
+            let message = 'Data directory saved.';
+            if (data.migration && data.migration.migrated && data.migration.items_copied.length > 0) {
+                message += ` Migrated ${data.migration.items_copied.length} items.`;
+            }
+            message += ' Restart server to apply.';
+            showToast('Success', message, 'success');
 
             // Update the display
             document.getElementById('start-data-dir-current').textContent = data.data_dir;
             document.getElementById('start-data-dir-source').textContent = 'config (pending restart)';
             document.getElementById('start-data-dir').value = '';
+            document.getElementById('start-data-dir-migrate').checked = false;
         } else {
             showToast('Error', data.detail || 'Failed to save data directory', 'error');
         }
     } catch (e) {
         console.error('Failed to save data directory:', e);
         showToast('Error', 'Failed to save data directory', 'error');
+    }
+}
+
+async function backupData() {
+    showToast('Info', 'Preparing backup...', 'info');
+
+    try {
+        const response = await fetch('/api/settings/backup');
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+
+            // Get filename from header or use default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'prose-pipeline-backup.zip';
+            if (contentDisposition) {
+                const match = contentDisposition.match(/filename="?([^"]+)"?/);
+                if (match) filename = match[1];
+            }
+
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            showToast('Success', 'Backup downloaded', 'success');
+        } else {
+            const data = await response.json();
+            showToast('Error', data.detail || 'Failed to create backup', 'error');
+        }
+    } catch (e) {
+        console.error('Failed to create backup:', e);
+        showToast('Error', 'Failed to create backup', 'error');
     }
 }
 

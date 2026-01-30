@@ -464,14 +464,29 @@ async def revise_selection_direct(project_id: str, generation_id: str, request: 
         if not current_prose:
             raise HTTPException(status_code=400, detail="Generation has no prose to revise")
 
-        # Get LLM service
+        # Get LLM service and series service for context
         from app.services.llm_service import get_llm_service
-        from app.utils.prompt_templates import clean_prose_output
+        from app.services.series_service import get_series_service
+        from app.utils.prompt_templates import clean_prose_output, build_system_prompt
 
         llm = get_llm_service()
+        series_service = get_series_service()
 
-        # Build system prompt
-        system_prompt = "You are a skilled prose editor. Revise the selected text while maintaining consistency with the surrounding context, narrative voice, and style. CRITICAL: Your output must read as human-written. Never use AI-tell vocabulary (delve, tapestry, myriad, whilst, amidst, commence, utilize, plethora). Write with the natural voice of a published novelist."
+        # Load combined context for proper style/reference awareness
+        combined_context = await series_service.get_combined_context(project_id)
+        all_references = [r for r in combined_context.get("references", []) if r.get("use_in_generation", True)]
+        previous_books = combined_context.get("previous_books", [])
+        style_guide = combined_context.get("style_guide")
+
+        # Build full system prompt with context
+        system_prompt = build_system_prompt(
+            combined_context.get("characters", []),
+            combined_context.get("worlds", []),
+            [],  # No previous scene summaries needed for inline edits
+            style_guide,
+            references=all_references,
+            previous_books=previous_books
+        )
 
         # Combine quick_action with custom instructions
         instructions = request.instructions or ""
