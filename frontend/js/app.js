@@ -882,9 +882,9 @@ async function createProjectFromOutline(e) {
     submitBtn.disabled = true;
 
     try {
-        const response = await fetch(`${API_BASE}/projects/from-outline`, {
+        const response = await fetch('/api/projects/from-outline', {
             method: 'POST',
-            headers: getHeaders(),
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 markdown: markdown,
                 create_character_stubs: createChars
