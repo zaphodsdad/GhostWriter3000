@@ -213,6 +213,247 @@ async def create_project(project: ProjectCreate):
         raise HTTPException(status_code=500, detail=f"Failed to create project: {str(e)}")
 
 
+# --- Create Project from Outline ---
+
+from pydantic import BaseModel, Field
+from app.utils.outline_parser import parse_outline_markdown, validate_outline
+from app.services.markdown_parser import MarkdownParser
+
+markdown_parser = MarkdownParser()
+
+
+class FromOutlineRequest(BaseModel):
+    """Request to create a project from an outline."""
+    markdown: str = Field(..., description="Markdown outline text", min_length=10)
+    create_character_stubs: bool = Field(True, description="Create placeholder characters")
+
+
+class FromOutlineResult(BaseModel):
+    """Result of creating project from outline."""
+    project_id: str
+    title: str
+    acts_created: int
+    chapters_created: int
+    scenes_created: int
+    characters_created: int
+    warnings: List[str]
+
+
+def parse_word_count_goal(target_length: str) -> Optional[int]:
+    """Extract word count goal from target length string like '100,000-120,000 words'."""
+    if not target_length:
+        return None
+    import re
+    # Take the first number found (lower bound if range)
+    match = re.search(r'([\d,]+)', target_length)
+    if match:
+        return int(match.group(1).replace(',', ''))
+    return None
+
+
+@router.post("/from-outline", response_model=FromOutlineResult)
+async def create_project_from_outline(request: FromOutlineRequest):
+    """
+    Create a new project from a markdown outline.
+
+    Parses the outline to extract:
+    - Book title and metadata
+    - Acts with function and target word count
+    - Chapters with POV pattern and function
+    - Scenes with all metadata (POV, tone, beats, emotional arc, etc.)
+    - Character stubs for new character IDs
+
+    Returns the created project with import stats.
+    """
+    try:
+        # Parse the outline
+        parsed = parse_outline_markdown(request.markdown)
+        warnings = validate_outline(parsed)
+
+        # Extract book metadata
+        book_meta = parsed.get('book_metadata', {})
+        title = book_meta.get('title')
+
+        if not title:
+            # Try to get title from first act or error
+            if parsed['acts']:
+                title = f"Book - {parsed['acts'][0]['title']}"
+            else:
+                raise HTTPException(status_code=400, detail="Could not extract book title from outline. Ensure outline starts with '# Book X: Title'")
+
+        # Generate project ID
+        project_id = slugify(title)
+        if not project_id:
+            raise HTTPException(status_code=400, detail="Invalid book title")
+
+        project_dir = settings.project_dir(project_id)
+
+        # Check if project already exists
+        if project_dir.exists():
+            raise HTTPException(status_code=409, detail=f"Project already exists: {project_id}. Delete it first or use a different title.")
+
+        # Create project directory structure
+        project_dir.mkdir(parents=True)
+        settings.characters_dir(project_id).mkdir()
+        settings.world_dir(project_id).mkdir()
+        settings.scenes_dir(project_id).mkdir()
+        settings.generations_dir(project_id).mkdir()
+        (project_dir / "acts").mkdir()
+        (project_dir / "chapters").mkdir()
+
+        # Parse word count goal from target length
+        word_count_goal = parse_word_count_goal(book_meta.get('target_length'))
+
+        # Create project.json
+        now = datetime.utcnow()
+        project_data = {
+            "id": project_id,
+            "title": title,
+            "description": f"POV: {book_meta.get('pov_structure', 'Not specified')}",
+            "author": None,
+            "genre": None,
+            "series_id": None,  # User can assign later
+            "book_number": None,
+            "word_count_goal": word_count_goal,
+            "created_at": now.isoformat(),
+            "updated_at": now.isoformat()
+        }
+
+        project_file = project_dir / "project.json"
+        with open(project_file, "w") as f:
+            json.dump(project_data, f, indent=2)
+
+        # Import acts
+        acts_dir = project_dir / "acts"
+        for act in parsed['acts']:
+            act_data = {
+                "id": act['id'],
+                "title": act['title'],
+                "act_number": act['act_number'],
+                "description": act.get('description', ''),
+                "function": act.get('function'),
+                "target_word_count": act.get('target_word_count'),
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat()
+            }
+            with open(acts_dir / f"{act['id']}.json", "w") as f:
+                json.dump(act_data, f, indent=2)
+
+        # Import chapters
+        chapters_dir = project_dir / "chapters"
+        for chapter in parsed['chapters']:
+            chapter_data = {
+                "id": chapter['id'],
+                "title": chapter['title'],
+                "chapter_number": chapter['chapter_number'],
+                "act_id": chapter.get('act_id'),
+                "description": chapter.get('description', ''),
+                "notes": None,
+                "pov_pattern": chapter.get('pov_pattern'),
+                "target_word_count": chapter.get('target_word_count'),
+                "function": chapter.get('function'),
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat()
+            }
+            with open(chapters_dir / f"{chapter['id']}.json", "w") as f:
+                json.dump(chapter_data, f, indent=2)
+
+        # Import scenes
+        scenes_dir = settings.scenes_dir(project_id)
+        for scene in parsed['scenes']:
+            scene_data = {
+                "id": scene['id'],
+                "title": scene['title'],
+                "outline": scene.get('outline', ''),
+                "chapter_id": scene.get('chapter_id'),
+                "scene_number": scene.get('scene_number'),
+                "character_ids": scene.get('character_ids', []),
+                "world_context_ids": [],
+                "previous_scene_ids": [],
+                "tags": scene.get('tags', []),
+                "additional_notes": None,
+                "tone": scene.get('tone'),
+                "pov": scene.get('pov'),
+                "target_length": scene.get('target_length'),
+                "heat_level": scene.get('heat_level'),
+                "emotional_arc": scene.get('emotional_arc'),
+                "setting": scene.get('setting'),
+                "generation_notes": scene.get('generation_notes'),
+                "beats": scene.get('beats', []),
+                "depends_on": [],
+                "outline_status": "ready",
+                "is_canon": False,
+                "prose": None,
+                "summary": None,
+                "created_at": now.isoformat(),
+                "updated_at": now.isoformat()
+            }
+            with open(scenes_dir / f"{scene['id']}.json", "w") as f:
+                json.dump(scene_data, f, indent=2)
+
+        # Create character stubs
+        characters_created = 0
+        if request.create_character_stubs:
+            # Collect all character IDs from scenes and character definitions
+            char_ids = set()
+            for scene in parsed['scenes']:
+                for char_id in scene.get('character_ids', []):
+                    char_ids.add(char_id)
+            for char in parsed['characters']:
+                char_ids.add(char['id'])
+
+            # Create lookup for parsed character data
+            parsed_char_data = {c['id']: c for c in parsed['characters']}
+
+            chars_dir = settings.characters_dir(project_id)
+            for char_id in char_ids:
+                char_data = parsed_char_data.get(char_id, {'id': char_id, 'name': char_id})
+
+                # Build metadata
+                metadata = {
+                    'name': char_data.get('name', char_id.replace('-', ' ').title()),
+                    'role': char_data.get('role', 'Unknown'),
+                    'placeholder': True
+                }
+
+                # Build content
+                content_parts = []
+                if char_data.get('description'):
+                    content_parts.append(f"## Description\n{char_data['description']}")
+                if char_data.get('voice'):
+                    content_parts.append(f"## Voice\n{char_data['voice']}")
+                if char_data.get('first_appearance'):
+                    content_parts.append(f"## First Appearance\n{char_data['first_appearance']}")
+
+                if not content_parts:
+                    content_parts.append("## Notes\n*This is a placeholder character. Fill in details as needed.*")
+
+                content = "\n\n".join(content_parts)
+
+                filepath = chars_dir / f"{char_id}.md"
+                markdown_parser.write_file(filepath, metadata, content)
+                characters_created += 1
+
+        return FromOutlineResult(
+            project_id=project_id,
+            title=title,
+            acts_created=len(parsed['acts']),
+            chapters_created=len(parsed['chapters']),
+            scenes_created=len(parsed['scenes']),
+            characters_created=characters_created,
+            warnings=warnings
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Clean up partial project if creation failed
+        if 'project_dir' in locals() and project_dir.exists():
+            import shutil
+            shutil.rmtree(project_dir)
+        raise HTTPException(status_code=500, detail=f"Failed to create project from outline: {str(e)}")
+
+
 @router.put("/{project_id}", response_model=Project)
 async def update_project(project_id: str, update: ProjectUpdate):
     """

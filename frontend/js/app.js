@@ -812,6 +812,8 @@ function renderProjects() {
 }
 
 function showNewProjectForm() {
+    // Hide outline form if open
+    hideFromOutlineForm();
     document.getElementById('new-project-form').style.display = 'block';
 
     // Populate series select
@@ -843,6 +845,87 @@ function hideNewProjectForm() {
     document.getElementById('project-series').value = '';
     document.getElementById('project-book-number').value = '';
     document.getElementById('book-number-group').style.display = 'none';
+}
+
+function showFromOutlineForm() {
+    // Hide the manual form if open
+    hideNewProjectForm();
+    document.getElementById('from-outline-form').style.display = 'block';
+    document.getElementById('outline-markdown').focus();
+}
+
+function hideFromOutlineForm() {
+    document.getElementById('from-outline-form').style.display = 'none';
+    document.getElementById('outline-markdown').value = '';
+    document.getElementById('outline-create-chars').checked = true;
+}
+
+async function createProjectFromOutline(e) {
+    e.preventDefault();
+
+    const markdown = document.getElementById('outline-markdown').value.trim();
+    const createChars = document.getElementById('outline-create-chars').checked;
+
+    if (!markdown) {
+        alert('Please paste your outline');
+        return;
+    }
+
+    if (markdown.length < 100) {
+        alert('Outline seems too short. Please paste the full outline.');
+        return;
+    }
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Creating...';
+    submitBtn.disabled = true;
+
+    try {
+        const response = await fetch(`${API_BASE}/projects/from-outline`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({
+                markdown: markdown,
+                create_character_stubs: createChars
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to create project from outline');
+        }
+
+        const result = await response.json();
+
+        // Show success message
+        let msg = `Created "${result.title}":\n`;
+        msg += `• ${result.acts_created} acts\n`;
+        msg += `• ${result.chapters_created} chapters\n`;
+        msg += `• ${result.scenes_created} scenes\n`;
+        msg += `• ${result.characters_created} character stubs`;
+
+        if (result.warnings && result.warnings.length > 0) {
+            msg += `\n\nWarnings:\n• ${result.warnings.join('\n• ')}`;
+        }
+
+        alert(msg);
+
+        hideFromOutlineForm();
+
+        // Refresh projects list
+        await loadProjects();
+
+        // Select the new project
+        await selectProject(result.project_id);
+
+    } catch (error) {
+        console.error('Failed to create project from outline:', error);
+        alert('Error: ' + error.message);
+    } finally {
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    }
 }
 
 async function createProject(e) {

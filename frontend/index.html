@@ -170,7 +170,10 @@
                         <h2>Create a New Book</h2>
                         <p class="text-muted">Start a standalone book, or add it to a series later.</p>
                     </div>
-                    <button class="btn btn-primary" onclick="showNewProjectForm()">+ New Book</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn btn-secondary" onclick="showNewProjectForm()">+ Manual</button>
+                        <button class="btn btn-primary" onclick="showFromOutlineForm()">+ From Outline</button>
+                    </div>
                 </div>
             </div>
 
@@ -217,6 +220,69 @@
                     <div class="action-bar">
                         <button type="submit" class="btn btn-success">Create Book</button>
                         <button type="button" class="btn btn-secondary" onclick="hideNewProjectForm()">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- New Book from Outline Form (hidden by default) -->
+            <div id="from-outline-form" class="card" style="display: none;">
+                <h3>Create New Book from Outline</h3>
+                <p class="text-muted">Paste your structured markdown outline. The book title, acts, chapters, scenes, and characters will be extracted automatically.</p>
+                <form onsubmit="createProjectFromOutline(event)">
+                    <div class="form-group">
+                        <label>Markdown Outline *</label>
+                        <textarea id="outline-markdown" required placeholder="# Book 2: The Crimson Rites
+
+**Series:** On Storms and Tides
+**Target Length:** 100,000 words
+
+## New Characters Introduced
+
+### character-id
+**Role:** Description
+**Description:** Physical and personality
+**Voice:** How they speak
+
+# Act 1: Act Title
+
+**Function:** What this act accomplishes
+**Target:** ~35,000 words
+
+## Chapter 1: Chapter Title
+
+**POV Pattern:** character-id
+**Chapter Target:** 3,500 words
+**Chapter Function:** What this chapter accomplishes
+
+#### Scene 1: Scene Title
+
+**POV:** First person - character-id
+**Tone:** tense, anticipation
+**Target:** 1200 words
+
+**Emotional Arc:** start → end
+
+Outline paragraph...
+
+**Setting:** Location - sensory details
+
+**Beats:**
+1. First beat
+2. Second beat
+
+**Characters:** char1, char2
+**Tags:** setup, action
+**Notes:** Generation guidance" style="height: 400px; font-family: monospace; font-size: 12px;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="outline-create-chars" checked>
+                            Create placeholder characters for new character IDs
+                        </label>
+                    </div>
+                    <div class="action-bar">
+                        <button type="submit" class="btn btn-success">Create Book from Outline</button>
+                        <button type="button" class="btn btn-secondary" onclick="hideFromOutlineForm()">Cancel</button>
                     </div>
                 </form>
             </div>
