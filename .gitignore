@@ -71,3 +71,28 @@ SSH_CREDENTIALS.md
 *_CREDENTIALS*
 *.credentials
 secrets/
+
+# Extra safety - personal content
+*.docx
+*.manuscript
+projects/
+series/
+backups/
+*.backup
+*.bak
+
+# API keys (various patterns)
+*apikey*
+*api_key*
+*secret*
+*.pem
+*.key
+
+# User uploads
+uploads/
+portraits/
+references/
+
+# Personal notes
+NOTES_PERSONAL.md
+my_*.md
