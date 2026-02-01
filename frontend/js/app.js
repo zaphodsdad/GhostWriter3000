@@ -7097,6 +7097,7 @@ function hideImportOutlineModal() {
     if (manuscriptFileName) manuscriptFileName.textContent = '';
     importPreviewData = null;
     manuscriptPreviewData = null;
+    manuscriptOriginalFile = null;
     currentImportType = 'outline';
 }
 
@@ -7554,10 +7555,14 @@ async function confirmCharactersImport() {
 
 // Store manuscript data between preview and confirm
 let manuscriptPreviewData = null;
+let manuscriptOriginalFile = null;  // Store original file for deep import
 
 async function handleManuscriptFileUpload(event) {
     const file = event.target.files[0];
     if (!file) return;
+
+    // Store file for potential deep import
+    manuscriptOriginalFile = file;
 
     const validTypes = ['.docx', '.txt', '.md', '.markdown'];
     const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
@@ -7682,6 +7687,17 @@ async function previewManuscriptImport() {
             }
         };
 
+        // Show deep import option only if project is in a series and we have the original file
+        const deepImportOption = document.getElementById('deep-import-option');
+        if (deepImportOption) {
+            if (currentProject && currentProject.series_id && manuscriptOriginalFile) {
+                deepImportOption.style.display = 'block';
+            } else {
+                deepImportOption.style.display = 'none';
+                document.getElementById('manuscript-deep-import').checked = false;
+            }
+        }
+
         // Show preview
         document.getElementById('import-step-progress').style.display = 'none';
         document.getElementById('import-step-preview').style.display = 'block';
@@ -7701,6 +7717,7 @@ async function previewManuscriptImport() {
 async function confirmManuscriptImport() {
     const actId = document.getElementById('manuscript-target-act').value;
     const splitByChapters = document.getElementById('manuscript-split-chapters').checked;
+    const deepImport = document.getElementById('manuscript-deep-import')?.checked || false;
 
     // Show progress
     document.getElementById('import-step-preview').style.display = 'none';
@@ -7709,7 +7726,31 @@ async function confirmManuscriptImport() {
     try {
         let result;
 
-        if (splitByChapters) {
+        // Use deep import endpoint if checked and we have the original file
+        if (deepImport && manuscriptOriginalFile && currentProject?.series_id) {
+            const formData = new FormData();
+            formData.append('file', manuscriptOriginalFile);
+            formData.append('enable_edit_mode', 'true');
+            formData.append('deep_import', 'true');
+
+            const response = await fetch(apiUrl('/manuscript/import-full'), {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to import manuscript');
+            }
+
+            result = await response.json();
+            let message = `Imported ${result.chapters_created} chapters with ${result.total_words.toLocaleString()} words.`;
+            if (result.deep_import_started) {
+                message += ` Deep extraction started for ${result.scenes_created} scenes - check Memory tab for progress.`;
+            }
+            document.getElementById('import-result-message').textContent = message;
+
+        } else if (splitByChapters) {
             // Validate manuscript data exists
             if (!manuscriptPreviewData || !manuscriptPreviewData.chapters) {
                 throw new Error('No manuscript data available. Please preview first.');
