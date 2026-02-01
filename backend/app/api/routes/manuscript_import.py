@@ -13,6 +13,7 @@ from app.config import settings
 from app.utils.file_utils import write_json_file, read_json_file
 from app.utils.backup import create_snapshot
 from app.services.memory_service import memory_service
+from app.services.entity_service import get_entity_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -105,6 +106,11 @@ async def run_deep_extraction(
 ):
     """
     Background task to run extraction on all imported scenes.
+
+    Performs two types of extraction:
+    1. Entity extraction (characters, world) - once per book, saved to series level
+    2. Memory extraction (plot events, state changes) - per scene, saved to memory layer
+
     Runs sequentially to avoid rate limits.
     """
     job_id = f"{project_id}:{series_id}"
@@ -124,6 +130,46 @@ async def run_deep_extraction(
     book_number = project_data.get("book_number", 1)
 
     try:
+        # Phase 1: Gather all prose and run entity extraction (once per book)
+        logger.info(f"Deep import: gathering prose from {len(scene_ids)} scenes...")
+        all_prose = []
+        for scene_id in scene_ids:
+            scene_file = scenes_dir / f"{scene_id}.json"
+            if scene_file.exists():
+                scene_data = await read_json_file(scene_file)
+                prose = scene_data.get("original_prose") or scene_data.get("prose")
+                if prose:
+                    all_prose.append(prose)
+
+        if all_prose:
+            combined_prose = "\n\n---\n\n".join(all_prose)
+            logger.info(f"Deep import: extracting entities from {len(combined_prose)} chars...")
+            _deep_import_jobs[job_id].current_scene = "extracting_entities"
+
+            try:
+                entity_service = get_entity_service()
+                entity_result = await entity_service.extract_and_save_entities(
+                    series_id=series_id,
+                    book_id=project_id,
+                    book_number=book_number,
+                    prose=combined_prose,
+                    model=model
+                )
+                char_stats = entity_result.get("characters", {})
+                world_stats = entity_result.get("world_elements", {})
+                logger.info(
+                    f"Deep import: entities extracted - "
+                    f"characters: {char_stats.get('created', 0)} created, {char_stats.get('updated', 0)} updated | "
+                    f"world: {world_stats.get('created', 0)} created, {world_stats.get('updated', 0)} updated"
+                )
+            except Exception as e:
+                logger.warning(f"Entity extraction failed: {e}")
+                # Continue with memory extraction even if entity extraction fails
+
+            await asyncio.sleep(2)  # Pause before memory extraction
+
+        # Phase 2: Per-scene memory extraction
+        logger.info(f"Deep import: starting per-scene memory extraction...")
         for i, scene_id in enumerate(scene_ids):
             _deep_import_jobs[job_id].current_scene = scene_id
 
@@ -149,7 +195,7 @@ async def run_deep_extraction(
                     chapter_title = chapter_data.get("title")
                     chapter_number = chapter_data.get("chapter_number")
 
-            # Run extraction
+            # Run memory extraction
             try:
                 await memory_service.extract_from_scene(
                     series_id=series_id,
@@ -170,11 +216,12 @@ async def run_deep_extraction(
                 await asyncio.sleep(1)
 
             except Exception as e:
-                logger.warning(f"Extraction failed for scene {scene_id}: {e}")
+                logger.warning(f"Memory extraction failed for scene {scene_id}: {e}")
                 # Continue with other scenes even if one fails
 
-        # After all extractions, generate summaries
+        # Phase 3: Generate memory summaries
         try:
+            logger.info(f"Deep import: generating memory summaries...")
             await memory_service.generate_summaries(series_id, model=model)
         except Exception as e:
             logger.warning(f"Summary generation failed: {e}")
@@ -182,6 +229,7 @@ async def run_deep_extraction(
         _deep_import_jobs[job_id].status = "completed"
         _deep_import_jobs[job_id].completed_at = datetime.utcnow().isoformat()
         _deep_import_jobs[job_id].current_scene = None
+        logger.info(f"Deep import completed for {project_id}")
 
     except Exception as e:
         _deep_import_jobs[job_id].status = "failed"
