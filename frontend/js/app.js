@@ -8253,6 +8253,9 @@ function startDeepImportProgressPolling(initialSceneCount) {
                     /Extracting memory from \d+ scenes\.\.\./,
                     `Memory extracted from ${status.scenes_extracted} scenes.`
                 );
+
+                // Toast notification so user knows it's done
+                showToast('Deep Import Complete', `Extracted memory from ${status.scenes_extracted} scenes`, 'success');
             } else if (status.status === 'failed') {
                 statusText.textContent = 'Extraction failed. Check server logs.';
                 statusText.classList.remove('generating');
