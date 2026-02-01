@@ -198,6 +198,33 @@ Our approach: prompt caching + smart filtering.
 - [ ] **Series dashboard** - See all books, their status, shared resources
 - [ ] **Continuity warnings** - Flag when scene contradicts previous canon
 
+### Clawdbot In-App (Floating AI Assistant)
+
+- [ ] **Floating chat window** - Draggable/hideable persistent chat with AI co-author
+  - Knows ALL project context (characters, world, plot, memory layer)
+  - Conversation history persists per-project or series
+  - Not just current scene - full story awareness
+  - **Implementation:**
+    - Floating draggable div (minimize/close buttons)
+    - Store conversation in `data/projects/{id}/chat_history.json`
+    - System prompt = memory layer + character sheets + "You are Clawdbot..."
+    - Uses existing chat backend infrastructure
+  - **Capabilities:**
+    - Answer questions: "Who is Elias's love interest?"
+    - Suggest next steps: "What should happen in Chapter 3?"
+    - Brainstorm: "Give me 3 ways the betrayal could be revealed"
+    - Continuity check: "Does this contradict anything established?"
+    - Proactive: Could notice gaps, suggest fixes
+  - **Personality layer:**
+    - Not generic AI, but a co-author persona
+    - Remembers previous conversations ("Last week you said...")
+    - Learns preferences via Drift-style memory
+  - **Minimal MVP:**
+    - Floating chat widget
+    - Project context in system prompt
+    - Persistent conversation history
+    - Basic personality prompt
+
 ---
 
 ## DEPRIORITIZED: Clawdbot/Discord Integration
