@@ -125,24 +125,49 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [ ] **Series Timeline** - Chronological tracking across books (Sudowrite has this)
   - AI knows book order, what happened when
   - Track major events with timestamps/book references
-- [ ] **Import Novel → Auto-populate Story Bible** - Like Sudowrite's import
-  - Currently: extraction endpoints exist but not integrated into import flow
-  - Should auto-extract characters/world/style on manuscript import
-  - **Design: Series-Level Entity Extraction**
-    - If book is in series → extract characters/world to SERIES level, not book level
+- [x] **Import Novel → Auto-populate Story Bible** - COMPLETE 2026-02-01
+  - **Series-Level Entity Extraction implemented:**
+    - Deep import extracts characters/world to SERIES level, not book level
     - Merge strategy: Always additive, never overwrite
-    - Tag each fact with `book_number` where it was established
+    - Each fact tagged with `book_number` where established
     - On import: find existing entity by name → APPEND new facts
     - Books can be imported out of order - `book_number` determines chronology
-    - Character sheet = WHO (comprehensive canonical archive, grows over time)
-    - Memory layer = WHAT MATTERS NOW (filtered by drift/decay for generation)
+    - Entity service: `backend/app/services/entity_service.py`
+    - Markdown files with YAML frontmatter: `books_appeared`, `first_seen_book`, `last_updated`
   - **Separation of concerns:**
-    - Character sheets: cumulative truth across series
-    - Memory layer: time-weighted context (recent events > old events)
-    - Prequel details auto-deprioritized unless plot-relevant
+    - Character sheets: cumulative truth across series (WHO)
+    - Memory layer: time-weighted context for generation (WHAT MATTERS NOW)
 - [ ] **Chapter Continuity Linking** - Explicit links between chapters
   - We have `depends_on` for scenes but it's optional/manual
   - Should auto-link sequential chapters
+
+### Current Implementation Priorities
+
+**Priority 1: Series-Level Entities** - COMPLETE 2026-02-01
+- [x] Entities extract to series level, not book level
+- [x] Merge logic: additive, never overwrite
+- [x] `book_number` tagging for chronology
+- [x] Markdown files with YAML frontmatter
+
+**Priority 2: Memory Enhancement (Drift-inspired)** - IN PROGRESS
+- [ ] Memory decay: older facts have lower weight
+- [ ] Learn from corrections: user edits → extract preferences
+- [ ] Causal chains: trace WHY through plot events (not just WHAT)
+- See Drift research below
+
+**Priority 3: Clawdbot In-App**
+- [ ] Floating chat widget with project context
+- [ ] Persistent conversation history
+- [ ] Full story awareness (not just current scene)
+
+**Priority 4: Token Optimization**
+- [ ] Scene-relevant entity filtering
+- [ ] Tiered book summaries (essential vs full)
+
+**Priority 5: Quality of Life**
+- [ ] GUI for manuscript import with extraction
+- [ ] Series dashboard
+- [ ] Continuity warnings
 
 ### Research & Exploration
 

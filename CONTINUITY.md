@@ -566,3 +566,65 @@ Returns:
 - Each scene = 1 LLM extraction call
 - 20-chapter book ≈ 20 API calls
 - Use a cost-effective model for extraction
+
+### Series-Level Entity Extraction (Implemented)
+
+Deep import now extracts **characters and world elements** to the **series level**, not the book level.
+
+**How it works:**
+
+1. **Entity Extraction Phase** (once per book):
+   - Gathers all prose from imported scenes
+   - Extracts characters and world elements via LLM
+   - Saves to `data/series/{series-id}/characters/` and `data/series/{series-id}/world/`
+
+2. **Merge Logic** (always additive):
+   - If character/world element already exists (by name), appends new facts
+   - Never overwrites existing information
+   - Tags each fact with `book_number` for chronology
+
+3. **Memory Extraction Phase** (per scene):
+   - Extracts plot events, character state changes, world facts
+   - Saves to memory layer as before
+
+**File format:**
+```markdown
+---
+name: Elias
+role: protagonist
+first_seen_book: 0
+books_appeared: [0, 1, 2]
+created_from: her-majestys-dragon-lancer
+last_updated: '2026-02-01T02:54:59'
+---
+
+## Physical Description
+Tall, dark hair, grey eyes
+
+## Personality
+Brooding, strategic, protective
+
+## Relationships
+- **Beatrix**: dragon companion
+- **Kira**: former love interest (deceased Book 0)
+- **Atla**: new love interest (Book 2)
+
+---
+*Initial extraction from Book 0 (her-majestys-dragon-lancer)*
+
+## Book 1 Updates (the-jade-vow)
+**Traits**: grieving, determined
+**Relationship with Atla**: growing trust
+**Notes**: Still healing from Kira's death
+
+## Book 2 Updates (the-crimson-rites)
+**Traits**: conflicted, protective
+**Relationship with Atla**: romantic tension
+**Notes**: Must choose between duty and love
+```
+
+**Benefits:**
+- Characters defined once, evolve across series
+- No duplicate entity files per book
+- `book_number` enables chronological understanding
+- Memory layer handles "what matters now" via decay (future)
