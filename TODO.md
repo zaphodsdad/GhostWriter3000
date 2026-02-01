@@ -182,6 +182,17 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [ ] **Batch operations** - "Generate chapters 1-5 overnight"
 - [ ] **Proactive suggestions** - Notice gaps, suggest fixes
 
+**Priority 7: Chico History Management** - FUTURE
+- [ ] **New Chat + Archive** - Start fresh conversation, access past chats
+- [ ] **Auto-compress** - Summarize older messages in long conversations
+- [ ] **Session indicator** - Show conversation age/length
+
+**Priority 8: UX Improvements** - FUTURE
+- [ ] **Clarify import types** - Better labels for Manuscript vs Outline import:
+  - Manuscript: "I have written prose to import"
+  - Outline: "I have a structure/outline to generate from"
+- [ ] **Import type tooltips** - Explain when to use each
+
 **Priority 4: Token Optimization** - COMPLETE 2026-02-01
 - [x] Scene-relevant entity filtering (filter characters/world by scene mentions)
 - [x] Tiered book summaries (essential 500 words vs full 2500 words)

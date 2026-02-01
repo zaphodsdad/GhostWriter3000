@@ -8204,7 +8204,7 @@ async function confirmManuscriptImport() {
 // ============================================
 let deepImportPollingInterval = null;
 
-function startDeepImportProgressPolling(totalScenes) {
+function startDeepImportProgressPolling(initialSceneCount) {
     // Clear any existing polling
     if (deepImportPollingInterval) {
         clearInterval(deepImportPollingInterval);
@@ -8224,6 +8224,9 @@ function startDeepImportProgressPolling(totalScenes) {
 
             const status = await response.json();
 
+            // Use total_scenes from status (more accurate than initial count)
+            const totalScenes = status.total_scenes || initialSceneCount || 1;
+
             // Update progress bar
             const percent = totalScenes > 0
                 ? Math.round((status.scenes_extracted / totalScenes) * 100)
@@ -8238,7 +8241,7 @@ function startDeepImportProgressPolling(totalScenes) {
                 }
             } else if (status.status === 'completed') {
                 progressFill.style.width = '100%';
-                statusText.textContent = `Extraction complete! ${status.scenes_extracted} scenes processed.`;
+                statusText.textContent = `Extraction complete! ${status.scenes_extracted} of ${totalScenes} scenes processed.`;
                 statusText.classList.remove('generating');
                 statusText.classList.add('completed');
                 clearInterval(deepImportPollingInterval);
