@@ -9411,7 +9411,7 @@ async function sendChicoMessage() {
 }
 
 // Show Chico settings modal
-function chicoSettings() {
+function showChicoSettingsModal() {
     const modal = document.getElementById('chico-settings-modal');
     if (modal) modal.style.display = 'flex';
 }
