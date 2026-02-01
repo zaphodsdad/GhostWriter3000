@@ -725,6 +725,33 @@ async def save_scene_prose(project_id: str, scene_id: str, request: SaveProseReq
             await backup_scene(project_id, scene_id, reason="pre-edit")
             backup_created = True
 
+            # Learn from user edits (style preferences)
+            try:
+                # Get project to check for series
+                project_file = settings.project_dir(project_id) / "project.json"
+                if project_file.exists():
+                    project_data = await read_json_file(project_file)
+                    series_id = project_data.get("series_id")
+
+                    if series_id:
+                        from app.services.style_learning_service import get_style_learning_service
+                        style_service = get_style_learning_service()
+
+                        # Learn from the edit (background, don't block save)
+                        import asyncio
+                        asyncio.create_task(
+                            style_service.learn_from_edit(
+                                series_id=series_id,
+                                scene_id=scene_id,
+                                book_id=project_id,
+                                original_text=current_prose,
+                                edited_text=request.prose
+                            )
+                        )
+            except Exception:
+                # Style learning is optional, don't fail the save
+                pass
+
         # Save the new prose
         data["prose"] = request.prose
         data["updated_at"] = datetime.utcnow().isoformat()

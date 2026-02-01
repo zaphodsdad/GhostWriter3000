@@ -14,6 +14,9 @@ from app.models.memory import (
     WorldFact,
     PlotEvent,
     ExtractionRequest,
+    DecayConfig,
+    StylePreference,
+    StyleMemory,
 )
 from app.config import settings
 from app.utils.prompt_templates import extract_json
@@ -271,11 +274,29 @@ class MemoryService:
         manifest = MemoryManifest()
         self._save_manifest(series_id, manifest)
 
-    def get_context_for_generation(self, series_id: str) -> Dict[str, str]:
-        """Get compact context summaries for use in generation prompts."""
+    def get_context_for_generation(
+        self,
+        series_id: str,
+        current_book_number: Optional[int] = None,
+        apply_decay: bool = True
+    ) -> Dict[str, str]:
+        """Get compact context summaries for use in generation prompts.
+
+        Args:
+            series_id: Series ID
+            current_book_number: Book currently being written (for decay calculation)
+            apply_decay: Whether to apply memory decay (filter low-relevance facts)
+
+        Returns:
+            Dict with character_states, world_state, timeline summaries
+        """
         memory = self.get_memory(series_id)
         if not memory:
             return {}
+
+        # If decay is enabled and we have a current book, recalculate relevance
+        if apply_decay and current_book_number is not None:
+            self._apply_decay_to_memory(memory, current_book_number)
 
         context = {}
 
@@ -290,10 +311,204 @@ class MemoryService:
 
         return context
 
+    def _apply_decay_to_memory(
+        self,
+        memory: SeriesMemory,
+        current_book_number: int
+    ):
+        """Apply decay calculation to all memory items.
+
+        Modifies relevance_score on each item based on:
+        - Distance from current book
+        - Significance level
+        - Reference frequency
+        """
+        config = memory.manifest.decay_config
+
+        # Apply decay to character changes
+        for change in memory.character_changes:
+            change.relevance_score = self._calculate_relevance(
+                book_number=change.book_number,
+                current_book=current_book_number,
+                significance="moderate",  # Character changes are moderate by default
+                reference_count=change.reference_count,
+                config=config,
+                is_foundational=False
+            )
+
+        # Apply decay to world facts
+        for fact in memory.world_facts:
+            fact.relevance_score = self._calculate_relevance(
+                book_number=fact.book_number,
+                current_book=current_book_number,
+                significance="moderate",
+                reference_count=fact.reference_count,
+                config=config,
+                is_foundational=fact.is_foundational
+            )
+
+        # Apply decay to timeline events
+        for event in memory.timeline:
+            event.relevance_score = self._calculate_relevance(
+                book_number=event.book_number,
+                current_book=current_book_number,
+                significance=event.significance,
+                reference_count=event.reference_count,
+                config=config,
+                is_foundational=False
+            )
+
+    def _calculate_relevance(
+        self,
+        book_number: Optional[int],
+        current_book: int,
+        significance: str,
+        reference_count: int,
+        config: DecayConfig,
+        is_foundational: bool = False
+    ) -> float:
+        """Calculate relevance score for a memory item.
+
+        Formula:
+            base_weight = significance_weight
+            distance_decay = decay_rate ^ book_distance
+            reference_boost = reference_count * boost_per_reference
+            relevance = max(min_relevance, base_weight * distance_decay + reference_boost)
+
+        Args:
+            book_number: Book where this was established
+            current_book: Current book being written
+            significance: minor, moderate, major, climactic
+            reference_count: Times referenced in later scenes
+            config: Decay configuration
+            is_foundational: If True, never decays below 0.5
+
+        Returns:
+            Relevance score (0.0-1.0)
+        """
+        # Get base weight from significance
+        base_weight = config.significance_weights.get(significance, 0.5)
+
+        # Calculate book distance (if unknown, assume 0 distance)
+        if book_number is None:
+            book_distance = 0
+        else:
+            book_distance = max(0, current_book - book_number)
+
+        # Apply distance decay
+        distance_decay = config.book_distance_decay_rate ** book_distance
+
+        # Calculate reference boost
+        reference_boost = reference_count * config.reference_boost
+
+        # Combine: base relevance + reference boost
+        relevance = (base_weight * distance_decay) + reference_boost
+
+        # Apply minimum relevance (foundational facts have higher minimum)
+        min_rel = 0.5 if is_foundational else config.min_relevance
+
+        # Clamp to [min_relevance, 1.0]
+        return max(min_rel, min(1.0, relevance))
+
+    def get_filtered_memory(
+        self,
+        series_id: str,
+        current_book_number: int,
+        min_relevance: float = 0.3
+    ) -> SeriesMemory:
+        """Get memory filtered by relevance threshold.
+
+        Returns only items with relevance_score >= min_relevance.
+        Useful for token optimization - drop low-relevance facts.
+
+        Args:
+            series_id: Series ID
+            current_book_number: Current book being written
+            min_relevance: Minimum relevance score to include (0.0-1.0)
+
+        Returns:
+            SeriesMemory with filtered items
+        """
+        memory = self.get_memory(series_id)
+        if not memory:
+            return None
+
+        # Apply decay calculation
+        self._apply_decay_to_memory(memory, current_book_number)
+
+        # Filter by relevance
+        memory.character_changes = [
+            c for c in memory.character_changes
+            if c.relevance_score >= min_relevance
+        ]
+        memory.world_facts = [
+            f for f in memory.world_facts
+            if f.relevance_score >= min_relevance
+        ]
+        memory.timeline = [
+            e for e in memory.timeline
+            if e.relevance_score >= min_relevance
+        ]
+
+        return memory
+
+    def set_current_book(self, series_id: str, book_number: int):
+        """Set the current book number for decay calculation."""
+        manifest = self._load_manifest(series_id)
+        manifest.current_book_number = book_number
+        self._save_manifest(series_id, manifest)
+
+    def update_decay_config(self, series_id: str, config: DecayConfig):
+        """Update the decay configuration for a series."""
+        manifest = self._load_manifest(series_id)
+        manifest.decay_config = config
+        self._save_manifest(series_id, manifest)
+
+    def increment_reference_count(
+        self,
+        series_id: str,
+        scene_id: str,
+        book_id: str,
+        item_type: str,
+        item_index: int
+    ):
+        """Increment reference count for a memory item.
+
+        Call this when a fact is referenced in generation context.
+        Helps boost relevance of frequently-used facts.
+        """
+        memory_dir = self._memory_dir(series_id)
+        extraction_path = memory_dir / "extractions" / f"{book_id}_{scene_id}.json"
+
+        if not extraction_path.exists():
+            return
+
+        data = json.loads(extraction_path.read_text(encoding="utf-8"))
+
+        if item_type == "character_change" and item_index < len(data.get("character_changes", [])):
+            data["character_changes"][item_index]["reference_count"] = \
+                data["character_changes"][item_index].get("reference_count", 0) + 1
+            data["character_changes"][item_index]["last_referenced"] = datetime.utcnow().isoformat()
+
+        elif item_type == "world_fact" and item_index < len(data.get("world_facts", [])):
+            data["world_facts"][item_index]["reference_count"] = \
+                data["world_facts"][item_index].get("reference_count", 0) + 1
+
+        elif item_type == "plot_event" and item_index < len(data.get("plot_events", [])):
+            data["plot_events"][item_index]["reference_count"] = \
+                data["plot_events"][item_index].get("reference_count", 0) + 1
+
+        extraction_path.write_text(
+            json.dumps(data, default=str, indent=2),
+            encoding="utf-8"
+        )
+
     async def get_context_with_auto_refresh(
         self,
         series_id: str,
-        auto_regenerate: bool = True
+        auto_regenerate: bool = True,
+        current_book_number: Optional[int] = None,
+        apply_decay: bool = True
     ) -> Dict[str, str]:
         """
         Get context for generation, optionally auto-regenerating stale summaries.
@@ -301,6 +516,8 @@ class MemoryService:
         Args:
             series_id: Series ID
             auto_regenerate: If True, check staleness and regenerate if needed
+            current_book_number: Book currently being written (for decay calculation)
+            apply_decay: Whether to apply memory decay (filter low-relevance facts)
 
         Returns:
             Dict with character_states, world_state, timeline summaries
@@ -316,7 +533,11 @@ class MemoryService:
                         f"Auto-regenerating stale memory summaries for series {series_id}",
                         extra={"staleness": staleness}
                     )
-                    await self.generate_summaries(series_id)
+                    # Pass current_book_number for decay-aware summary generation
+                    await self.generate_summaries(
+                        series_id,
+                        current_book_number=current_book_number
+                    )
                 except Exception as e:
                     # Don't fail generation if auto-regeneration fails
                     from app.utils.logging import get_logger
@@ -325,7 +546,11 @@ class MemoryService:
                         f"Failed to auto-regenerate summaries for {series_id}: {e}"
                     )
 
-        return self.get_context_for_generation(series_id)
+        return self.get_context_for_generation(
+            series_id,
+            current_book_number=current_book_number,
+            apply_decay=apply_decay
+        )
 
     async def extract_from_scene(
         self,
@@ -404,11 +629,16 @@ Extract three types of information:
    - history: Historical events mentioned
    - culture: Cultural practices, beliefs, customs
    - technology/magic: How things work
+   - is_foundational: True if this is a core world rule that should always be remembered
 
 3. PLOT EVENTS - Significant story events (for timeline):
    - What happened (brief, factual)
    - Who was involved
    - Significance: minor, moderate, major, or climactic
+   - CAUSAL CHAINS: For each event, identify:
+     - WHY it happened (what caused it)
+     - What it might lead to (potential consequences)
+   - Give each event a unique ID like "evt_scene_N" for linking
 
 Output as JSON:
 {{
@@ -423,17 +653,27 @@ Output as JSON:
   "world_facts": [
     {{
       "category": "location|rule|history|culture|magic|technology",
-      "fact": "The fact established"
+      "fact": "The fact established",
+      "is_foundational": false
     }}
   ],
   "plot_events": [
     {{
+      "event_id": "evt_unique_id",
       "event": "What happened",
       "characters_involved": ["char1", "char2"],
-      "significance": "minor|moderate|major|climactic"
+      "significance": "minor|moderate|major|climactic",
+      "causal_summary": "Brief explanation of WHY this happened",
+      "causes": ["evt_id_of_cause"],
+      "consequences": ["potential_consequence_description"]
     }}
   ]
 }}
+
+For causes/consequences:
+- "causes" should reference event_ids from previous scenes if known
+- "consequences" can be descriptions of what this event might lead to
+- If unknown, use empty arrays
 
 If nothing notable in a category, use an empty array.
 
@@ -479,11 +719,18 @@ SCENE TEXT:
                 category=fact.get("category", "rule"),
                 fact=fact.get("fact", ""),
                 scene_id=scene_id,
-                book_id=book_id
+                book_id=book_id,
+                book_number=book_number,
+                is_foundational=fact.get("is_foundational", False)
             ))
 
-        # Process plot events
-        for event in data.get("plot_events", []):
+        # Process plot events with causal chain support
+        for i, event in enumerate(data.get("plot_events", [])):
+            # Generate event_id if not provided
+            event_id = event.get("event_id")
+            if not event_id:
+                event_id = f"evt_{scene_id}_{i}"
+
             extraction.plot_events.append(PlotEvent(
                 event=event.get("event", ""),
                 characters_involved=event.get("characters_involved", []),
@@ -492,7 +739,11 @@ SCENE TEXT:
                 book_id=book_id,
                 book_number=book_number,
                 chapter_number=chapter_number,
-                scene_number=scene_number
+                scene_number=scene_number,
+                event_id=event_id,
+                causes=event.get("causes", []),
+                consequences=event.get("consequences", []),
+                causal_summary=event.get("causal_summary")
             ))
 
         # Save the extraction
@@ -503,7 +754,9 @@ SCENE TEXT:
     async def generate_summaries(
         self,
         series_id: str,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        current_book_number: Optional[int] = None,
+        min_relevance: float = 0.2
     ) -> Dict[str, str]:
         """
         Generate all summaries from accumulated extractions.
@@ -516,6 +769,8 @@ SCENE TEXT:
         Args:
             series_id: Series to generate summaries for
             model: Optional model override
+            current_book_number: If provided, apply decay and filter by relevance
+            min_relevance: Minimum relevance to include when filtering (0.0-1.0)
 
         Returns:
             Dict with generated summary content for each type
@@ -523,6 +778,30 @@ SCENE TEXT:
         memory = self.get_memory(series_id)
         if not memory:
             return {}
+
+        # Apply decay if current book is specified
+        if current_book_number is not None:
+            self._apply_decay_to_memory(memory, current_book_number)
+
+            # Filter to items above minimum relevance
+            memory.character_changes = [
+                c for c in memory.character_changes
+                if c.relevance_score >= min_relevance
+            ]
+            memory.world_facts = [
+                f for f in memory.world_facts
+                if f.relevance_score >= min_relevance
+            ]
+            memory.timeline = [
+                e for e in memory.timeline
+                if e.relevance_score >= min_relevance
+            ]
+
+            # Update manifest with current book
+            manifest = self._load_manifest(series_id)
+            manifest.current_book_number = current_book_number
+            manifest.last_decay_calculation = datetime.utcnow()
+            self._save_manifest(series_id, manifest)
 
         results = {}
 
@@ -737,6 +1016,158 @@ Format:
         )
 
         return result["content"]
+
+    def trace_causal_chain(
+        self,
+        series_id: str,
+        event_id: str,
+        direction: str = "causes",
+        max_depth: int = 5
+    ) -> List[PlotEvent]:
+        """
+        Trace the causal chain for an event.
+
+        Args:
+            series_id: Series ID
+            event_id: Starting event ID
+            direction: "causes" (trace backwards) or "consequences" (trace forwards)
+            max_depth: Maximum depth to trace
+
+        Returns:
+            List of PlotEvent objects in causal order (oldest cause first if tracing causes)
+        """
+        memory = self.get_memory(series_id)
+        if not memory:
+            return []
+
+        # Build event lookup by ID
+        events_by_id: Dict[str, PlotEvent] = {}
+        for event in memory.timeline:
+            if event.event_id:
+                events_by_id[event.event_id] = event
+
+        # Find starting event
+        start_event = events_by_id.get(event_id)
+        if not start_event:
+            return []
+
+        # Trace chain
+        chain = []
+        visited = set()
+        queue = [(start_event, 0)]
+
+        while queue:
+            current, depth = queue.pop(0)
+
+            if current.event_id in visited or depth > max_depth:
+                continue
+
+            visited.add(current.event_id)
+            chain.append(current)
+
+            # Get linked events
+            if direction == "causes":
+                linked_ids = current.causes
+            else:
+                linked_ids = current.consequences
+
+            for linked_id in linked_ids:
+                if linked_id in events_by_id and linked_id not in visited:
+                    queue.append((events_by_id[linked_id], depth + 1))
+
+        # Sort chain by story order
+        chain.sort(key=lambda e: (
+            e.book_number or 999,
+            e.chapter_number or 999,
+            e.scene_number or 999
+        ))
+
+        return chain
+
+    def get_causal_narrative(
+        self,
+        series_id: str,
+        event_id: str
+    ) -> str:
+        """
+        Generate a narrative explanation of why an event happened.
+
+        Traces the causal chain and builds a readable explanation.
+
+        Args:
+            series_id: Series ID
+            event_id: Event to explain
+
+        Returns:
+            Narrative string explaining the causal chain
+        """
+        chain = self.trace_causal_chain(series_id, event_id, direction="causes")
+
+        if not chain:
+            return ""
+
+        # Build narrative
+        lines = []
+        for i, event in enumerate(chain):
+            if i == 0 and event.causal_summary:
+                lines.append(f"Root cause: {event.event}")
+                lines.append(f"  Why: {event.causal_summary}")
+            elif i == len(chain) - 1:
+                lines.append(f"Result: {event.event}")
+                if event.causal_summary:
+                    lines.append(f"  Why: {event.causal_summary}")
+            else:
+                lines.append(f"→ {event.event}")
+                if event.causal_summary:
+                    lines.append(f"  (Because: {event.causal_summary})")
+
+        return "\n".join(lines)
+
+    def link_events(
+        self,
+        series_id: str,
+        cause_event_id: str,
+        effect_event_id: str
+    ):
+        """
+        Manually link two events in a causal relationship.
+
+        Args:
+            series_id: Series ID
+            cause_event_id: Event that caused the effect
+            effect_event_id: Event that resulted from the cause
+        """
+        memory_dir = self._memory_dir(series_id)
+        extractions_dir = memory_dir / "extractions"
+
+        if not extractions_dir.exists():
+            return
+
+        # Find and update both events
+        for extraction_file in extractions_dir.glob("*.json"):
+            data = json.loads(extraction_file.read_text(encoding="utf-8"))
+            modified = False
+
+            for event in data.get("plot_events", []):
+                if event.get("event_id") == cause_event_id:
+                    if effect_event_id not in event.get("consequences", []):
+                        if "consequences" not in event:
+                            event["consequences"] = []
+                        event["consequences"].append(effect_event_id)
+                        modified = True
+
+                elif event.get("event_id") == effect_event_id:
+                    if cause_event_id not in event.get("causes", []):
+                        if "causes" not in event:
+                            event["causes"] = []
+                        event["causes"].append(cause_event_id)
+                        modified = True
+
+            if modified:
+                extraction_file.write_text(
+                    json.dumps(data, default=str, indent=2),
+                    encoding="utf-8"
+                )
 
     async def generate_book_summary_from_memory(
         self,

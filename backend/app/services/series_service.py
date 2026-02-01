@@ -201,6 +201,7 @@ class SeriesService:
         Get combined context from series (if any) + project.
         Series resources come first, project resources extend/override.
         Includes memory context from marked-as-canon scenes.
+        Includes learned style preferences from user edits.
         """
         context = {
             "characters": [],
@@ -208,7 +209,8 @@ class SeriesService:
             "style_guide": None,
             "references": [],
             "previous_books": [],
-            "memory_context": {}
+            "memory_context": {},
+            "style_preferences": ""
         }
 
         # Load project to check for series
@@ -233,7 +235,16 @@ class SeriesService:
 
             # Load memory context from series (accumulated canon knowledge)
             # Uses auto-refresh to regenerate stale summaries when source files change
-            context["memory_context"] = await memory_service.get_context_with_auto_refresh(series_id)
+            # Pass current book number for decay calculation
+            context["memory_context"] = await memory_service.get_context_with_auto_refresh(
+                series_id,
+                current_book_number=book_number
+            )
+
+            # Load learned style preferences from user edits
+            from app.services.style_learning_service import get_style_learning_service
+            style_service = get_style_learning_service()
+            context["style_preferences"] = style_service.get_preferences_for_prompt(series_id)
 
             # Load summaries from previous books in series
             if book_number and book_number > 1:

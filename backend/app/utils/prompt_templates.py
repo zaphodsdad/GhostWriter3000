@@ -165,7 +165,8 @@ def build_system_prompt(
     style_guide: Dict[str, Any] = None,
     references: List[Dict[str, Any]] = None,
     previous_books: List[Dict[str, Any]] = None,
-    memory_context: Dict[str, str] = None
+    memory_context: Dict[str, str] = None,
+    style_preferences: str = None
 ) -> str:
     """
     Build system prompt with character, world context, previous scene summaries, style guide,
@@ -181,6 +182,8 @@ def build_system_prompt(
         style_guide: Style guide dictionary with pov, tense, tone, heat_level, guide
         references: List of reference documents (style guides, published books, notes)
         previous_books: List of earlier book summaries in series
+        memory_context: Dict with character_states, world_state, timeline from memory layer
+        style_preferences: Learned style preferences from user edits (formatted string)
 
     Returns:
         Formatted system prompt
@@ -218,6 +221,14 @@ def build_system_prompt(
             prompt_parts.append(style_guide['guide'])
             prompt_parts.append("")
 
+        prompt_parts.append("")
+
+    # Add learned style preferences (from user edits)
+    if style_preferences:
+        prompt_parts.append("# LEARNED STYLE PREFERENCES\n")
+        prompt_parts.append("These preferences were learned from the author's edits to AI-generated prose.")
+        prompt_parts.append("Apply these consistently to match the author's voice:\n")
+        prompt_parts.append(style_preferences)
         prompt_parts.append("")
 
     # STATIC CONTENT FIRST (for cache efficiency)
@@ -339,7 +350,8 @@ def build_system_prompt_cached(
     style_guide: Dict[str, Any] = None,
     references: List[Dict[str, Any]] = None,
     previous_books: List[Dict[str, Any]] = None,
-    memory_context: Dict[str, str] = None
+    memory_context: Dict[str, str] = None,
+    style_preferences: str = None
 ) -> List[Dict[str, Any]]:
     """
     Build system prompt as content blocks for Anthropic prompt caching.
@@ -382,6 +394,14 @@ def build_system_prompt_cached(
         if style_guide.get('guide'):
             static_parts.append("\n## Full Style Guide\n")
             static_parts.append(style_guide['guide'])
+        static_parts.append("")
+
+    # Add learned style preferences (from user edits)
+    if style_preferences:
+        static_parts.append("# LEARNED STYLE PREFERENCES\n")
+        static_parts.append("These preferences were learned from the author's edits to AI-generated prose.")
+        static_parts.append("Apply these consistently to match the author's voice:\n")
+        static_parts.append(style_preferences)
         static_parts.append("")
 
     # Characters
