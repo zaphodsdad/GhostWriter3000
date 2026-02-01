@@ -522,9 +522,47 @@ When character or world files are modified, the system:
 3. **Check Staleness**: Before major generation sessions, verify summaries aren't stale
 4. **Use for Series**: Memory layer is most valuable for multi-book series continuity
 
-### Future: Deep Import
+### Deep Import (Implemented)
 
-For importing existing manuscripts, a future "Deep Import" feature will:
-- Batch-process chapters through extraction
-- Build memory from imported text
-- Option: "Quick Import" (just text) vs "Deep Import" (builds memory)
+For importing existing manuscripts with full memory extraction:
+
+**How to use:**
+```bash
+# Via API with deep_import=true
+curl -X POST "http://localhost:8000/api/projects/{project_id}/manuscript/import-full" \
+  -F "file=@manuscript.docx" \
+  -F "deep_import=true"
+```
+
+**What happens:**
+1. Manuscript is imported normally (chapters → scenes)
+2. Background task starts extracting from each scene
+3. Extractions run sequentially (1 sec delay to avoid rate limits)
+4. When all scenes processed, auto-generates summaries
+
+**Check progress:**
+```bash
+curl "http://localhost:8000/api/projects/{project_id}/manuscript/deep-import-status"
+```
+
+Returns:
+```json
+{
+  "project_id": "my-book",
+  "series_id": "my-series",
+  "total_scenes": 20,
+  "scenes_extracted": 15,
+  "current_scene": "chapter-16-scene-1",
+  "status": "running",
+  "started_at": "2026-02-01T01:00:00"
+}
+```
+
+**Requirements:**
+- Project must be in a series (series_id set)
+- Manuscript should have detectable chapter markers
+
+**Cost consideration:**
+- Each scene = 1 LLM extraction call
+- 20-chapter book ≈ 20 API calls
+- Use a cost-effective model for extraction
