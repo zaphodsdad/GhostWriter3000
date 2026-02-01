@@ -164,9 +164,9 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [x] Storage: `data/series/{series-id}/chat/chico_history.json`
 - [x] Personality options: helpful, direct, enthusiastic
 
-**Priority 4: Token Optimization**
-- [ ] Scene-relevant entity filtering
-- [ ] Tiered book summaries (essential vs full)
+**Priority 4: Token Optimization** - COMPLETE 2026-02-01
+- [x] Scene-relevant entity filtering (filter characters/world by scene mentions)
+- [x] Tiered book summaries (essential 500 words vs full 2500 words)
 
 **Priority 5: Quality of Life**
 - [ ] GUI for manuscript import with extraction
@@ -212,13 +212,18 @@ Our approach: prompt caching + smart filtering.
   - Cache stats tracking in LLMService
   - Estimated 70% reduction in input token costs for Anthropic
 
-- [ ] **Scene-relevant entity filtering** - Only load mentioned characters/world
-  - Parse scene outline for names/locations
+- [x] **Scene-relevant entity filtering** - COMPLETE 2026-02-01
+  - Parse scene outline + beats for names/locations
   - String match against file names
-  - Skip unmentioned entities
-- [ ] **Tiered book summaries** - Essential (500 words) vs Full (2500 words)
-  - Generate compressed "essential context" once per book
-  - Use essential for generation, full available for reference
+  - Skip unmentioned entities (keep first 5 as fallback)
+  - Include foundational world elements (magic, rules) regardless
+  - Implementation: series_service._filter_by_relevance(), generation_service uses filter
+- [x] **Tiered book summaries** - COMPLETE 2026-02-01
+  - Essential (~500 words): key plot points, major changes, critical facts
+  - Full (~2500 words): complete plot, all character arcs, detailed world
+  - Stored in memory.book_summaries (keyed by book_id)
+  - Previous book loading uses essential tier by default
+  - API endpoints: generate-tiered-summary, book-summary/{book_id}, book-summaries
 
 ### Quality of Life
 
