@@ -9541,4 +9541,62 @@ function initChico() {
         loadChicoSettings();
         loadChicoHistory();
     }
+    setupChicoDrag();
+}
+
+// Make Chico widget draggable by its header
+function setupChicoDrag() {
+    const widget = document.getElementById('chico-widget');
+    const header = document.querySelector('.chico-header');
+
+    if (!widget || !header) return;
+
+    let isDragging = false;
+    let startX, startY, startLeft, startTop;
+
+    header.addEventListener('mousedown', (e) => {
+        // Don't drag if clicking buttons
+        if (e.target.closest('.chico-btn')) return;
+
+        isDragging = true;
+
+        // Get current position
+        const rect = widget.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = rect.left;
+        startTop = rect.top;
+
+        // Switch from bottom/right positioning to top/left for dragging
+        widget.style.left = rect.left + 'px';
+        widget.style.top = rect.top + 'px';
+        widget.style.right = 'auto';
+        widget.style.bottom = 'auto';
+
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+
+        let newLeft = startLeft + deltaX;
+        let newTop = startTop + deltaY;
+
+        // Keep within viewport
+        const maxLeft = window.innerWidth - widget.offsetWidth;
+        const maxTop = window.innerHeight - widget.offsetHeight;
+
+        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+
+        widget.style.left = newLeft + 'px';
+        widget.style.top = newTop + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        isDragging = false;
+    });
 }
