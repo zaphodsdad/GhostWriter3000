@@ -128,9 +128,33 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [ ] **Import Novel → Auto-populate Story Bible** - Like Sudowrite's import
   - Currently: extraction endpoints exist but not integrated into import flow
   - Should auto-extract characters/world/style on manuscript import
+  - **Design: Series-Level Entity Extraction**
+    - If book is in series → extract characters/world to SERIES level, not book level
+    - Merge strategy: Always additive, never overwrite
+    - Tag each fact with `book_number` where it was established
+    - On import: find existing entity by name → APPEND new facts
+    - Books can be imported out of order - `book_number` determines chronology
+    - Character sheet = WHO (comprehensive canonical archive, grows over time)
+    - Memory layer = WHAT MATTERS NOW (filtered by drift/decay for generation)
+  - **Separation of concerns:**
+    - Character sheets: cumulative truth across series
+    - Memory layer: time-weighted context (recent events > old events)
+    - Prequel details auto-deprioritized unless plot-relevant
 - [ ] **Chapter Continuity Linking** - Explicit links between chapters
   - We have `depends_on` for scenes but it's optional/manual
   - Should auto-link sequential chapters
+
+### Research & Exploration
+
+- [ ] **Explore Drift/Drift Cortex** - https://github.com/dadbodgeoff/drift
+  - Codebase intelligence tool with persistent memory for AI assistants
+  - Memory decay (half-life by importance), learns from corrections, causal narratives
+  - Could inspire: memory decay for older plot events, learning from prose edits
+  - Token-efficient compression based on priority
+  - **Application to prose-pipeline:**
+    - Memory that decays: prequel facts have lower weight by Book 3
+    - Learn from corrections: user edits prose → extract style preferences
+    - Causal chains: not just "Elias is broken" but trace WHY through plot events
 
 ### Competitive Feature Gaps (from Sudowrite/Novelcrafter research)
 
