@@ -40,20 +40,23 @@ data/series/{series-id}/
 
 ### Implementation Phases
 
-- [ ] **Phase 1: Storage Structure**
+- [x] **Phase 1: Storage Structure** - COMPLETE 2026-02-01
   - Create `memory/` directory structure in series
   - `manifest.json` with hashes and timestamps
   - Initial empty state files
+  - API endpoints for memory CRUD
 
-- [ ] **Phase 2: Extraction Pass**
+- [x] **Phase 2: Extraction Pass** - COMPLETE 2026-02-01
   - LLM prompt to extract facts from canon scene
-  - Hook into "Mark as Canon" flow
-  - Store raw extractions
+  - Hook into "Mark as Canon" flow (background task)
+  - Store raw extractions per scene
+  - Extracts: character changes, world facts, plot events
 
 - [ ] **Phase 3: Summary Generation**
   - Generate `character_states.md` from character files + extractions
   - Generate `world_state.md` from world files + extractions
   - Generate `timeline.md` from plot events
+  - "Generate Summary from Memory" button in UI
 
 - [ ] **Phase 4: Context Assembly**
   - Modify generation to use memory layer
@@ -65,12 +68,21 @@ data/series/{series-id}/
   - Detect when source changes
   - Auto-regenerate stale summaries
 
+- [ ] **Phase 6: Deep Import (Future)**
+  - Batch-process imported manuscript through extraction
+  - Option when importing: "Quick" vs "Deep (builds memory)"
+  - Useful for thorough analysis of previous books
+
 ### Key Decisions
 
 1. **Granularity:** Per-series (not global - different pen names = different voices)
 2. **Extraction Trigger:** When marking scene as canon
 3. **What Gets Extracted:** Character state changes, world facts, plot events (NOT style - that's the style guide)
 4. **Summary Regeneration:** Auto when source files change
+5. **Hybrid Approach for Previous Books:**
+   - Quick manual Book Summary for fast bootstrapping (existing feature)
+   - "Deep Import" option for thorough extraction from manuscripts (future)
+   - "Generate Summary from Memory" to compile extractions into readable summary
 
 ---
 
