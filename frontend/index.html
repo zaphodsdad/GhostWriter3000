@@ -640,34 +640,21 @@ Outline paragraph...
                                         </p>
                                     </div>
                                     <div id="book-summary-actions">
-                                        <button class="btn btn-primary btn-small" id="edit-summary-btn" onclick="editBookSummary()" style="display: none;">Edit</button>
-                                        <button class="btn btn-success btn-small" id="save-summary-btn" onclick="saveBookSummary()" style="display: none;">Save</button>
-                                        <button class="btn btn-secondary btn-small" id="cancel-summary-btn" onclick="cancelBookSummaryEdit()" style="display: none;">Cancel</button>
+                                        <button class="btn btn-primary btn-small" id="edit-summary-btn" onclick="showBookSummaryModal()" style="display: none;">Edit</button>
                                     </div>
                                 </div>
                                 <div id="book-summary-display">
                                     <div class="empty-state" id="book-summary-empty">
                                         <p>No summary yet</p>
                                         <p class="text-muted">Add a summary of this book for use in future books in the series.</p>
-                                        <button class="btn btn-primary" onclick="editBookSummary()">Add Summary</button>
+                                        <button class="btn btn-primary" onclick="showBookSummaryModal()">Add Summary</button>
                                     </div>
                                     <div id="book-summary-content" style="display: none;">
-                                        <div id="book-summary-text" class="prose-content" style="min-height: 300px; max-height: 600px; overflow-y: auto; padding: 16px; background: var(--bg-dark); border-radius: 8px; white-space: pre-wrap; line-height: 1.7;"></div>
+                                        <div id="book-summary-text" class="prose-content" style="max-height: 300px; overflow-y: auto; padding: 16px; background: var(--bg-dark); border-radius: 8px; white-space: pre-wrap; line-height: 1.7; cursor: pointer;" onclick="showBookSummaryModal()"></div>
                                         <div class="text-muted" style="margin-top: 8px; font-size: 0.85rem;">
-                                            <span id="book-summary-word-count">0</span> words
+                                            <span id="book-summary-word-count">0</span> words &bull; <a href="#" onclick="showBookSummaryModal(); return false;">Click to edit</a>
                                         </div>
                                     </div>
-                                </div>
-                                <div id="book-summary-editor" style="display: none;">
-                                    <textarea id="book-summary-textarea" rows="25" style="min-height: 400px;" placeholder="Write a summary of this book that captures:
-
-• Major plot points and events
-• Character arcs and development
-• World state changes
-• Key relationships and conflicts
-• Anything needed for continuity in future books
-
-Aim for 500-2000 words for a novel, less for shorter works."></textarea>
                                 </div>
                             </div>
 
@@ -1791,6 +1778,36 @@ This will be included in the AI prompt during generation."></textarea>
             <div class="modal-footer">
                 <button class="btn btn-success" onclick="importProseForEdit()">Import & Enable Edit Mode</button>
                 <button class="btn btn-secondary" onclick="hideImportProseModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Book Summary Modal -->
+    <div id="book-summary-modal" class="modal" style="display: none;">
+        <div class="modal-backdrop" onclick="hideBookSummaryModal()"></div>
+        <div class="modal-content" style="max-width: 900px; width: 90%;">
+            <div class="modal-header">
+                <h2>Book Summary</h2>
+                <button class="modal-close" onclick="hideBookSummaryModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-20">This summary is used for series continuity when writing later books. Aim for 500-2000 words covering major plot points, character arcs, and world state changes.</p>
+                <div class="form-group">
+                    <textarea id="book-summary-modal-textarea" rows="25" style="min-height: 500px; width: 100%;" placeholder="Write a summary of this book that captures:
+
+• Major plot points and events
+• Character arcs and development
+• World state changes
+• Key relationships and conflicts
+• Anything needed for continuity in future books"></textarea>
+                </div>
+                <div class="text-muted" style="margin-top: 8px;">
+                    <span id="book-summary-modal-word-count">0</span> words
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" onclick="saveBookSummaryFromModal()">Save Summary</button>
+                <button class="btn btn-secondary" onclick="hideBookSummaryModal()">Cancel</button>
             </div>
         </div>
     </div>

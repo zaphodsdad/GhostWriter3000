@@ -3063,10 +3063,13 @@ async function saveStyleGuide() {
 let bookSummary = null;
 
 async function loadBookSummary() {
-    const display = document.getElementById('book-summary-display');
-    const actions = document.getElementById('book-summary-actions');
+    const emptyState = document.getElementById('book-summary-empty');
+    const contentDiv = document.getElementById('book-summary-content');
+    const textDiv = document.getElementById('book-summary-text');
+    const wordCountSpan = document.getElementById('book-summary-word-count');
+    const editBtn = document.getElementById('edit-summary-btn');
 
-    if (!display || !actions) return;
+    if (!emptyState || !contentDiv) return;
 
     try {
         const response = await fetch(apiUrl('/summary'));
@@ -3076,58 +3079,54 @@ async function loadBookSummary() {
         bookSummary = data;
 
         if (data.exists && data.summary) {
-            // Show the summary with markdown rendering
-            display.innerHTML = `
-                <div class="book-summary-content" style="white-space: pre-wrap; line-height: 1.6;">
-                    ${escapeHtml(data.summary)}
-                </div>
-                <p class="text-muted" style="margin-top: 1rem; font-size: 0.85rem;">
-                    ${data.word_count} words
-                </p>
-            `;
-            actions.innerHTML = `
-                <button class="btn btn-small" onclick="editBookSummary()">Edit</button>
-                <button class="btn btn-small btn-danger" onclick="deleteBookSummary()">Delete</button>
-            `;
+            // Show the summary content
+            emptyState.style.display = 'none';
+            contentDiv.style.display = 'block';
+            textDiv.textContent = data.summary;
+            wordCountSpan.textContent = data.word_count || 0;
+            if (editBtn) editBtn.style.display = 'inline-block';
         } else {
-            display.innerHTML = `
-                <p class="text-muted">No book summary yet. Add one to help maintain continuity when writing later books in the series.</p>
-            `;
-            actions.innerHTML = `
-                <button class="btn btn-small" onclick="editBookSummary()">Add Summary</button>
-            `;
+            // Show empty state
+            emptyState.style.display = 'block';
+            contentDiv.style.display = 'none';
+            if (editBtn) editBtn.style.display = 'none';
         }
     } catch (e) {
         console.error('Failed to load book summary:', e);
-        display.innerHTML = '<p class="text-muted">Failed to load book summary</p>';
-        actions.innerHTML = '';
+        emptyState.style.display = 'block';
+        contentDiv.style.display = 'none';
     }
 }
 
-function editBookSummary() {
-    const display = document.getElementById('book-summary-display');
-    const editor = document.getElementById('book-summary-editor');
-    const actions = document.getElementById('book-summary-actions');
-    const textarea = document.getElementById('book-summary-textarea');
+function showBookSummaryModal() {
+    const modal = document.getElementById('book-summary-modal');
+    const textarea = document.getElementById('book-summary-modal-textarea');
+    const wordCount = document.getElementById('book-summary-modal-word-count');
 
     // Pre-populate with existing content
     textarea.value = (bookSummary && bookSummary.summary) || '';
 
-    // Toggle visibility
-    display.style.display = 'none';
-    editor.style.display = 'block';
+    // Update word count
+    const words = textarea.value.trim() ? textarea.value.trim().split(/\s+/).length : 0;
+    wordCount.textContent = words;
 
-    // Update actions
-    actions.innerHTML = `
-        <button class="btn btn-small btn-primary" onclick="saveBookSummary()">Save</button>
-        <button class="btn btn-small" onclick="cancelBookSummaryEdit()">Cancel</button>
-    `;
-
+    // Show modal
+    modal.style.display = 'flex';
     textarea.focus();
+
+    // Add word count listener
+    textarea.oninput = () => {
+        const words = textarea.value.trim() ? textarea.value.trim().split(/\s+/).length : 0;
+        wordCount.textContent = words;
+    };
 }
 
-async function saveBookSummary() {
-    const textarea = document.getElementById('book-summary-textarea');
+function hideBookSummaryModal() {
+    document.getElementById('book-summary-modal').style.display = 'none';
+}
+
+async function saveBookSummaryFromModal() {
+    const textarea = document.getElementById('book-summary-modal-textarea');
     const summary = textarea.value.trim();
 
     if (!summary) {
@@ -3147,22 +3146,19 @@ async function saveBookSummary() {
         // Reload to show updated content
         await loadBookSummary();
 
-        // Hide editor
-        document.getElementById('book-summary-editor').style.display = 'none';
-        document.getElementById('book-summary-display').style.display = 'block';
+        // Hide modal
+        hideBookSummaryModal();
+
+        showToast('Success', 'Book summary saved', 'success');
 
     } catch (e) {
         alert('Error saving book summary: ' + e.message);
     }
 }
 
-function cancelBookSummaryEdit() {
-    document.getElementById('book-summary-editor').style.display = 'none';
-    document.getElementById('book-summary-display').style.display = 'block';
-
-    // Restore original action buttons
-    loadBookSummary();
-}
+// Legacy function names for compatibility
+function editBookSummary() { showBookSummaryModal(); }
+function cancelBookSummaryEdit() { hideBookSummaryModal(); }
 
 async function deleteBookSummary() {
     if (!confirm('Delete the book summary? This cannot be undone.')) {
