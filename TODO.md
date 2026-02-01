@@ -75,10 +75,13 @@ data/series/{series-id}/
   - series_service now calls auto-refresh version when loading context
   - Staleness API endpoint: GET /{series_id}/memory/staleness
 
-- [ ] **Phase 6: Deep Import (Future)**
-  - Batch-process imported manuscript through extraction
-  - Option when importing: "Quick" vs "Deep (builds memory)"
-  - Useful for thorough analysis of previous books
+- [x] **Phase 6: Deep Import** - COMPLETE 2026-02-01
+  - Added `deep_import` parameter to manuscript import endpoint
+  - If deep_import=True and project is in a series:
+    - Runs extraction on each imported scene (background task)
+    - Auto-generates summaries when done
+  - Status endpoint: GET /manuscript/deep-import-status
+  - Tracks progress: total scenes, scenes extracted, current scene, status
 
 ### Key Decisions
 

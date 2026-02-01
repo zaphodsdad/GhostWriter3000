@@ -3,14 +3,16 @@
 import io
 import re
 import logging
+import asyncio
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
 from app.config import settings
 from app.utils.file_utils import write_json_file, read_json_file
 from app.utils.backup import create_snapshot
+from app.services.memory_service import memory_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -75,6 +77,117 @@ class BulkImportResult(BaseModel):
     chapter_ids: List[str] = []
     scene_ids: List[str] = []
     message: str
+    deep_import_started: bool = False
+
+
+class DeepImportStatus(BaseModel):
+    """Status of a deep import extraction job."""
+    project_id: str
+    series_id: Optional[str]
+    total_scenes: int
+    scenes_extracted: int
+    current_scene: Optional[str]
+    status: str  # "running", "completed", "failed"
+    error: Optional[str] = None
+    started_at: str
+    completed_at: Optional[str] = None
+
+
+# In-memory tracking of deep import jobs (would use Redis/DB in production)
+_deep_import_jobs: dict[str, DeepImportStatus] = {}
+
+
+async def run_deep_extraction(
+    project_id: str,
+    series_id: str,
+    scene_ids: List[str],
+    model: Optional[str] = None
+):
+    """
+    Background task to run extraction on all imported scenes.
+    Runs sequentially to avoid rate limits.
+    """
+    job_id = f"{project_id}:{series_id}"
+
+    _deep_import_jobs[job_id] = DeepImportStatus(
+        project_id=project_id,
+        series_id=series_id,
+        total_scenes=len(scene_ids),
+        scenes_extracted=0,
+        current_scene=None,
+        status="running",
+        started_at=datetime.utcnow().isoformat()
+    )
+
+    scenes_dir = settings.scenes_dir(project_id)
+    project_data = await read_json_file(settings.project_dir(project_id) / "project.json")
+    book_number = project_data.get("book_number", 1)
+
+    try:
+        for i, scene_id in enumerate(scene_ids):
+            _deep_import_jobs[job_id].current_scene = scene_id
+
+            # Load scene data
+            scene_file = scenes_dir / f"{scene_id}.json"
+            if not scene_file.exists():
+                continue
+
+            scene_data = await read_json_file(scene_file)
+            prose = scene_data.get("original_prose") or scene_data.get("prose")
+
+            if not prose:
+                continue
+
+            # Get chapter info for context
+            chapter_id = scene_data.get("chapter_id")
+            chapter_title = None
+            chapter_number = None
+            if chapter_id:
+                chapter_file = settings.project_dir(project_id) / "chapters" / f"{chapter_id}.json"
+                if chapter_file.exists():
+                    chapter_data = await read_json_file(chapter_file)
+                    chapter_title = chapter_data.get("title")
+                    chapter_number = chapter_data.get("chapter_number")
+
+            # Run extraction
+            try:
+                await memory_service.extract_from_scene(
+                    series_id=series_id,
+                    book_id=project_id,
+                    scene_id=scene_id,
+                    prose=prose,
+                    scene_title=scene_data.get("title"),
+                    chapter_title=chapter_title,
+                    book_number=book_number,
+                    chapter_number=chapter_number,
+                    scene_number=scene_data.get("scene_number"),
+                    model=model
+                )
+
+                _deep_import_jobs[job_id].scenes_extracted = i + 1
+
+                # Small delay between extractions to be nice to API
+                await asyncio.sleep(1)
+
+            except Exception as e:
+                logger.warning(f"Extraction failed for scene {scene_id}: {e}")
+                # Continue with other scenes even if one fails
+
+        # After all extractions, generate summaries
+        try:
+            await memory_service.generate_summaries(series_id, model=model)
+        except Exception as e:
+            logger.warning(f"Summary generation failed: {e}")
+
+        _deep_import_jobs[job_id].status = "completed"
+        _deep_import_jobs[job_id].completed_at = datetime.utcnow().isoformat()
+        _deep_import_jobs[job_id].current_scene = None
+
+    except Exception as e:
+        _deep_import_jobs[job_id].status = "failed"
+        _deep_import_jobs[job_id].error = str(e)
+        _deep_import_jobs[job_id].completed_at = datetime.utcnow().isoformat()
+        logger.error(f"Deep import failed for {project_id}: {e}")
 
 
 def ensure_project_exists(project_id: str):
@@ -539,11 +652,29 @@ async def import_bulk_scenes(
         raise HTTPException(status_code=500, detail=f"Failed to import manuscript: {str(e)}")
 
 
+@router.get("/deep-import-status")
+async def get_deep_import_status(project_id: str):
+    """
+    Get the status of a deep import extraction job.
+
+    Returns extraction progress including scenes processed and current status.
+    The project_id comes from the route prefix.
+    """
+    # Find job for this project
+    for job_id, status in _deep_import_jobs.items():
+        if status.project_id == project_id:
+            return status
+
+    raise HTTPException(status_code=404, detail="No deep import job found for this project")
+
+
 @router.post("/import-full", response_model=BulkImportResult)
 async def import_full_manuscript(
     project_id: str,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
-    enable_edit_mode: bool = Form(True)
+    enable_edit_mode: bool = Form(True),
+    deep_import: bool = Form(False)
 ):
     """
     One-shot manuscript import: upload file → detect chapters → create all.
@@ -551,6 +682,10 @@ async def import_full_manuscript(
     This is the most efficient endpoint for automated imports.
     Accepts .docx, .txt, .md files. Auto-detects chapter markers
     (Chapter 1, CHAPTER ONE, etc.) and creates chapters + scenes.
+
+    If deep_import=True, also runs memory extraction on each scene (requires
+    project to be in a series). Extraction runs in background - check status
+    via GET /deep-import-status/{project_id}.
 
     Returns a small summary - no large text in response.
     """
@@ -666,13 +801,39 @@ async def import_full_manuscript(
             await write_json_file(scene_filepath, scene_data)
             scene_ids.append(scene_id)
 
+        # Handle deep import if requested
+        deep_import_started = False
+        if deep_import:
+            # Get project to check for series
+            project_file = settings.project_dir(project_id) / "project.json"
+            project_data = await read_json_file(project_file)
+            series_id = project_data.get("series_id")
+
+            if series_id:
+                # Queue deep extraction as background task
+                background_tasks.add_task(
+                    run_deep_extraction,
+                    project_id=project_id,
+                    series_id=series_id,
+                    scene_ids=scene_ids
+                )
+                deep_import_started = True
+                logger.info(f"Deep import started for {project_id} in series {series_id}")
+            else:
+                logger.warning(f"Deep import requested but project {project_id} is not in a series")
+
+        message = f"Imported '{filename}': {len(chapter_ids)} chapters, {total_words} words"
+        if deep_import_started:
+            message += f". Deep extraction started for {len(scene_ids)} scenes (check /manuscript/deep-import-status)"
+
         return BulkImportResult(
             chapters_created=len(chapter_ids),
             scenes_created=len(scene_ids),
             total_words=total_words,
             chapter_ids=chapter_ids,
             scene_ids=scene_ids,
-            message=f"Imported '{filename}': {len(chapter_ids)} chapters, {total_words} words"
+            message=message,
+            deep_import_started=deep_import_started
         )
 
     except HTTPException:
