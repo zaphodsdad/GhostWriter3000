@@ -186,12 +186,25 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [ ] **New Chat + Archive** - Start fresh conversation, access past chats
 - [ ] **Auto-compress** - Summarize older messages in long conversations
 - [ ] **Session indicator** - Show conversation age/length
+- [ ] **Chico everywhere** - Show Chico for ALL projects, not just series (project-level context for standalones)
 
 **Priority 8: UX Improvements** - FUTURE
 - [ ] **Clarify import types** - Better labels for Manuscript vs Outline import:
   - Manuscript: "I have written prose to import"
   - Outline: "I have a structure/outline to generate from"
 - [ ] **Import type tooltips** - Explain when to use each
+
+**Priority 9: Outline Import Overhaul** - FUTURE
+- [ ] **File upload support** - Import .md, .txt, .docx outlines (not just paste)
+- [ ] **Series selector** - Assign to series during import (not just after)
+- [ ] **Preview before import** - Show parsed structure for confirmation
+- [ ] **Format detection** - Auto-detect outline format (standard vs Claude/em-dash)
+- [ ] **Partial import** - Import specific acts/chapters, not just whole book
+- [ ] **Merge/update mode** - Update existing project structure from revised outline
+- [ ] **Character linking** - Match character mentions to existing series characters
+- [ ] **World linking** - Match location/world mentions to existing world elements
+- [ ] **Validation warnings** - Show issues before import (missing scenes, orphaned chapters)
+- [ ] **Import templates** - Save outline format preferences per user/series
 
 **Priority 4: Token Optimization** - COMPLETE 2026-02-01
 - [x] Scene-relevant entity filtering (filter characters/world by scene mentions)
