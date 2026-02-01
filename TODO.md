@@ -149,11 +149,11 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [x] `book_number` tagging for chronology
 - [x] Markdown files with YAML frontmatter
 
-**Priority 2: Memory Enhancement (Drift-inspired)** - IN PROGRESS
-- [ ] Memory decay: older facts have lower weight
-- [ ] Learn from corrections: user edits → extract preferences
-- [ ] Causal chains: trace WHY through plot events (not just WHAT)
-- See Drift research below
+**Priority 2: Memory Enhancement (Drift-inspired)** - COMPLETE 2026-02-01
+- [x] Memory decay: older facts have lower weight (relevance_score, DecayConfig)
+- [x] Learn from corrections: user edits → extract preferences (StyleLearningService)
+- [x] Causal chains: trace WHY through plot events (causes, consequences, trace_causal_chain)
+- Implementation: memory_service.py, style_learning_service.py, memory.py models
 
 **Priority 3: Clawdbot In-App**
 - [ ] Floating chat widget with project context
