@@ -1,8 +1,9 @@
 """FastAPI application entry point."""
 
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 from pathlib import Path
 
 from app.config import settings
@@ -10,6 +11,18 @@ from app.api.routes import health, generation, scenes, characters, world, projec
 from app.api.routes import settings as settings_routes
 from app.middleware.auth import APIKeyAuthMiddleware
 from app.utils.logging import setup_logging, get_logger
+
+
+class NoCacheMiddleware(BaseHTTPMiddleware):
+    """Middleware to prevent browser caching of API responses."""
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        # Only add no-cache headers to API routes (not static files)
+        if request.url.path.startswith("/api"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+            response.headers["Pragma"] = "no-cache"
+        return response
 
 # Setup logging
 setup_logging()
@@ -30,6 +43,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Prevent browser caching of API responses
+app.add_middleware(NoCacheMiddleware)
 
 # Add API key authentication middleware (if configured)
 app.add_middleware(APIKeyAuthMiddleware)
