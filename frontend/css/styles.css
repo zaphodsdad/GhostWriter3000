@@ -3952,3 +3952,167 @@ nav {
 }
 
 
+
+/* ============================================
+   Series Dashboard
+   ============================================ */
+
+#series-dashboard {
+    background: var(--bg-card);
+    border: 1px solid var(--primary);
+    border-radius: 12px;
+}
+
+.stat-card {
+    background: var(--bg-dark);
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.stat-label {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.dashboard-section {
+    padding-top: 15px;
+    border-top: 1px solid var(--border);
+}
+
+.dashboard-section h4 {
+    margin-bottom: 10px;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+
+.memory-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.books-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+}
+
+.book-card {
+    background: var(--bg-dark);
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    border: 1px solid transparent;
+}
+
+.book-card:hover {
+    border-color: var(--primary);
+}
+
+.book-card .book-title {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.book-card .book-stats {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.book-card .book-progress {
+    margin-top: 8px;
+    height: 4px;
+    background: var(--bg-input);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.book-card .book-progress-fill {
+    height: 100%;
+    background: var(--success);
+    transition: width 0.3s;
+}
+
+/* ============================================
+   Continuity Check Panel
+   ============================================ */
+
+.continuity-summary {
+    padding: 15px;
+    background: var(--bg-dark);
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+.continuity-summary.no-issues {
+    border-left: 4px solid var(--success);
+}
+
+.continuity-summary.has-issues {
+    border-left: 4px solid var(--warning);
+}
+
+.continuity-issues {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.continuity-issue {
+    padding: 12px;
+    background: var(--bg-dark);
+    border-radius: 8px;
+    border-left: 4px solid var(--border);
+}
+
+.continuity-issue.high {
+    border-left-color: var(--danger);
+}
+
+.continuity-issue.medium {
+    border-left-color: var(--warning);
+}
+
+.continuity-issue.low {
+    border-left-color: var(--text-muted);
+}
+
+.issue-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.issue-category {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.issue-description {
+    margin-bottom: 8px;
+}
+
+.issue-fact {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    padding: 8px;
+    background: var(--bg-input);
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.issue-suggestion {
+    font-size: 0.9rem;
+    color: var(--success);
+    font-style: italic;
+}

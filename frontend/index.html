@@ -145,6 +145,63 @@
                 </div>
             </div>
 
+            <!-- Series Dashboard (shows when series is selected) -->
+            <div id="series-dashboard" class="card" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 id="series-dashboard-title">Series Dashboard</h3>
+                    <button class="btn btn-small btn-outline" onclick="hideSeriesDashboard()">Close</button>
+                </div>
+
+                <div class="dashboard-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                    <div class="stat-card">
+                        <div class="stat-value" id="dash-total-words">0</div>
+                        <div class="stat-label">Total Words</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="dash-total-scenes">0</div>
+                        <div class="stat-label">Scenes</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="dash-canon-scenes">0</div>
+                        <div class="stat-label">Canon</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="dash-characters">0</div>
+                        <div class="stat-label">Characters</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="dash-world">0</div>
+                        <div class="stat-label">World Elements</div>
+                    </div>
+                </div>
+
+                <div class="dashboard-section">
+                    <h4>Memory Layer</h4>
+                    <div id="dash-memory-status" class="memory-status">
+                        <span class="badge" id="dash-memory-badge">Not initialized</span>
+                        <span id="dash-memory-details" class="text-muted"></span>
+                    </div>
+                    <div class="action-bar" style="margin-top: 10px;">
+                        <button class="btn btn-small" onclick="refreshSeriesMemory()">Refresh Summaries</button>
+                        <button class="btn btn-small" onclick="viewSeriesMemory()">View Memory</button>
+                    </div>
+                </div>
+
+                <div class="dashboard-section" style="margin-top: 15px;">
+                    <h4>Books in Series</h4>
+                    <div id="dash-books-list" class="books-grid"></div>
+                </div>
+
+                <div class="dashboard-section" style="margin-top: 15px;">
+                    <h4>Quick Actions</h4>
+                    <div class="action-bar">
+                        <button class="btn btn-primary btn-small" onclick="document.getElementById('chico-toggle').click()">Chat with Chico</button>
+                        <button class="btn btn-small" onclick="showNewProjectForm()">+ Add Book</button>
+                        <button class="btn btn-small" onclick="showEditSeriesModal(currentSeries.id)">Edit Series</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- New Series Form (hidden by default) -->
             <div id="new-series-form" class="card" style="display: none;">
                 <h3>Create New Series</h3>
@@ -896,8 +953,23 @@ Chapter markers like 'Chapter 1', 'Chapter 01', or 'CHAPTER ONE' will be detecte
                                         <h4>Import Complete!</h4>
                                         <p id="import-result-message"></p>
                                     </div>
+
+                                    <!-- Deep Import Progress -->
+                                    <div id="deep-import-progress" style="display: none; margin-top: 20px;">
+                                        <h4>Memory Extraction Progress</h4>
+                                        <div class="progress-container">
+                                            <div class="progress-bar">
+                                                <div id="deep-import-progress-fill" class="progress-fill" style="width: 0%;"></div>
+                                            </div>
+                                            <div id="deep-import-status" class="progress-status generating">
+                                                Extracting scene 0 of 0...
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">Extracting characters, world facts, and plot events from each scene.</small>
+                                    </div>
+
                                     <div class="action-bar">
-                                        <button class="btn btn-primary" onclick="hideImportOutlineModal()">Done</button>
+                                        <button class="btn btn-primary" onclick="hideImportOutlineModal(); switchView('structure');">Done</button>
                                     </div>
                                 </div>
                             </div>
@@ -1263,6 +1335,7 @@ This will be included in the AI prompt during generation."></textarea>
                                         </div>
                                         <div class="workspace-actions" id="ws-header-actions" style="display: none;">
                                             <button class="btn btn-primary btn-sm" onclick="workspaceEvaluate()">Evaluate</button>
+                                            <button class="btn btn-warning btn-sm" onclick="workspaceCheckContinuity()" id="ws-continuity-btn" style="display: none;">Check Continuity</button>
                                             <button class="btn btn-success btn-sm" onclick="workspaceMarkCanon()">Mark as Canon</button>
                                             <button class="btn btn-secondary btn-sm" onclick="workspaceEditProse()">Edit</button>
                                         </div>
@@ -1808,6 +1881,29 @@ This will be included in the AI prompt during generation."></textarea>
                 <button class="btn btn-success" onclick="saveWordCountGoal()">Save</button>
                 <button class="btn btn-secondary" onclick="hideWordCountGoalModal()">Cancel</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Continuity Check Panel -->
+    <div id="continuity-panel" class="evaluate-panel" style="display: none;">
+        <div class="evaluate-panel-header">
+            <h3>Continuity Check</h3>
+            <button class="panel-close" onclick="hideContinuityPanel()">&times;</button>
+        </div>
+        <div class="evaluate-panel-body">
+            <div id="continuity-loading" style="display: none;">
+                <div class="evaluate-progress">
+                    <div class="evaluate-spinner"></div>
+                    <span>Checking against series memory...</span>
+                </div>
+            </div>
+            <div id="continuity-results" style="display: none;">
+                <div id="continuity-summary" class="continuity-summary"></div>
+                <div id="continuity-issues" class="continuity-issues"></div>
+            </div>
+        </div>
+        <div class="evaluate-panel-footer">
+            <button class="btn btn-secondary" onclick="hideContinuityPanel()">Done</button>
         </div>
     </div>
 

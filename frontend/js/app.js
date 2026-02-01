@@ -1580,6 +1580,7 @@ async function selectSeries(seriesId) {
         renderSeriesList();
         await loadProjects(); // Reload to filter by series if needed
         initChico(); // Initialize Chico for selected series
+        showSeriesDashboard(); // Show the dashboard
     } catch (e) {
         alert('Error loading series: ' + e.message);
     }
@@ -1590,6 +1591,190 @@ function clearSeriesSelection() {
     renderSeriesList();
     loadProjects();
     initChico(); // Update Chico visibility (will hide toggle)
+    hideSeriesDashboard();
+}
+
+// ============================================
+// Series Dashboard
+// ============================================
+async function showSeriesDashboard() {
+    if (!currentSeries) return;
+
+    const dashboard = document.getElementById('series-dashboard');
+    dashboard.style.display = 'block';
+    document.getElementById('series-dashboard-title').textContent = currentSeries.title;
+
+    // Calculate stats from projects
+    const seriesProjects = projects.filter(p => p.series_id === currentSeries.id);
+    let totalWords = 0;
+    let totalScenes = 0;
+    let canonScenes = 0;
+
+    seriesProjects.forEach(p => {
+        totalWords += p.word_count || 0;
+        totalScenes += p.scene_count || 0;
+        canonScenes += p.canon_scene_count || 0;
+    });
+
+    // Update stat cards
+    document.getElementById('dash-total-words').textContent = totalWords.toLocaleString();
+    document.getElementById('dash-total-scenes').textContent = totalScenes;
+    document.getElementById('dash-canon-scenes').textContent = canonScenes;
+
+    // Load series resources count
+    try {
+        const [charsRes, worldRes] = await Promise.all([
+            fetch(`/api/series/${currentSeries.id}/characters/`),
+            fetch(`/api/series/${currentSeries.id}/world/`)
+        ]);
+        const chars = await charsRes.json();
+        const world = await worldRes.json();
+        document.getElementById('dash-characters').textContent = chars.length;
+        document.getElementById('dash-world').textContent = world.length;
+    } catch (e) {
+        console.error('Failed to load series resources:', e);
+    }
+
+    // Load memory status
+    await loadSeriesMemoryStatus();
+
+    // Render books grid
+    renderDashboardBooks(seriesProjects);
+}
+
+function hideSeriesDashboard() {
+    document.getElementById('series-dashboard').style.display = 'none';
+}
+
+async function loadSeriesMemoryStatus() {
+    if (!currentSeries) return;
+
+    const badge = document.getElementById('dash-memory-badge');
+    const details = document.getElementById('dash-memory-details');
+
+    try {
+        const response = await fetch(`/api/series/${currentSeries.id}/memory`);
+        if (!response.ok) {
+            badge.textContent = 'Not initialized';
+            badge.className = 'badge';
+            details.textContent = '';
+            return;
+        }
+
+        const memory = await response.json();
+
+        // Check if we have any data
+        const hasData = memory.character_changes?.length > 0 ||
+                       memory.world_facts?.length > 0 ||
+                       memory.timeline?.length > 0;
+
+        if (hasData) {
+            badge.textContent = 'Active';
+            badge.className = 'badge canon';
+
+            const factCount = (memory.character_changes?.length || 0) +
+                            (memory.world_facts?.length || 0) +
+                            (memory.timeline?.length || 0);
+            const bookSummaries = Object.keys(memory.book_summaries || {}).length;
+
+            details.textContent = `${factCount} facts extracted, ${bookSummaries} book summaries`;
+        } else {
+            badge.textContent = 'Empty';
+            badge.className = 'badge';
+            details.textContent = 'Mark scenes as canon to build memory';
+        }
+
+        // Check staleness
+        const stalenessRes = await fetch(`/api/series/${currentSeries.id}/memory/staleness`);
+        if (stalenessRes.ok) {
+            const staleness = await stalenessRes.json();
+            const staleCount = Object.values(staleness).filter(v => v).length;
+            if (staleCount > 0) {
+                badge.textContent = 'Stale';
+                badge.className = 'badge warning';
+                details.textContent += ` (${staleCount} categories need refresh)`;
+            }
+        }
+    } catch (e) {
+        badge.textContent = 'Error';
+        badge.className = 'badge';
+        details.textContent = 'Failed to load memory status';
+        console.error('Failed to load memory status:', e);
+    }
+}
+
+function renderDashboardBooks(seriesProjects) {
+    const container = document.getElementById('dash-books-list');
+
+    if (seriesProjects.length === 0) {
+        container.innerHTML = '<div class="empty-state">No books in this series yet.</div>';
+        return;
+    }
+
+    // Sort by book number
+    const sorted = [...seriesProjects].sort((a, b) => (a.book_number || 0) - (b.book_number || 0));
+
+    container.innerHTML = sorted.map(book => {
+        const sceneCount = book.scene_count || 0;
+        const canonCount = book.canon_scene_count || 0;
+        const progress = sceneCount > 0 ? Math.round((canonCount / sceneCount) * 100) : 0;
+
+        return `
+            <div class="book-card" onclick="selectProject('${book.id}')">
+                <div class="book-title">
+                    ${book.book_number ? `Book ${book.book_number}: ` : ''}${escapeHtml(book.title)}
+                </div>
+                <div class="book-stats">
+                    ${(book.word_count || 0).toLocaleString()} words | ${sceneCount} scenes
+                </div>
+                <div class="book-progress">
+                    <div class="book-progress-fill" style="width: ${progress}%"></div>
+                </div>
+                <div class="book-stats">${canonCount} of ${sceneCount} canon (${progress}%)</div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function refreshSeriesMemory() {
+    if (!currentSeries) return;
+
+    const badge = document.getElementById('dash-memory-badge');
+    const details = document.getElementById('dash-memory-details');
+
+    badge.textContent = 'Refreshing...';
+    badge.className = 'badge';
+    details.textContent = '';
+
+    try {
+        const response = await fetch(`/api/series/${currentSeries.id}/memory/generate-summaries`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({})
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to refresh summaries');
+        }
+
+        const result = await response.json();
+        badge.textContent = 'Refreshed';
+        badge.className = 'badge canon';
+        details.textContent = `Generated: ${result.summaries_generated?.join(', ') || 'none'}`;
+
+        // Reload status after brief delay
+        setTimeout(() => loadSeriesMemoryStatus(), 1000);
+    } catch (e) {
+        badge.textContent = 'Error';
+        badge.className = 'badge';
+        details.textContent = e.message;
+    }
+}
+
+function viewSeriesMemory() {
+    if (!currentSeries) return;
+    // For now, open in new tab - could be a modal later
+    window.open(`/api/series/${currentSeries.id}/memory`, '_blank');
 }
 
 // ============================================
@@ -4497,6 +4682,7 @@ function showWorkspaceProse(scene) {
     document.getElementById('ws-prose').style.display = 'block';
     // Show header actions for prose state
     document.getElementById('ws-header-actions').style.display = 'flex';
+    updateContinuityButtonVisibility();
 }
 
 function showWorkspaceCanon(scene) {
@@ -5119,6 +5305,113 @@ async function startRevisionFromEvaluate() {
     } catch (e) {
         showToast('Error', e.message, 'error');
         renderWorkspaceView();
+    }
+}
+
+// ============================================
+// Continuity Check
+// ============================================
+async function workspaceCheckContinuity() {
+    if (!currentWorkspaceScene) return;
+
+    const prose = currentWorkspaceScene.prose || currentWorkspaceScene.original_prose;
+    if (!prose || !prose.trim()) {
+        showToast('Error', 'No prose to check.', 'error');
+        return;
+    }
+
+    if (!currentProject?.series_id) {
+        showToast('Error', 'Project must be in a series to check continuity.', 'error');
+        return;
+    }
+
+    // Show panel with loading state
+    document.getElementById('continuity-panel').style.display = 'block';
+    document.getElementById('continuity-loading').style.display = 'flex';
+    document.getElementById('continuity-results').style.display = 'none';
+
+    try {
+        const response = await fetch(`/api/series/${currentProject.series_id}/memory/check-continuity`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prose_text: prose,
+                scene_context: currentWorkspaceScene.outline || ''
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to check continuity');
+        }
+
+        const result = await response.json();
+        showContinuityResults(result);
+    } catch (e) {
+        hideContinuityPanel();
+        showToast('Error', e.message, 'error');
+    }
+}
+
+function hideContinuityPanel() {
+    document.getElementById('continuity-panel').style.display = 'none';
+}
+
+function showContinuityResults(result) {
+    document.getElementById('continuity-loading').style.display = 'none';
+    document.getElementById('continuity-results').style.display = 'block';
+
+    const summaryEl = document.getElementById('continuity-summary');
+    const issuesEl = document.getElementById('continuity-issues');
+
+    // Build summary
+    const factCount = Object.values(result.checked_against || {}).reduce((a, b) => a + b, 0);
+
+    if (!result.has_issues) {
+        summaryEl.className = 'continuity-summary no-issues';
+        summaryEl.innerHTML = `
+            <strong>No continuity issues found!</strong>
+            <div class="text-muted" style="margin-top: 5px;">
+                Checked against ${factCount} established facts.
+            </div>
+        `;
+        issuesEl.innerHTML = '';
+    } else {
+        const highCount = result.issues.filter(i => i.severity === 'high').length;
+        const medCount = result.issues.filter(i => i.severity === 'medium').length;
+        const lowCount = result.issues.filter(i => i.severity === 'low').length;
+
+        summaryEl.className = 'continuity-summary has-issues';
+        summaryEl.innerHTML = `
+            <strong>${result.issue_count} potential issue${result.issue_count > 1 ? 's' : ''} found</strong>
+            <div class="text-muted" style="margin-top: 5px;">
+                ${highCount > 0 ? `<span class="badge" style="background: var(--danger);">${highCount} high</span> ` : ''}
+                ${medCount > 0 ? `<span class="badge" style="background: var(--warning);">${medCount} medium</span> ` : ''}
+                ${lowCount > 0 ? `<span class="badge">${lowCount} low</span>` : ''}
+            </div>
+        `;
+
+        // Render issues
+        issuesEl.innerHTML = result.issues.map(issue => `
+            <div class="continuity-issue ${issue.severity}">
+                <div class="issue-header">
+                    <span class="badge ${issue.severity === 'high' ? 'danger' : issue.severity === 'medium' ? 'warning' : ''}">${issue.severity}</span>
+                    <span class="issue-category">${issue.category}</span>
+                </div>
+                <div class="issue-description">${escapeHtml(issue.issue)}</div>
+                <div class="issue-fact">
+                    <strong>Established:</strong> ${escapeHtml(issue.established_fact)}
+                </div>
+                ${issue.suggestion ? `<div class="issue-suggestion">Suggestion: ${escapeHtml(issue.suggestion)}</div>` : ''}
+            </div>
+        `).join('');
+    }
+}
+
+function updateContinuityButtonVisibility() {
+    const btn = document.getElementById('ws-continuity-btn');
+    if (btn) {
+        // Show continuity button only if project is in a series
+        btn.style.display = currentProject?.series_id ? 'inline-block' : 'none';
     }
 }
 
@@ -7748,7 +8041,10 @@ async function confirmManuscriptImport() {
             result = await response.json();
             let message = `Imported ${result.chapters_created} chapters with ${result.total_words.toLocaleString()} words.`;
             if (result.deep_import_started) {
-                message += ` Deep extraction started for ${result.scenes_created} scenes - check Memory tab for progress.`;
+                message += ` Extracting memory from ${result.scenes_created} scenes...`;
+                // Show progress panel and start polling
+                document.getElementById('deep-import-progress').style.display = 'block';
+                startDeepImportProgressPolling(result.scenes_created);
             }
             document.getElementById('import-result-message').textContent = message;
 
@@ -7837,17 +8133,91 @@ async function confirmManuscriptImport() {
         renderOutlineTree();
         renderOutlineView();
 
-        // Auto-close modal after brief delay
-        setTimeout(() => {
-            hideImportOutlineModal();
-            switchView('structure');
-        }, 1500);
+        // Auto-close modal after brief delay (unless deep import is running)
+        const deepImportRunning = document.getElementById('deep-import-progress')?.style.display === 'block';
+        if (!deepImportRunning) {
+            setTimeout(() => {
+                hideImportOutlineModal();
+                switchView('structure');
+            }, 1500);
+        }
+        // If deep import is running, user can close manually via Done button
 
     } catch (e) {
         document.getElementById('import-step-progress').style.display = 'none';
         document.getElementById('import-step-preview').style.display = 'block';
         alert('Error importing manuscript: ' + e.message);
     }
+}
+
+// ============================================
+// Deep Import Progress Polling
+// ============================================
+let deepImportPollingInterval = null;
+
+function startDeepImportProgressPolling(totalScenes) {
+    // Clear any existing polling
+    if (deepImportPollingInterval) {
+        clearInterval(deepImportPollingInterval);
+    }
+
+    const progressFill = document.getElementById('deep-import-progress-fill');
+    const statusText = document.getElementById('deep-import-status');
+
+    // Poll every 2 seconds
+    deepImportPollingInterval = setInterval(async () => {
+        try {
+            const response = await fetch(apiUrl('/manuscript/deep-import-status'));
+            if (!response.ok) {
+                console.error('Failed to get deep import status');
+                return;
+            }
+
+            const status = await response.json();
+
+            // Update progress bar
+            const percent = totalScenes > 0
+                ? Math.round((status.scenes_extracted / totalScenes) * 100)
+                : 0;
+            progressFill.style.width = `${percent}%`;
+
+            // Update status text
+            if (status.status === 'running') {
+                statusText.textContent = `Extracting scene ${status.scenes_extracted} of ${totalScenes}...`;
+                if (status.current_scene) {
+                    statusText.textContent += ` (${status.current_scene})`;
+                }
+            } else if (status.status === 'completed') {
+                progressFill.style.width = '100%';
+                statusText.textContent = `Extraction complete! ${status.scenes_extracted} scenes processed.`;
+                statusText.classList.remove('generating');
+                statusText.classList.add('completed');
+                clearInterval(deepImportPollingInterval);
+                deepImportPollingInterval = null;
+
+                // Update message
+                const msg = document.getElementById('import-result-message');
+                msg.textContent = msg.textContent.replace(
+                    /Extracting memory from \d+ scenes\.\.\./,
+                    `Memory extracted from ${status.scenes_extracted} scenes.`
+                );
+            } else if (status.status === 'failed') {
+                statusText.textContent = 'Extraction failed. Check server logs.';
+                statusText.classList.remove('generating');
+                statusText.classList.add('error');
+                clearInterval(deepImportPollingInterval);
+                deepImportPollingInterval = null;
+            } else if (status.status === 'idle') {
+                // No extraction running - might have finished before we started polling
+                progressFill.style.width = '100%';
+                statusText.textContent = 'Extraction complete!';
+                clearInterval(deepImportPollingInterval);
+                deepImportPollingInterval = null;
+            }
+        } catch (e) {
+            console.error('Error polling deep import status:', e);
+        }
+    }, 2000);
 }
 
 // ============================================

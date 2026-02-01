@@ -412,3 +412,48 @@ async def list_book_summaries(series_id: str) -> Dict[str, Any]:
     summaries.sort(key=lambda x: x["book_number"])
 
     return {"summaries": summaries}
+
+
+class ContinuityCheckRequest(BaseModel):
+    """Request to check prose for continuity issues."""
+    prose_text: str = Field(..., description="Prose to check for continuity issues")
+    scene_context: Optional[str] = Field(None, description="Optional scene outline for context")
+    model: Optional[str] = Field(None, description="Optional model override")
+
+
+@router.post("/{series_id}/memory/check-continuity")
+async def check_continuity(series_id: str, request: ContinuityCheckRequest) -> Dict[str, Any]:
+    """
+    Check prose text for continuity issues against series memory.
+
+    Compares the provided prose against established facts in the memory layer
+    and returns any detected contradictions.
+
+    Returns:
+        - issues: List of potential continuity problems
+        - checked_against: Count of facts checked per category
+        - has_issues: Whether any issues were found
+    """
+    series_dir = settings.series_path(series_id)
+    if not series_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Series not found: {series_id}")
+
+    from app.services.continuity_service import get_continuity_service
+    service = get_continuity_service()
+
+    try:
+        result = await service.check_continuity(
+            series_id=series_id,
+            prose_text=request.prose_text,
+            scene_context=request.scene_context,
+            model=request.model
+        )
+
+        return {
+            "has_issues": result.has_issues,
+            "issue_count": len(result.issues),
+            "checked_against": result.checked_against,
+            "issues": [issue.model_dump() for issue in result.issues]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Continuity check failed: {str(e)}")
