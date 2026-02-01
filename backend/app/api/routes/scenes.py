@@ -1,7 +1,8 @@
 """Scene management API endpoints (project-scoped)."""
 
+import asyncio
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, BackgroundTasks
 from typing import List, Optional
 from pydantic import BaseModel, Field
 
@@ -9,6 +10,7 @@ from app.models.scene import Scene, SceneCreate, SceneUpdate, Beat, BeatCreate, 
 from app.config import settings
 from app.utils.file_utils import write_json_file, read_json_file, delete_file
 from app.utils.backup import backup_scene
+from app.services.memory_service import memory_service
 
 router = APIRouter()
 
@@ -189,7 +191,7 @@ async def list_scenes(project_id: str, chapter_id: Optional[str] = None):
 
 
 @router.put("/{scene_id}", response_model=Scene)
-async def update_scene(project_id: str, scene_id: str, update: SceneUpdate):
+async def update_scene(project_id: str, scene_id: str, update: SceneUpdate, background_tasks: BackgroundTasks):
     """
     Update a scene.
 
@@ -197,6 +199,7 @@ async def update_scene(project_id: str, scene_id: str, update: SceneUpdate):
         project_id: Project ID
         scene_id: Scene ID
         update: Fields to update
+        background_tasks: FastAPI background tasks for async operations
 
     Returns:
         Updated scene
@@ -222,6 +225,10 @@ async def update_scene(project_id: str, scene_id: str, update: SceneUpdate):
             if current_prose and current_prose != update_dict["prose"]:
                 await backup_scene(project_id, scene_id, reason="pre-edit")
 
+        # Track if we're marking as canon (for memory extraction)
+        was_canon = data.get("is_canon", False)
+        marking_as_canon = update_dict.get("is_canon", False) and not was_canon
+
         # Merge updates (only non-None fields)
         for key, value in update_dict.items():
             if value is not None:
@@ -232,6 +239,13 @@ async def update_scene(project_id: str, scene_id: str, update: SceneUpdate):
 
         # Save back
         await write_json_file(filepath, data)
+
+        # If marking as canon and project belongs to a series, extract memory
+        if marking_as_canon and data.get("prose"):
+            await _trigger_memory_extraction(
+                project_id, scene_id, data, background_tasks
+            )
+
         return Scene.model_validate(data)
 
     except FileNotFoundError:
@@ -240,6 +254,91 @@ async def update_scene(project_id: str, scene_id: str, update: SceneUpdate):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def _trigger_memory_extraction(
+    project_id: str,
+    scene_id: str,
+    scene_data: dict,
+    background_tasks: BackgroundTasks
+):
+    """
+    Trigger memory extraction when a scene is marked as canon.
+
+    Runs in background to not block the response.
+    """
+    # Get project info to find series_id
+    project_file = settings.project_dir(project_id) / "project.json"
+    if not project_file.exists():
+        return
+
+    project_data = await read_json_file(project_file)
+    series_id = project_data.get("series_id")
+
+    if not series_id:
+        # Not in a series, skip extraction
+        return
+
+    # Get chapter info for context
+    chapter_title = None
+    chapter_number = None
+    if scene_data.get("chapter_id"):
+        chapter_file = settings.project_dir(project_id) / "chapters" / f"{scene_data['chapter_id']}.json"
+        if chapter_file.exists():
+            chapter_data = await read_json_file(chapter_file)
+            chapter_title = chapter_data.get("title")
+            chapter_number = chapter_data.get("order")
+
+    # Get character names from series for better extraction
+    character_names = []
+    char_dir = settings.series_path(series_id) / "characters"
+    if char_dir.exists():
+        for char_file in char_dir.glob("*.md"):
+            # Use filename as character name hint
+            character_names.append(char_file.stem.replace("-", " ").title())
+
+    # Run extraction in background
+    background_tasks.add_task(
+        _run_extraction,
+        series_id,
+        project_id,
+        scene_id,
+        scene_data,
+        chapter_title,
+        project_data.get("book_number"),
+        chapter_number,
+        character_names
+    )
+
+
+async def _run_extraction(
+    series_id: str,
+    project_id: str,
+    scene_id: str,
+    scene_data: dict,
+    chapter_title: Optional[str],
+    book_number: Optional[int],
+    chapter_number: Optional[int],
+    character_names: List[str]
+):
+    """Background task to run memory extraction."""
+    try:
+        await memory_service.extract_from_scene(
+            series_id=series_id,
+            book_id=project_id,
+            scene_id=scene_id,
+            prose=scene_data.get("prose", ""),
+            scene_title=scene_data.get("title"),
+            chapter_title=chapter_title,
+            book_number=book_number,
+            chapter_number=chapter_number,
+            scene_number=scene_data.get("order"),
+            character_names=character_names if character_names else None
+        )
+        print(f"Memory extraction completed for scene {scene_id}")
+    except Exception as e:
+        # Log but don't fail - extraction is non-critical
+        print(f"Memory extraction failed for scene {scene_id}: {e}")
 
 
 @router.delete("/{scene_id}")

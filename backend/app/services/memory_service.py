@@ -16,6 +16,7 @@ from app.models.memory import (
     ExtractionRequest,
 )
 from app.config import settings
+from app.utils.prompt_templates import extract_json
 
 
 class MemoryService:
@@ -288,6 +289,179 @@ class MemoryService:
             context["timeline"] = memory.timeline_summary
 
         return context
+
+    async def extract_from_scene(
+        self,
+        series_id: str,
+        book_id: str,
+        scene_id: str,
+        prose: str,
+        scene_title: Optional[str] = None,
+        chapter_title: Optional[str] = None,
+        book_number: Optional[int] = None,
+        chapter_number: Optional[int] = None,
+        scene_number: Optional[int] = None,
+        character_names: Optional[List[str]] = None,
+        model: Optional[str] = None
+    ) -> SceneExtraction:
+        """
+        Extract memory facts from a scene using LLM.
+
+        Called when marking a scene as canon. Extracts:
+        - Character state changes (emotional, physical, relational, knowledge, status)
+        - World facts established (locations, rules, history, culture)
+        - Plot events for timeline
+
+        Args:
+            series_id: Series this scene belongs to
+            book_id: Book/project containing the scene
+            scene_id: Scene ID
+            prose: The scene prose text
+            scene_title: Optional scene title for context
+            chapter_title: Optional chapter title for context
+            book_number: Book position in series (for timeline ordering)
+            chapter_number: Chapter position (for timeline ordering)
+            scene_number: Scene position (for timeline ordering)
+            character_names: Known character names to help extraction
+            model: Optional model override
+
+        Returns:
+            SceneExtraction with extracted facts
+        """
+        from app.services.llm_service import get_llm_service
+        llm = get_llm_service()
+
+        # Build context hints
+        context_parts = []
+        if scene_title:
+            context_parts.append(f"Scene: {scene_title}")
+        if chapter_title:
+            context_parts.append(f"Chapter: {chapter_title}")
+        context_hint = " | ".join(context_parts) if context_parts else ""
+
+        char_hint = ""
+        if character_names:
+            char_hint = f"\n\nKnown characters in this series: {', '.join(character_names)}"
+
+        system_prompt = """You are a literary analyst extracting narrative facts for continuity tracking.
+Analyze the provided scene and extract factual changes that matter for story continuity.
+Be specific and factual. Only extract things that are explicitly established in the text.
+Output valid JSON only, no markdown formatting or explanation."""
+
+        user_prompt = f"""Analyze this scene and extract continuity-relevant facts.
+{context_hint}
+{char_hint}
+
+Extract three types of information:
+
+1. CHARACTER STATE CHANGES - How characters changed in this scene:
+   - emotional: Mood/emotional state changes
+   - physical: Injuries, appearance changes, fatigue
+   - relational: Relationship changes with other characters
+   - knowledge: What they learned or discovered
+   - status: Role changes, power shifts, new responsibilities
+
+2. WORLD FACTS - New information established about the world:
+   - location: New places described or details about existing places
+   - rule: Rules of magic, society, physics established
+   - history: Historical events mentioned
+   - culture: Cultural practices, beliefs, customs
+   - technology/magic: How things work
+
+3. PLOT EVENTS - Significant story events (for timeline):
+   - What happened (brief, factual)
+   - Who was involved
+   - Significance: minor, moderate, major, or climactic
+
+Output as JSON:
+{{
+  "character_changes": [
+    {{
+      "character_id": "character-slug-or-name",
+      "character_name": "Display Name",
+      "change_type": "emotional|physical|relational|knowledge|status",
+      "description": "What changed"
+    }}
+  ],
+  "world_facts": [
+    {{
+      "category": "location|rule|history|culture|magic|technology",
+      "fact": "The fact established"
+    }}
+  ],
+  "plot_events": [
+    {{
+      "event": "What happened",
+      "characters_involved": ["char1", "char2"],
+      "significance": "minor|moderate|major|climactic"
+    }}
+  ]
+}}
+
+If nothing notable in a category, use an empty array.
+
+SCENE TEXT:
+{prose[:30000]}"""  # Limit to ~30k chars
+
+        result = await llm.generate(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            model=model,
+            max_tokens=2000,
+            temperature=0.2  # Low temperature for factual extraction
+        )
+
+        # Parse the JSON response
+        try:
+            data = extract_json(result["content"])
+        except (json.JSONDecodeError, ValueError):
+            # If JSON parsing fails, return empty extraction
+            data = {"character_changes": [], "world_facts": [], "plot_events": []}
+
+        # Build the extraction object
+        extraction = SceneExtraction(
+            scene_id=scene_id,
+            book_id=book_id,
+            extracted_at=datetime.utcnow()
+        )
+
+        # Process character changes
+        for change in data.get("character_changes", []):
+            extraction.character_changes.append(CharacterStateChange(
+                character_id=change.get("character_id", "unknown"),
+                character_name=change.get("character_name", "Unknown"),
+                change_type=change.get("change_type", "emotional"),
+                description=change.get("description", ""),
+                scene_id=scene_id,
+                book_id=book_id
+            ))
+
+        # Process world facts
+        for fact in data.get("world_facts", []):
+            extraction.world_facts.append(WorldFact(
+                category=fact.get("category", "rule"),
+                fact=fact.get("fact", ""),
+                scene_id=scene_id,
+                book_id=book_id
+            ))
+
+        # Process plot events
+        for event in data.get("plot_events", []):
+            extraction.plot_events.append(PlotEvent(
+                event=event.get("event", ""),
+                characters_involved=event.get("characters_involved", []),
+                significance=event.get("significance", "minor"),
+                scene_id=scene_id,
+                book_id=book_id,
+                book_number=book_number,
+                chapter_number=chapter_number,
+                scene_number=scene_number
+            ))
+
+        # Save the extraction
+        self.save_extraction(series_id, extraction)
+
+        return extraction
 
 
 # Singleton instance
