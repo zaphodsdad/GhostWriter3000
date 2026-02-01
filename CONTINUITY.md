@@ -992,3 +992,66 @@ When you select a series on the start page, a dashboard panel appears with an ov
 - Edit Series (modify series details)
 - Refresh Summaries (regenerate memory summaries)
 - View Memory (opens raw memory JSON)
+
+---
+
+## Series-Level Data Hierarchy (Implemented)
+
+When a book belongs to a series, characters and world data are stored and accessed at the **series level**, not the book level. This ensures consistency across all books in the series.
+
+### How It Works
+
+**For books in a series:**
+- Characters are stored in `data/series/{series-id}/characters/`
+- World elements are stored in `data/series/{series-id}/world/`
+- All CRUD operations (create, read, update, delete) use series endpoints
+- Changes made while editing any book affect the entire series
+
+**For standalone books (no series):**
+- Characters are stored in `data/projects/{project-id}/characters/`
+- World elements are stored in `data/projects/{project-id}/world/`
+- Data is isolated to that specific book
+
+### Data Flow Diagram
+
+```
+Standalone Book:
+  Book → Project-level characters/world
+
+Book in Series:
+  Book → Series-level characters/world ← Shared by all books in series
+```
+
+### API Routing
+
+| Operation | Book in Series | Standalone Book |
+|-----------|---------------|-----------------|
+| Load characters | `GET /api/series/{id}/characters/` | `GET /api/projects/{id}/characters/` |
+| Load world | `GET /api/series/{id}/world/` | `GET /api/projects/{id}/world/` |
+| Save character | `POST /api/series/{id}/characters/` | `POST /api/projects/{id}/characters/` |
+| Save world | `POST /api/series/{id}/world/` | `POST /api/projects/{id}/world/` |
+| Delete character | `DELETE /api/series/{id}/characters/{cid}` | `DELETE /api/projects/{id}/characters/{cid}` |
+| Delete world | `DELETE /api/series/{id}/world/{wid}` | `DELETE /api/projects/{id}/world/{wid}` |
+
+### Frontend Behavior
+
+When you open a book that's part of a series:
+1. The UI shows series-level characters in the Characters panel
+2. The UI shows series-level world elements in the World panel
+3. Adding a character adds it to the series (available in all books)
+4. Deleting a character removes it from the series (affects all books)
+5. A badge shows the series name to indicate shared data context
+
+### Benefits
+
+- **Consistency**: Character "Elias" is defined once, used everywhere
+- **No duplication**: Single source of truth for all entities
+- **Evolution tracking**: Characters develop across books in one place
+- **Simpler management**: Edit once, applies to entire series
+
+### Migration Note
+
+Existing projects can be moved into a series. When you assign a book to a series:
+- Book-level entities remain in the book's folder
+- Series-level entities are stored in the series folder
+- To consolidate, manually move entities to series level or re-import with deep import
