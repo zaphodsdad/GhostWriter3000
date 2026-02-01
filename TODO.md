@@ -204,6 +204,7 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [x] Book summary modal (full-width, 900px, proper sizing)
 - [x] Style guide toast notifications (visible save feedback)
 - [x] Series-level data hierarchy (characters/world load from series when book is in series)
+- [x] Flexible outline parser (supports em-dash separators, multiple heading levels, bold scene format)
 
 ### Research & Exploration
 

@@ -1,11 +1,19 @@
 """Outline parser for importing markdown outlines.
 
-Supports the enhanced outline format with structured scene metadata:
+Supports multiple outline formats:
+
+Standard format:
 - # Book X: Title (book level - metadata only)
 - # Act X: Title (act level)
 - ## Chapter X: Title (chapter level)
 - ## New Characters Introduced (special section)
 - #### Scene X: Title (scene level)
+
+Alternative format (em-dash separators, different heading levels):
+- # Book X – Title (book level)
+- ## ACT X – Title (act level at h2)
+- ### CHAPTER X – Title (chapter level at h3)
+- **Scene X: Title** (scene as bold text, not heading)
 
 Scene fields parsed:
 - POV, Tone, Target, Heat Level, Emotional Arc
@@ -76,6 +84,20 @@ def parse_outline_markdown(markdown_text: str) -> Dict[str, Any]:
             current_character = None
             character_content_lines = []
 
+    # Helper to parse title with em-dash or colon separator
+    def parse_title_separator(text: str, prefix_pattern: str) -> Tuple[Optional[str], str]:
+        """Parse titles with : or – (em-dash) separators.
+        Returns (extracted_part, remaining_title)."""
+        # Try matching with colon, em-dash (–), or en-dash (-)
+        match = re.match(prefix_pattern + r'[\s]*[:\–\-–—]+[\s]*(.*)', text, re.IGNORECASE)
+        if match:
+            return match.groups()
+        # Try without separator
+        match = re.match(prefix_pattern + r'[\s]+(.*)', text, re.IGNORECASE)
+        if match:
+            return match.groups()
+        return (None, text)
+
     i = 0
     while i < len(lines):
         line = lines[i]
@@ -90,6 +112,31 @@ def parse_outline_markdown(markdown_text: str) -> Dict[str, Any]:
             i += 1
             continue
 
+        # Check for **Scene X: Title** bold format (alternative format)
+        scene_bold_match = re.match(r'\*\*Scene\s+(\d+)[:\s–\-–—]*(.*?)\*\*', stripped, re.IGNORECASE)
+        if scene_bold_match:
+            save_current_scene()
+            save_current_character()
+            in_characters_section = False
+
+            scene_counter += 1
+            title = scene_bold_match.group(2).strip()
+            if not title:
+                title = f"Scene {scene_bold_match.group(1)}"
+
+            scene_id = generate_id(title, scene_counter)
+
+            current_scene = {
+                'id': scene_id,
+                'title': title,
+                'outline': '',
+                'chapter_id': current_chapter['id'] if current_chapter else None,
+                'scene_number': scene_counter
+            }
+            scene_content_lines = []
+            i += 1
+            continue
+
         # Check for #### Scene heading (must check before other headings)
         if stripped.startswith('#### '):
             save_current_scene()
@@ -98,8 +145,8 @@ def parse_outline_markdown(markdown_text: str) -> Dict[str, Any]:
 
             scene_counter += 1
             title = stripped[5:].strip()
-            # Remove "Scene X:" prefix if present
-            scene_match = re.match(r'Scene\s+\d+[:\s]*(.*)', title, re.IGNORECASE)
+            # Remove "Scene X:" or "Scene X –" prefix if present
+            scene_match = re.match(r'Scene\s+\d+[:\s–\-–—]*(.*)', title, re.IGNORECASE)
             if scene_match and scene_match.group(1):
                 title = scene_match.group(1).strip()
 
@@ -114,17 +161,51 @@ def parse_outline_markdown(markdown_text: str) -> Dict[str, Any]:
             }
             scene_content_lines = []
 
-        # Check for ### character heading (in characters section)
-        elif stripped.startswith('### ') and in_characters_section:
-            save_current_character()
-            char_id = stripped[4:].strip().lower().replace(' ', '-')
-            current_character = {
-                'id': char_id,
-                'name': stripped[4:].strip()
-            }
-            character_content_lines = []
+        # Check for ### heading (chapter in alternative format, or character in characters section)
+        elif stripped.startswith('### '):
+            heading_text = stripped[4:].strip()
 
-        # Check for ## heading (chapter or special section)
+            if in_characters_section:
+                save_current_character()
+                char_id = heading_text.lower().replace(' ', '-')
+                current_character = {
+                    'id': char_id,
+                    'name': heading_text
+                }
+                character_content_lines = []
+            # Check if this is a chapter heading (alternative format: ### CHAPTER X)
+            elif heading_text.upper().startswith('CHAPTER') or re.match(r'Chapter\s+\d+', heading_text, re.IGNORECASE):
+                save_current_scene()
+                save_current_character()
+                in_characters_section = False
+                chapter_counter += 1
+                scene_counter = 0
+
+                chapter_metadata = parse_chapter_metadata(lines, i + 1)
+
+                chapter_num = chapter_counter
+                title = heading_text
+                # Match "CHAPTER X – Title" or "Chapter X: Title"
+                chapter_match = re.match(r'Chapter\s+(\d+)[:\s–\-–—]*(.*)', heading_text, re.IGNORECASE)
+                if chapter_match:
+                    chapter_num = int(chapter_match.group(1))
+                    title = chapter_match.group(2).strip() or heading_text
+
+                chapter_id = generate_id(title, chapter_num)
+
+                current_chapter = {
+                    'id': chapter_id,
+                    'title': title,
+                    'chapter_number': chapter_num,
+                    'act_id': current_act['id'] if current_act else None,
+                    'description': '',
+                    'pov_pattern': chapter_metadata.get('pov_pattern'),
+                    'target_word_count': chapter_metadata.get('target_word_count'),
+                    'function': chapter_metadata.get('function')
+                }
+                result['chapters'].append(current_chapter)
+
+        # Check for ## heading (chapter, act in alternative format, or special section)
         elif stripped.startswith('## '):
             save_current_scene()
             save_current_character()
@@ -134,19 +215,47 @@ def parse_outline_markdown(markdown_text: str) -> Dict[str, Any]:
             # Check for "New Characters Introduced" section
             if 'new characters' in heading_text.lower():
                 in_characters_section = True
-                current_chapter = None  # Not a chapter
+                current_chapter = None
+            # Check if this is an ACT heading (alternative format: ## ACT X)
+            elif heading_text.upper().startswith('ACT') or re.match(r'Act\s+[IVX\d]+', heading_text, re.IGNORECASE):
+                in_characters_section = False
+                act_counter += 1
+                chapter_counter = 0
+                scene_counter = 0
+
+                act_metadata = parse_act_metadata(lines, i + 1)
+
+                act_num = act_counter
+                title = heading_text
+                # Match "ACT I – Title" or "Act I: Title"
+                act_match = re.match(r'Act\s+([IVX\d]+)[:\s–\-–—]*(.*)', heading_text, re.IGNORECASE)
+                if act_match:
+                    act_num_str = act_match.group(1)
+                    act_num = roman_to_int(act_num_str) if act_num_str.isalpha() else int(act_num_str)
+                    title = act_match.group(2).strip() or heading_text
+
+                act_id = generate_id(title, act_num)
+
+                current_act = {
+                    'id': act_id,
+                    'title': title,
+                    'act_number': act_num,
+                    'description': '',
+                    'function': act_metadata.get('function'),
+                    'target_word_count': act_metadata.get('target_word_count')
+                }
+                result['acts'].append(current_act)
             else:
+                # Standard chapter format
                 in_characters_section = False
                 chapter_counter += 1
-                scene_counter = 0  # Reset scene counter for new chapter
+                scene_counter = 0
 
-                # Parse chapter metadata from following lines
                 chapter_metadata = parse_chapter_metadata(lines, i + 1)
 
-                # Parse chapter number from title if present
                 chapter_num = chapter_counter
                 title = heading_text
-                chapter_match = re.match(r'Chapter\s+(\d+)[:\s]*(.*)', heading_text, re.IGNORECASE)
+                chapter_match = re.match(r'Chapter\s+(\d+)[:\s–\-–—]*(.*)', heading_text, re.IGNORECASE)
                 if chapter_match:
                     chapter_num = int(chapter_match.group(1))
                     title = chapter_match.group(2).strip() or heading_text
@@ -189,7 +298,7 @@ def parse_outline_markdown(markdown_text: str) -> Dict[str, Any]:
                 # Parse act number from title
                 act_num = act_counter
                 title = heading_text
-                act_match = re.match(r'Act\s+([IVX\d]+)[:\s]*(.*)', heading_text, re.IGNORECASE)
+                act_match = re.match(r'Act\s+([IVX\d]+)[:\s–\-–—]*(.*)', heading_text, re.IGNORECASE)
                 if act_match:
                     act_num_str = act_match.group(1)
                     act_num = roman_to_int(act_num_str) if act_num_str.isalpha() else int(act_num_str)
@@ -434,8 +543,8 @@ def parse_book_metadata(lines: List[str], start_idx: int) -> Dict[str, Any]:
         title_line = lines[start_idx].strip()
         if title_line.startswith('# '):
             title = title_line[2:].strip()
-            # Remove "Book X:" prefix
-            book_match = re.match(r'Book\s+\d+[:\s]*(.*)', title, re.IGNORECASE)
+            # Remove "Book X:" or "Book X –" prefix (with em-dash support)
+            book_match = re.match(r'Book\s+\d+[:\s–\-–—]*(.*)', title, re.IGNORECASE)
             if book_match:
                 result['title'] = book_match.group(1).strip()
             else:
@@ -454,7 +563,7 @@ def parse_book_metadata(lines: List[str], start_idx: int) -> Dict[str, Any]:
 
         if line.startswith('**Series:**'):
             result['series'] = line[11:].strip()
-        elif line.startswith('**Target Length:**'):
+        elif line.startswith('**Target Length:**') or line.startswith('**Target length:**'):
             result['target_length'] = line[18:].strip()
         elif line.startswith('**POV Structure:**'):
             result['pov_structure'] = line[18:].strip()
@@ -526,7 +635,7 @@ def validate_outline(parsed: Dict[str, Any]) -> List[str]:
     warnings = []
 
     if not parsed['chapters'] and not parsed['scenes']:
-        warnings.append("No chapters or scenes found. Check heading format: ## for chapters, #### for scenes.")
+        warnings.append("No chapters or scenes found. Check format: ## Chapter or ### CHAPTER for chapters, #### Scene or **Scene X:** for scenes.")
 
     if parsed['scenes'] and not parsed['chapters']:
         warnings.append("Scenes found but no chapters. Scenes will not be assigned to chapters.")

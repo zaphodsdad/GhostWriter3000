@@ -1058,3 +1058,68 @@ Existing projects can be moved into a series. When you assign a book to a series
 - Book-level entities remain in the book's folder
 - Series-level entities are stored in the series folder
 - To consolidate, manually move entities to series level or re-import with deep import
+
+---
+
+## Outline Import Formats (Implemented)
+
+The outline parser supports multiple formats for importing outlines from Claude or other sources.
+
+### Standard Format
+
+```markdown
+# Book 1: Title
+# Act I: Introduction
+## Chapter 1: Opening
+#### Scene 1: First Scene
+**POV:** First person - Elena
+**Tone:** mysterious
+Content here...
+```
+
+### Alternative Format (Claude/Em-dash Style)
+
+The parser also handles outlines with em-dash separators and different heading levels:
+
+```markdown
+# Book 2 – Mapped Outline
+**Target length:** 100–120K words
+
+## ACT I – CONSEQUENCES & COMMITMENT (≈30–35K words)
+
+### CHAPTER 1 – Aftermath Pressure (≈3K)
+
+**Scene 1: Contained Instability (≈1–1.2K)**
+**POV:** First person - Mei
+**Tone:** tense, uncertain
+Scene content here...
+
+**Beats:**
+1. First beat
+2. Second beat
+```
+
+### Format Comparison
+
+| Element | Standard Format | Alternative Format |
+|---------|-----------------|-------------------|
+| Book | `# Book 1: Title` | `# Book 1 – Title` |
+| Act | `# Act I: Title` | `## ACT I – Title` |
+| Chapter | `## Chapter 1: Title` | `### CHAPTER 1 – Title` |
+| Scene | `#### Scene 1: Title` | `**Scene 1: Title**` |
+| Separator | Colon (`:`) | Em-dash (`–`) |
+
+### Parser Features
+
+- **Flexible separators**: Accepts colons (`:`), em-dashes (`–`), en-dashes (`-`), and em-dashes (`—`)
+- **Case insensitive**: Works with "ACT", "Act", "act", "CHAPTER", "Chapter", etc.
+- **Word count extraction**: Extracts target lengths like `(≈3K)` or `100-120K words`
+- **Scene metadata**: Parses POV, Tone, Target, Heat Level, Emotional Arc, Beats, etc.
+
+### Tips for Best Results
+
+1. **Scene headers**: Use either `#### Scene X:` or `**Scene X:**` format
+2. **Numbering**: Include numbers in chapter/scene headers for ordering
+3. **Metadata fields**: Use `**Field:**` format for POV, Tone, Beats, etc.
+4. **Beats**: Use numbered lists (1., 2., 3.) or bullets (-, *)
+5. **Title placement**: Put the main book/chapter/scene title after the number
