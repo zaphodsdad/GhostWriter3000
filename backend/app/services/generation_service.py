@@ -424,8 +424,18 @@ class GenerationService:
             # Load scene
             scene = await self._load_scene(project_id, state.scene_id)
 
+            # Build scene text for relevance filtering (outline + beats)
+            scene_text = scene.outline or ""
+            if scene.beats:
+                scene_text += " " + " ".join(b.text for b in scene.beats if b.text)
+
             # Load combined context (handles series inheritance and references)
-            combined_context = await self.series_service.get_combined_context(project_id)
+            # Filter entities by relevance to reduce token usage
+            combined_context = await self.series_service.get_combined_context(
+                project_id,
+                scene_text=scene_text,
+                filter_by_relevance=True
+            )
 
             # Also load scene-specific characters/world that may not be in combined context
             scene_characters = await self._load_characters(project_id, state.character_ids)
@@ -630,9 +640,18 @@ class GenerationService:
             # Load scene
             scene = await self._load_scene(project_id, state.scene_id)
 
+            # Build scene text for relevance filtering
+            scene_text = scene.outline or ""
+            if scene.beats:
+                scene_text += " " + " ".join(b.text for b in scene.beats if b.text)
+
             # Load combined context (handles series inheritance and references)
             # This ensures revisions have the same context as initial generation
-            combined_context = await self.series_service.get_combined_context(project_id)
+            combined_context = await self.series_service.get_combined_context(
+                project_id,
+                scene_text=scene_text,
+                filter_by_relevance=True
+            )
 
             # Also load scene-specific characters/world that may not be in combined context
             scene_characters = await self._load_characters(project_id, state.character_ids)
@@ -778,8 +797,17 @@ class GenerationService:
             # Load scene
             scene = await self._load_scene(project_id, state.scene_id)
 
+            # Build scene text for relevance filtering
+            scene_text = scene.outline or ""
+            if scene.beats:
+                scene_text += " " + " ".join(b.text for b in scene.beats if b.text)
+
             # Load combined context (handles series inheritance and references)
-            combined_context = await self.series_service.get_combined_context(project_id)
+            combined_context = await self.series_service.get_combined_context(
+                project_id,
+                scene_text=scene_text,
+                filter_by_relevance=True
+            )
 
             # Also load scene-specific characters/world
             scene_characters = await self._load_characters(project_id, state.character_ids)

@@ -196,12 +196,23 @@ class SeriesService:
 
         return await self.update_series(series_id, {"project_ids": project_ids})
 
-    async def get_combined_context(self, project_id: str) -> Dict[str, Any]:
+    async def get_combined_context(
+        self,
+        project_id: str,
+        scene_text: str = None,
+        filter_by_relevance: bool = False
+    ) -> Dict[str, Any]:
         """
         Get combined context from series (if any) + project.
         Series resources come first, project resources extend/override.
         Includes memory context from marked-as-canon scenes.
         Includes learned style preferences from user edits.
+
+        Args:
+            project_id: Project ID
+            scene_text: Optional scene outline/text for relevance filtering
+            filter_by_relevance: If True and scene_text provided, filter entities to only
+                                 those mentioned in the scene (token optimization)
         """
         context = {
             "characters": [],
@@ -262,6 +273,87 @@ class SeriesService:
         if project_style:
             context["style_guide"] = project_style  # Project overrides series
         context["references"].extend(project_refs)
+
+        # Apply relevance filtering if requested
+        if filter_by_relevance and scene_text:
+            context = self._filter_by_relevance(context, scene_text)
+
+        return context
+
+    def _filter_by_relevance(
+        self,
+        context: Dict[str, Any],
+        scene_text: str
+    ) -> Dict[str, Any]:
+        """
+        Filter entities to only those relevant to the scene text.
+
+        This is a token optimization that reduces context size by only including
+        characters and world elements that are mentioned in the scene.
+
+        Args:
+            context: Full context dict
+            scene_text: Scene outline/text to check for mentions
+
+        Returns:
+            Filtered context with only relevant entities
+        """
+        import re
+
+        # Normalize scene text for matching
+        text_lower = scene_text.lower()
+        # Extract words for matching (handles hyphenated names, etc.)
+        text_words = set(re.findall(r'\b\w+\b', text_lower))
+
+        # Filter characters
+        filtered_chars = []
+        for char in context.get("characters", []):
+            char_name = char.get("metadata", {}).get("name", "")
+            if not char_name:
+                continue
+
+            # Check if character name appears in scene
+            name_parts = char_name.lower().split()
+            if any(part in text_words for part in name_parts if len(part) > 2):
+                filtered_chars.append(char)
+                continue
+
+            # Check for role mentions (e.g., "the dragon", "commander")
+            role = char.get("metadata", {}).get("role", "").lower()
+            if role and role in text_lower:
+                filtered_chars.append(char)
+
+        # Filter world elements
+        filtered_worlds = []
+        for world in context.get("worlds", []):
+            world_name = world.get("metadata", {}).get("name", "")
+            if not world_name:
+                continue
+
+            # Check if world element name appears in scene
+            name_parts = world_name.lower().split()
+            if any(part in text_words for part in name_parts if len(part) > 2):
+                filtered_worlds.append(world)
+                continue
+
+            # Check category-based inclusion (magic systems, rules often relevant)
+            category = world.get("metadata", {}).get("category", "").lower()
+            # Always include foundational elements
+            if category in ["rule", "magic", "magic_system"]:
+                filtered_worlds.append(world)
+
+        # Update context with filtered lists
+        # Keep at least some entities if nothing matched (fallback)
+        if filtered_chars:
+            context["characters"] = filtered_chars
+        elif len(context.get("characters", [])) > 5:
+            # If nothing matched but we have many, keep first 5 as fallback
+            context["characters"] = context["characters"][:5]
+
+        if filtered_worlds:
+            context["worlds"] = filtered_worlds
+        elif len(context.get("worlds", [])) > 3:
+            context["worlds"] = context["worlds"][:3]
 
         return context
 
