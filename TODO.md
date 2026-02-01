@@ -1,6 +1,76 @@
 # Prose Pipeline - TODO
 
-**Last Updated:** 2026-01-30
+**Last Updated:** 2026-02-01
+
+---
+
+## PRIORITY: Series Memory Layer (Persistent Context)
+
+**Goal:** Build a memory system that persists across generations and works with any model (not just Anthropic's prompt caching). Knowledge accumulates as you write.
+
+### Architecture
+
+```
+data/series/{series-id}/
+├── series.json              # existing metadata
+├── memory/
+│   ├── manifest.json        # hashes, last-updated timestamps
+│   ├── world_state.md       # summarized lore/rules (auto-generated)
+│   ├── character_states.md  # current state of all characters
+│   ├── timeline.md          # key plot events in order
+│   └── extractions/         # raw extraction logs
+```
+
+### Core Concept
+
+**On Generation:**
+- Assemble prompt from cached summaries + small delta (current scene + instruction)
+- Works with any model (OpenRouter, local, etc.)
+- Context stays compact via intelligent summarization
+
+**On Mark as Canon:**
+- Run extraction pass: "What changed in this scene?"
+- Extract: character state changes, new world facts, plot events
+- Merge into series memory
+- Regenerate summaries if needed
+
+**On Source File Change:**
+- Hash detects staleness
+- Auto-regenerate summary before next use
+
+### Implementation Phases
+
+- [ ] **Phase 1: Storage Structure**
+  - Create `memory/` directory structure in series
+  - `manifest.json` with hashes and timestamps
+  - Initial empty state files
+
+- [ ] **Phase 2: Extraction Pass**
+  - LLM prompt to extract facts from canon scene
+  - Hook into "Mark as Canon" flow
+  - Store raw extractions
+
+- [ ] **Phase 3: Summary Generation**
+  - Generate `character_states.md` from character files + extractions
+  - Generate `world_state.md` from world files + extractions
+  - Generate `timeline.md` from plot events
+
+- [ ] **Phase 4: Context Assembly**
+  - Modify generation to use memory layer
+  - Assemble: series memory + book summaries + style guide + scene context
+  - Compact token-efficient prompts
+
+- [ ] **Phase 5: Staleness Detection**
+  - Hash character/world files
+  - Detect when source changes
+  - Auto-regenerate stale summaries
+
+### Key Decisions
+
+1. **Granularity:** Per-series (not global - different pen names = different voices)
+2. **Extraction Trigger:** When marking scene as canon
+3. **What Gets Extracted:** Character state changes, world facts, plot events (NOT style - that's the style guide)
+4. **Summary Regeneration:** Auto when source files change
 
 ---
 
@@ -24,10 +94,12 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 
 ### Series Continuity Features
 
-- [ ] **Book-level summaries** - Structured synopsis of previous books fed to generation
+- [x] **Book-level summaries** - Structured synopsis of previous books fed to generation
   - What happened, character arcs, world state changes
-  - Currently: `_load_previous_book_summaries()` exists but needs `summary.md` per project
-  - User is writing chapter-by-chapter summaries now
+  - IMPLEMENTED 2026-02-01: Book Summary section in Structure tab
+  - API: GET/PUT/DELETE `/api/projects/{id}/summary`
+  - Stored as `summary.md` in project directory
+  - `_load_previous_book_summaries()` loads these for later books
 - [ ] **Series Timeline** - Chronological tracking across books (Sudowrite has this)
   - AI knows book order, what happened when
   - Track major events with timestamps/book references
