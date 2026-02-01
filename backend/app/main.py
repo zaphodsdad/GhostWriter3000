@@ -6,7 +6,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.config import settings
-from app.api.routes import health, generation, scenes, characters, world, projects, acts, chapters, chat, style, outline_import, series, references, manuscript_import, backups, extraction, tools
+from app.api.routes import health, generation, scenes, characters, world, projects, acts, chapters, chat, style, outline_import, series, references, manuscript_import, backups, extraction, tools, memory
 from app.api.routes import settings as settings_routes
 from app.middleware.auth import APIKeyAuthMiddleware
 from app.utils.logging import setup_logging, get_logger
@@ -45,6 +45,9 @@ app.include_router(projects.router, prefix="/api/projects", tags=["projects"])
 
 # Series routes (top-level)
 app.include_router(series.router, prefix="/api/series", tags=["series"])
+
+# Series memory routes
+app.include_router(memory.router, prefix="/api/series", tags=["memory"])
 
 # Project-scoped routes
 # These routes are nested under /api/projects/{project_id}/
