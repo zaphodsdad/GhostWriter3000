@@ -463,6 +463,319 @@ SCENE TEXT:
 
         return extraction
 
+    async def generate_summaries(
+        self,
+        series_id: str,
+        model: Optional[str] = None
+    ) -> Dict[str, str]:
+        """
+        Generate all summaries from accumulated extractions.
+
+        Generates:
+        - character_states.md: Current state of all characters
+        - world_state.md: Established world facts
+        - timeline.md: Chronological plot events
+
+        Args:
+            series_id: Series to generate summaries for
+            model: Optional model override
+
+        Returns:
+            Dict with generated summary content for each type
+        """
+        memory = self.get_memory(series_id)
+        if not memory:
+            return {}
+
+        results = {}
+
+        # Generate character states summary
+        if memory.character_changes:
+            results["character_states"] = await self._generate_character_summary(
+                memory.character_changes, model
+            )
+            self.update_character_states(series_id, results["character_states"])
+
+        # Generate world state summary
+        if memory.world_facts:
+            results["world_state"] = await self._generate_world_summary(
+                memory.world_facts, model
+            )
+            self.update_world_state(series_id, results["world_state"])
+
+        # Generate timeline summary
+        if memory.timeline:
+            results["timeline"] = await self._generate_timeline_summary(
+                memory.timeline, model
+            )
+            self.update_timeline(series_id, results["timeline"])
+
+        # Update hashes after regeneration
+        self.update_hashes(series_id)
+
+        return results
+
+    async def _generate_character_summary(
+        self,
+        changes: List[CharacterStateChange],
+        model: Optional[str] = None
+    ) -> str:
+        """Generate a summary of character states from changes."""
+        from app.services.llm_service import get_llm_service
+        llm = get_llm_service()
+
+        # Group changes by character
+        by_character: Dict[str, List[CharacterStateChange]] = {}
+        for change in changes:
+            char_name = change.character_name
+            if char_name not in by_character:
+                by_character[char_name] = []
+            by_character[char_name].append(change)
+
+        # Build input for LLM
+        changes_text = ""
+        for char_name, char_changes in by_character.items():
+            changes_text += f"\n## {char_name}\n"
+            for c in char_changes:
+                changes_text += f"- [{c.change_type}] {c.description} (Scene: {c.scene_id})\n"
+
+        system_prompt = """You are a literary analyst creating a character state reference.
+Synthesize the character changes into a current-state summary for each character.
+Focus on their current emotional state, physical condition, relationships, and knowledge.
+Write in present tense. Be concise but complete. Output markdown."""
+
+        user_prompt = f"""Based on these character changes throughout the story, write a current-state summary for each character.
+
+CHANGES RECORDED:
+{changes_text}
+
+Write a markdown document with a section for each character showing their CURRENT state (as of the latest changes).
+Format:
+# Character States
+
+## Character Name
+**Emotional State:** ...
+**Physical Condition:** ...
+**Key Relationships:** ...
+**Current Knowledge:** ...
+**Status/Role:** ...
+
+Keep each character section to 3-5 sentences max."""
+
+        result = await llm.generate(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            model=model,
+            max_tokens=2000,
+            temperature=0.3
+        )
+
+        return result["content"]
+
+    async def _generate_world_summary(
+        self,
+        facts: List[WorldFact],
+        model: Optional[str] = None
+    ) -> str:
+        """Generate a summary of world state from facts."""
+        from app.services.llm_service import get_llm_service
+        llm = get_llm_service()
+
+        # Group by category
+        by_category: Dict[str, List[WorldFact]] = {}
+        for fact in facts:
+            cat = fact.category
+            if cat not in by_category:
+                by_category[cat] = []
+            by_category[cat].append(fact)
+
+        # Build input
+        facts_text = ""
+        for category, cat_facts in by_category.items():
+            facts_text += f"\n## {category.title()}\n"
+            for f in cat_facts:
+                facts_text += f"- {f.fact}\n"
+
+        system_prompt = """You are a worldbuilding analyst creating a world reference document.
+Synthesize the facts into a coherent world state summary.
+Organize by category. Remove duplicates. Note any contradictions.
+Output clean markdown."""
+
+        user_prompt = f"""Based on these world facts established in the story, create a world state reference document.
+
+FACTS RECORDED:
+{facts_text}
+
+Write a markdown document organizing the world state by category.
+Combine related facts. Remove redundancy. Keep it reference-friendly.
+
+Format:
+# World State
+
+## Locations
+- ...
+
+## Rules & Laws
+- ...
+
+## History
+- ...
+
+## Culture & Society
+- ...
+
+## Magic/Technology
+- ...
+
+Only include categories that have facts. Be concise."""
+
+        result = await llm.generate(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            model=model,
+            max_tokens=2000,
+            temperature=0.3
+        )
+
+        return result["content"]
+
+    async def _generate_timeline_summary(
+        self,
+        events: List[PlotEvent],
+        model: Optional[str] = None
+    ) -> str:
+        """Generate a timeline summary from plot events."""
+        from app.services.llm_service import get_llm_service
+        llm = get_llm_service()
+
+        # Events should already be sorted by book/chapter/scene
+        events_text = ""
+        current_book = None
+        for event in events:
+            # Add book header if changed
+            if event.book_number != current_book:
+                current_book = event.book_number
+                events_text += f"\n### Book {current_book or '?'}\n"
+
+            significance_marker = {
+                "minor": "",
+                "moderate": "*",
+                "major": "**",
+                "climactic": "***"
+            }.get(event.significance, "")
+
+            chars = ", ".join(event.characters_involved) if event.characters_involved else "—"
+            events_text += f"- {significance_marker}{event.event}{significance_marker} [{chars}]\n"
+
+        system_prompt = """You are a story analyst creating a timeline reference.
+Organize events chronologically. Group by story arc if apparent.
+Mark major events clearly. Keep it scannable.
+Output clean markdown."""
+
+        user_prompt = f"""Based on these plot events, create a timeline summary.
+
+EVENTS (in story order, * = moderate, ** = major, *** = climactic):
+{events_text}
+
+Write a clean timeline document. Group events into story beats or arcs if patterns emerge.
+Highlight the major/climactic events. Keep it concise and reference-friendly.
+
+Format:
+# Timeline
+
+## [Arc/Phase Name]
+- Event 1
+- **Major Event**
+- Event 3
+
+## [Next Arc]
+..."""
+
+        result = await llm.generate(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            model=model,
+            max_tokens=2000,
+            temperature=0.3
+        )
+
+        return result["content"]
+
+    async def generate_book_summary_from_memory(
+        self,
+        series_id: str,
+        book_id: str,
+        model: Optional[str] = None
+    ) -> str:
+        """
+        Generate a book summary from accumulated memory for that book.
+
+        This creates a prose summary suitable for the Book Summary feature,
+        compiled from all extractions for scenes in that book.
+
+        Args:
+            series_id: Series ID
+            book_id: Book/project ID to summarize
+            model: Optional model override
+
+        Returns:
+            Generated book summary text
+        """
+        from app.services.llm_service import get_llm_service
+        llm = get_llm_service()
+
+        memory = self.get_memory(series_id)
+        if not memory:
+            return ""
+
+        # Filter to just this book's data
+        book_changes = [c for c in memory.character_changes if c.book_id == book_id]
+        book_facts = [f for f in memory.world_facts if f.book_id == book_id]
+        book_events = [e for e in memory.timeline if e.book_id == book_id]
+
+        if not book_events and not book_changes:
+            return ""
+
+        # Build input
+        input_text = "## Plot Events (in order)\n"
+        for event in book_events:
+            input_text += f"- {event.event}\n"
+
+        input_text += "\n## Character Developments\n"
+        for change in book_changes:
+            input_text += f"- {change.character_name}: {change.description}\n"
+
+        input_text += "\n## World Elements Established\n"
+        for fact in book_facts:
+            input_text += f"- {fact.fact}\n"
+
+        system_prompt = """You are a story analyst writing a book summary for series continuity.
+Write a clear, prose summary that captures the essential plot, character arcs, and world developments.
+This summary will be used as context when writing later books in the series.
+Write in past tense. Be comprehensive but concise. Aim for 500-1500 words."""
+
+        user_prompt = f"""Based on this extracted data from a book, write a comprehensive summary.
+
+{input_text}
+
+Write a prose summary covering:
+1. **Plot Summary**: What happened in this book (major events, conflicts, resolution)
+2. **Character Arcs**: How main characters changed/developed
+3. **World State**: Important world facts established
+4. **Carrying Forward**: What matters for future books
+
+Write as flowing prose, not bullet points. This is for series continuity reference."""
+
+        result = await llm.generate(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            model=model,
+            max_tokens=3000,
+            temperature=0.4
+        )
+
+        return result["content"]
+
 
 # Singleton instance
 memory_service = MemoryService()

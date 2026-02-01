@@ -1,7 +1,8 @@
 """API routes for Series Memory Layer."""
 
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
 
 from app.models.memory import SeriesMemory, SceneExtraction, ExtractionRequest
 from app.services.memory_service import memory_service
@@ -188,3 +189,81 @@ async def refresh_hashes(series_id: str) -> Dict[str, Any]:
     memory_service.update_hashes(series_id)
 
     return {"status": "refreshed", "series_id": series_id}
+
+
+class GenerateSummariesRequest(BaseModel):
+    """Request to generate summaries."""
+    model: Optional[str] = Field(None, description="Optional model override")
+
+
+class GenerateBookSummaryRequest(BaseModel):
+    """Request to generate a book summary from memory."""
+    book_id: str = Field(..., description="Book/project ID to summarize")
+    model: Optional[str] = Field(None, description="Optional model override")
+
+
+@router.post("/{series_id}/memory/generate-summaries")
+async def generate_summaries(series_id: str, request: GenerateSummariesRequest = None) -> Dict[str, Any]:
+    """
+    Generate all summaries from accumulated extractions.
+
+    Uses LLM to synthesize:
+    - character_states.md: Current state of all characters
+    - world_state.md: Established world facts organized by category
+    - timeline.md: Chronological plot events
+
+    This is typically called after marking multiple scenes as canon,
+    or when you want to refresh the summaries.
+    """
+    series_dir = settings.series_path(series_id)
+    if not series_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Series not found: {series_id}")
+
+    model = request.model if request else None
+
+    try:
+        results = await memory_service.generate_summaries(series_id, model=model)
+        return {
+            "status": "generated",
+            "series_id": series_id,
+            "summaries_generated": list(results.keys()),
+            "summaries": results
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate summaries: {str(e)}")
+
+
+@router.post("/{series_id}/memory/generate-book-summary")
+async def generate_book_summary(series_id: str, request: GenerateBookSummaryRequest) -> Dict[str, Any]:
+    """
+    Generate a book summary from accumulated memory for a specific book.
+
+    This creates a prose summary suitable for the Book Summary feature,
+    compiled from all extractions for scenes in that book. Useful for
+    generating summaries of completed books for series continuity.
+    """
+    series_dir = settings.series_path(series_id)
+    if not series_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Series not found: {series_id}")
+
+    try:
+        summary = await memory_service.generate_book_summary_from_memory(
+            series_id,
+            request.book_id,
+            model=request.model
+        )
+
+        if not summary:
+            return {
+                "status": "empty",
+                "message": "No memory data found for this book. Mark some scenes as canon first."
+            }
+
+        return {
+            "status": "generated",
+            "book_id": request.book_id,
+            "summary": summary,
+            "word_count": len(summary.split())
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate book summary: {str(e)}")

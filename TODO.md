@@ -52,11 +52,12 @@ data/series/{series-id}/
   - Store raw extractions per scene
   - Extracts: character changes, world facts, plot events
 
-- [ ] **Phase 3: Summary Generation**
+- [x] **Phase 3: Summary Generation** - COMPLETE 2026-02-01
   - Generate `character_states.md` from character files + extractions
   - Generate `world_state.md` from world files + extractions
   - Generate `timeline.md` from plot events
-  - "Generate Summary from Memory" button in UI
+  - API endpoints: POST generate-summaries, POST generate-book-summary
+  - UI integration pending (API ready)
 
 - [ ] **Phase 4: Context Assembly**
   - Modify generation to use memory layer
