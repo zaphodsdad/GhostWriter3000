@@ -202,6 +202,18 @@ class GenerateBookSummaryRequest(BaseModel):
     model: Optional[str] = Field(None, description="Optional model override")
 
 
+class GenerateTieredSummaryRequest(BaseModel):
+    """Request to generate tiered book summaries."""
+    book_id: str = Field(..., description="Book/project ID to summarize")
+    book_title: str = Field(default="", description="Book title")
+    book_number: int = Field(default=0, description="Book number in series")
+    model: Optional[str] = Field(None, description="Optional model override")
+    tier: str = Field(
+        default="both",
+        description="Which tier(s) to generate: 'essential', 'full', or 'both'"
+    )
+
+
 @router.post("/{series_id}/memory/generate-summaries")
 async def generate_summaries(series_id: str, request: GenerateSummariesRequest = None) -> Dict[str, Any]:
     """
@@ -267,3 +279,136 @@ async def generate_book_summary(series_id: str, request: GenerateBookSummaryRequ
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate book summary: {str(e)}")
+
+
+@router.post("/{series_id}/memory/generate-tiered-summary")
+async def generate_tiered_summary(series_id: str, request: GenerateTieredSummaryRequest) -> Dict[str, Any]:
+    """
+    Generate tiered book summaries from accumulated memory.
+
+    Creates two versions optimized for different purposes:
+    - Essential (~500 words): Key plot points only, used in generation context
+    - Full (~2500 words): Complete details for reference and export
+
+    Args:
+        series_id: Series ID
+        request: Book details and tier option
+
+    Returns:
+        BookSummary with both or specified tier(s)
+    """
+    series_dir = settings.series_path(series_id)
+    if not series_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Series not found: {series_id}")
+
+    if request.tier not in ("essential", "full", "both"):
+        raise HTTPException(status_code=400, detail="tier must be 'essential', 'full', or 'both'")
+
+    try:
+        summary = await memory_service.generate_tiered_book_summary(
+            series_id=series_id,
+            book_id=request.book_id,
+            book_title=request.book_title,
+            book_number=request.book_number,
+            model=request.model,
+            tier=request.tier
+        )
+
+        if not summary:
+            return {
+                "status": "empty",
+                "message": "No memory data found for this book. Mark some scenes as canon first."
+            }
+
+        return {
+            "status": "generated",
+            "book_id": request.book_id,
+            "tier": request.tier,
+            "essential": summary.essential,
+            "essential_word_count": summary.essential_word_count,
+            "full": summary.full,
+            "full_word_count": summary.full_word_count,
+            "generated_at": summary.generated_at.isoformat() if summary.generated_at else None
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate tiered summary: {str(e)}")
+
+
+@router.get("/{series_id}/memory/book-summary/{book_id}")
+async def get_book_summary(series_id: str, book_id: str, tier: str = "essential") -> Dict[str, Any]:
+    """
+    Get a stored book summary.
+
+    Args:
+        series_id: Series ID
+        book_id: Book/project ID
+        tier: Which tier to return: 'essential' (default) or 'full'
+
+    Returns:
+        Summary text and metadata
+    """
+    series_dir = settings.series_path(series_id)
+    if not series_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Series not found: {series_id}")
+
+    if tier not in ("essential", "full"):
+        raise HTTPException(status_code=400, detail="tier must be 'essential' or 'full'")
+
+    memory = memory_service.get_memory(series_id)
+    if not memory:
+        raise HTTPException(status_code=404, detail="No memory found for series")
+
+    book_summary = memory.book_summaries.get(book_id)
+    if not book_summary:
+        return {
+            "status": "not_found",
+            "message": f"No summary found for book {book_id}. Generate one first."
+        }
+
+    summary_text = book_summary.essential if tier == "essential" else book_summary.full
+    word_count = book_summary.essential_word_count if tier == "essential" else book_summary.full_word_count
+
+    return {
+        "status": "found",
+        "book_id": book_id,
+        "tier": tier,
+        "summary": summary_text,
+        "word_count": word_count,
+        "generated_at": book_summary.generated_at.isoformat() if book_summary.generated_at else None,
+        "has_essential": bool(book_summary.essential),
+        "has_full": bool(book_summary.full)
+    }
+
+
+@router.get("/{series_id}/memory/book-summaries")
+async def list_book_summaries(series_id: str) -> Dict[str, Any]:
+    """
+    List all stored book summaries for a series.
+
+    Returns metadata about available summaries without the full text.
+    """
+    series_dir = settings.series_path(series_id)
+    if not series_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Series not found: {series_id}")
+
+    memory = memory_service.get_memory(series_id)
+    if not memory:
+        return {"summaries": []}
+
+    summaries = []
+    for book_id, summary in memory.book_summaries.items():
+        summaries.append({
+            "book_id": book_id,
+            "book_number": summary.book_number,
+            "title": summary.title,
+            "has_essential": bool(summary.essential),
+            "essential_word_count": summary.essential_word_count,
+            "has_full": bool(summary.full),
+            "full_word_count": summary.full_word_count,
+            "generated_at": summary.generated_at.isoformat() if summary.generated_at else None
+        })
+
+    # Sort by book number
+    summaries.sort(key=lambda x: x["book_number"])
+
+    return {"summaries": summaries}

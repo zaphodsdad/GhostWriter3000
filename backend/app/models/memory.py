@@ -199,6 +199,30 @@ class SceneExtraction(BaseModel):
     plot_events: List[PlotEvent] = Field(default_factory=list)
 
 
+class BookSummary(BaseModel):
+    """Tiered book summary for token optimization."""
+
+    book_id: str = Field(..., description="Book/project ID")
+    book_number: int = Field(default=0, description="Book number in series")
+    title: str = Field(default="", description="Book title")
+
+    # Essential summary (~500 words) - used in generation context
+    essential: str = Field(
+        default="",
+        description="Concise summary with key plot points, major character changes, critical world facts"
+    )
+    essential_word_count: int = Field(default=0)
+
+    # Full summary (~2500 words) - available for reference/export
+    full: str = Field(
+        default="",
+        description="Detailed summary with complete plot, all character arcs, world building details"
+    )
+    full_word_count: int = Field(default=0)
+
+    generated_at: Optional[datetime] = Field(None, description="When summaries were generated")
+
+
 class SeriesMemory(BaseModel):
     """Complete series memory state."""
 
@@ -214,6 +238,12 @@ class SeriesMemory(BaseModel):
     character_states_summary: Optional[str] = Field(None, description="Generated summary of character states")
     world_state_summary: Optional[str] = Field(None, description="Generated summary of world state")
     timeline_summary: Optional[str] = Field(None, description="Generated timeline summary")
+
+    # Tiered book summaries (keyed by book_id)
+    book_summaries: Dict[str, BookSummary] = Field(
+        default_factory=dict,
+        description="Tiered summaries for each book in the series"
+    )
 
 
 class ExtractionRequest(BaseModel):

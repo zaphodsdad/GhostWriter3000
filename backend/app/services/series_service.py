@@ -504,8 +504,10 @@ class SeriesService:
             if book_num >= current_book_number:
                 continue
 
-            # Load project summary or compile from canon scenes
-            summary = await self._get_project_summary(project_id, project)
+            # Load project summary (prefer tiered essential for token efficiency)
+            summary = await self._get_project_summary(
+                project_id, project, series_id=series_id, tier="essential"
+            )
             if summary:
                 summaries.append({
                     "project_id": project_id,
@@ -517,14 +519,43 @@ class SeriesService:
         summaries.sort(key=lambda x: x.get("book_number", 0))
         return summaries
 
-    async def _get_project_summary(self, project_id: str, project: Dict[str, Any]) -> Optional[str]:
-        """Get or generate a summary for a project."""
+    async def _get_project_summary(
+        self,
+        project_id: str,
+        project: Dict[str, Any],
+        series_id: str = None,
+        tier: str = "essential"
+    ) -> Optional[str]:
+        """
+        Get or generate a summary for a project.
+
+        Priority order:
+        1. Tiered summary from memory (essential or full)
+        2. Explicit summary.md file
+        3. Compiled from scene summaries
+
+        Args:
+            project_id: Project ID
+            project: Project data dict
+            series_id: Series ID for accessing memory summaries
+            tier: "essential" (default) or "full"
+
+        Returns:
+            Summary text or None
+        """
+        # First, check for tiered summary in memory (preferred for token efficiency)
+        if series_id:
+            from app.services.memory_service import memory_service
+            tiered_summary = memory_service.get_book_summary(series_id, project_id, tier=tier)
+            if tiered_summary:
+                return tiered_summary
+
         # Check for explicit project summary file
         summary_file = settings.project_dir(project_id) / "summary.md"
         if summary_file.exists():
             return summary_file.read_text(encoding="utf-8")
 
-        # Compile from scene summaries
+        # Compile from scene summaries (fallback)
         scenes_dir = settings.scenes_dir(project_id)
         if not scenes_dir.exists():
             return None

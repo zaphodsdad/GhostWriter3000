@@ -17,6 +17,7 @@ from app.models.memory import (
     DecayConfig,
     StylePreference,
     StyleMemory,
+    BookSummary,
 )
 from app.config import settings
 from app.utils.prompt_templates import extract_json
@@ -1169,32 +1170,39 @@ Format:
                     encoding="utf-8"
                 )
 
-    async def generate_book_summary_from_memory(
+    async def generate_tiered_book_summary(
         self,
         series_id: str,
         book_id: str,
-        model: Optional[str] = None
-    ) -> str:
+        book_title: str = "",
+        book_number: int = 0,
+        model: Optional[str] = None,
+        tier: str = "both"
+    ) -> Optional[BookSummary]:
         """
-        Generate a book summary from accumulated memory for that book.
+        Generate tiered book summaries from accumulated memory.
 
-        This creates a prose summary suitable for the Book Summary feature,
-        compiled from all extractions for scenes in that book.
+        Creates two versions:
+        - Essential (~500 words): Key plot points, major changes only
+        - Full (~2500 words): Complete details for reference
 
         Args:
             series_id: Series ID
             book_id: Book/project ID to summarize
+            book_title: Book title for the summary
+            book_number: Book number in series
             model: Optional model override
+            tier: Which tier(s) to generate: "essential", "full", or "both"
 
         Returns:
-            Generated book summary text
+            BookSummary with generated summaries, or None if no data
         """
         from app.services.llm_service import get_llm_service
         llm = get_llm_service()
 
         memory = self.get_memory(series_id)
         if not memory:
-            return ""
+            return None
 
         # Filter to just this book's data
         book_changes = [c for c in memory.character_changes if c.book_id == book_id]
@@ -1202,47 +1210,218 @@ Format:
         book_events = [e for e in memory.timeline if e.book_id == book_id]
 
         if not book_events and not book_changes:
-            return ""
+            return None
 
-        # Build input
-        input_text = "## Plot Events (in order)\n"
-        for event in book_events:
-            input_text += f"- {event.event}\n"
+        # Build input text from memory
+        input_text = self._build_summary_input(book_events, book_changes, book_facts)
+
+        # Get or create book summary entry
+        summary = memory.book_summaries.get(book_id) or BookSummary(
+            book_id=book_id,
+            book_number=book_number,
+            title=book_title
+        )
+
+        # Generate essential summary (~500 words)
+        if tier in ("essential", "both"):
+            essential = await self._generate_essential_summary(
+                llm, input_text, book_title, model
+            )
+            summary.essential = essential
+            summary.essential_word_count = len(essential.split())
+
+        # Generate full summary (~2500 words)
+        if tier in ("full", "both"):
+            full = await self._generate_full_summary(
+                llm, input_text, book_title, model
+            )
+            summary.full = full
+            summary.full_word_count = len(full.split())
+
+        summary.generated_at = datetime.utcnow()
+
+        # Store in memory
+        memory.book_summaries[book_id] = summary
+        self._save_memory(series_id, memory)
+
+        return summary
+
+    def _build_summary_input(
+        self,
+        events: List[PlotEvent],
+        changes: List[CharacterStateChange],
+        facts: List[WorldFact]
+    ) -> str:
+        """Build input text for summary generation."""
+        input_text = "## Plot Events (in chronological order)\n"
+        for event in events:
+            significance = f" [{event.significance}]" if event.significance else ""
+            input_text += f"- {event.event}{significance}\n"
+            if event.causal_summary:
+                input_text += f"  (Consequence: {event.causal_summary})\n"
 
         input_text += "\n## Character Developments\n"
-        for change in book_changes:
-            input_text += f"- {change.character_name}: {change.description}\n"
+        # Group by character
+        by_char: Dict[str, List[CharacterStateChange]] = {}
+        for change in changes:
+            if change.character_name not in by_char:
+                by_char[change.character_name] = []
+            by_char[change.character_name].append(change)
+
+        for char_name, char_changes in by_char.items():
+            input_text += f"\n### {char_name}\n"
+            for c in char_changes:
+                input_text += f"- [{c.change_type}] {c.description}\n"
 
         input_text += "\n## World Elements Established\n"
-        for fact in book_facts:
-            input_text += f"- {fact.fact}\n"
+        # Group by category
+        by_cat: Dict[str, List[WorldFact]] = {}
+        for fact in facts:
+            cat = fact.category or "general"
+            if cat not in by_cat:
+                by_cat[cat] = []
+            by_cat[cat].append(fact)
 
-        system_prompt = """You are a story analyst writing a book summary for series continuity.
-Write a clear, prose summary that captures the essential plot, character arcs, and world developments.
-This summary will be used as context when writing later books in the series.
-Write in past tense. Be comprehensive but concise. Aim for 500-1500 words."""
+        for cat, cat_facts in by_cat.items():
+            input_text += f"\n### {cat.title()}\n"
+            for f in cat_facts:
+                foundational = " [foundational]" if f.is_foundational else ""
+                input_text += f"- {f.fact}{foundational}\n"
 
-        user_prompt = f"""Based on this extracted data from a book, write a comprehensive summary.
+        return input_text
+
+    async def _generate_essential_summary(
+        self,
+        llm,
+        input_text: str,
+        book_title: str,
+        model: Optional[str] = None
+    ) -> str:
+        """Generate essential summary (~500 words, key points only)."""
+        system_prompt = """You are a story analyst creating a CONCISE book summary for series continuity.
+Write a focused summary that captures ONLY the most critical information:
+- Major plot turning points (not every event)
+- Significant character changes that matter for future books
+- World facts that will be referenced later
+Write in past tense. Be extremely selective. Target 400-600 words."""
+
+        user_prompt = f"""Based on this extracted data from "{book_title or 'this book'}", write a CONCISE essential summary.
 
 {input_text}
 
-Write a prose summary covering:
-1. **Plot Summary**: What happened in this book (major events, conflicts, resolution)
-2. **Character Arcs**: How main characters changed/developed
-3. **World State**: Important world facts established
-4. **Carrying Forward**: What matters for future books
+Write an essential summary (~500 words) covering ONLY:
+1. **Critical Plot Points**: The 3-5 most important events that drive the story forward
+2. **Major Character Changes**: Only changes that fundamentally alter a character's trajectory
+3. **Key World Facts**: Only facts that will be essential for understanding future books
 
-Write as flowing prose, not bullet points. This is for series continuity reference."""
+Be ruthlessly selective. This summary is used during generation and must be token-efficient.
+Write as flowing prose, not bullets."""
 
         result = await llm.generate(
             prompt=user_prompt,
             system_prompt=system_prompt,
             model=model,
-            max_tokens=3000,
+            max_tokens=1000,
+            temperature=0.3
+        )
+        return result["content"]
+
+    async def _generate_full_summary(
+        self,
+        llm,
+        input_text: str,
+        book_title: str,
+        model: Optional[str] = None
+    ) -> str:
+        """Generate full summary (~2500 words, complete details)."""
+        system_prompt = """You are a story analyst creating a COMPREHENSIVE book summary for series continuity.
+Write a detailed summary that captures the complete story:
+- All major and minor plot events in order
+- Complete character arcs with emotional and physical changes
+- Full world building details and lore established
+- Relationships formed, broken, or changed
+Write in past tense. Be thorough and detailed. Target 2000-3000 words."""
+
+        user_prompt = f"""Based on this extracted data from "{book_title or 'this book'}", write a COMPREHENSIVE full summary.
+
+{input_text}
+
+Write a detailed summary (~2500 words) covering:
+1. **Complete Plot Summary**: All events in chronological order, including causes and consequences
+2. **Full Character Arcs**: How each significant character started, changed, and ended
+3. **Relationship Dynamics**: How relationships evolved throughout the book
+4. **World Building**: All world facts, lore, and rules established
+5. **Carrying Forward**: Everything that matters for future books
+
+Be thorough. This summary is the complete reference for this book.
+Write as flowing prose with clear section transitions."""
+
+        result = await llm.generate(
+            prompt=user_prompt,
+            system_prompt=system_prompt,
+            model=model,
+            max_tokens=5000,
             temperature=0.4
         )
-
         return result["content"]
+
+    def get_book_summary(
+        self,
+        series_id: str,
+        book_id: str,
+        tier: str = "essential"
+    ) -> Optional[str]:
+        """
+        Get a specific tier of book summary.
+
+        Args:
+            series_id: Series ID
+            book_id: Book/project ID
+            tier: "essential" or "full"
+
+        Returns:
+            Summary text or None
+        """
+        memory = self.get_memory(series_id)
+        if not memory:
+            return None
+
+        summary = memory.book_summaries.get(book_id)
+        if not summary:
+            return None
+
+        if tier == "full":
+            return summary.full if summary.full else summary.essential
+        return summary.essential if summary.essential else summary.full
+
+    async def generate_book_summary_from_memory(
+        self,
+        series_id: str,
+        book_id: str,
+        model: Optional[str] = None
+    ) -> str:
+        """
+        Generate a book summary from accumulated memory.
+
+        DEPRECATED: Use generate_tiered_book_summary() instead.
+        This method is kept for backwards compatibility and generates
+        the essential tier only.
+
+        Args:
+            series_id: Series ID
+            book_id: Book/project ID to summarize
+            model: Optional model override
+
+        Returns:
+            Generated book summary text (essential tier)
+        """
+        summary = await self.generate_tiered_book_summary(
+            series_id=series_id,
+            book_id=book_id,
+            model=model,
+            tier="essential"
+        )
+        return summary.essential if summary else ""
 
 
 # Singleton instance
