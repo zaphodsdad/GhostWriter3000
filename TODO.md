@@ -67,10 +67,13 @@ data/series/{series-id}/
   - Updated generation.py direct revision endpoint: passes memory_context
   - Memory summaries appear in "SERIES MEMORY (Accumulated Canon)" section of prompts
 
-- [ ] **Phase 5: Staleness Detection**
-  - Hash character/world files
-  - Detect when source changes
-  - Auto-regenerate stale summaries
+- [x] **Phase 5: Staleness Detection** - COMPLETE 2026-02-01
+  - Hashing: compute_file_hash() creates SHA256 hashes of character/world files
+  - check_staleness() compares current file hashes against stored hashes
+  - update_hashes() stores current hashes after summary generation
+  - get_context_with_auto_refresh() auto-regenerates summaries when staleness detected
+  - series_service now calls auto-refresh version when loading context
+  - Staleness API endpoint: GET /{series_id}/memory/staleness
 
 - [ ] **Phase 6: Deep Import (Future)**
   - Batch-process imported manuscript through extraction

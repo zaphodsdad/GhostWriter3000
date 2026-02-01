@@ -232,7 +232,8 @@ class SeriesService:
             context["references"].extend(series_refs)
 
             # Load memory context from series (accumulated canon knowledge)
-            context["memory_context"] = memory_service.get_context_for_generation(series_id)
+            # Uses auto-refresh to regenerate stale summaries when source files change
+            context["memory_context"] = await memory_service.get_context_with_auto_refresh(series_id)
 
             # Load summaries from previous books in series
             if book_number and book_number > 1:

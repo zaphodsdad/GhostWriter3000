@@ -290,6 +290,43 @@ class MemoryService:
 
         return context
 
+    async def get_context_with_auto_refresh(
+        self,
+        series_id: str,
+        auto_regenerate: bool = True
+    ) -> Dict[str, str]:
+        """
+        Get context for generation, optionally auto-regenerating stale summaries.
+
+        Args:
+            series_id: Series ID
+            auto_regenerate: If True, check staleness and regenerate if needed
+
+        Returns:
+            Dict with character_states, world_state, timeline summaries
+        """
+        if auto_regenerate:
+            staleness = self.check_staleness(series_id)
+            if staleness.get("all", False):
+                # Source files have changed, regenerate summaries
+                try:
+                    from app.utils.logging import get_logger
+                    logger = get_logger(__name__)
+                    logger.info(
+                        f"Auto-regenerating stale memory summaries for series {series_id}",
+                        extra={"staleness": staleness}
+                    )
+                    await self.generate_summaries(series_id)
+                except Exception as e:
+                    # Don't fail generation if auto-regeneration fails
+                    from app.utils.logging import get_logger
+                    logger = get_logger(__name__)
+                    logger.warning(
+                        f"Failed to auto-regenerate summaries for {series_id}: {e}"
+                    )
+
+        return self.get_context_for_generation(series_id)
+
     async def extract_from_scene(
         self,
         series_id: str,
