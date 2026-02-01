@@ -392,3 +392,139 @@ The scene summary system provides **scalable continuity** for long-form prose ge
 ✅ Preserve key details without token explosion
 
 This is a **core feature**, not an afterthought. Built into the pipeline from day one.
+
+---
+
+## Series Memory Layer
+
+The **Series Memory Layer** complements scene summaries with accumulated knowledge extracted from canon scenes. While scene summaries provide a narrative recap of "what happened," the memory layer tracks structured facts about characters, world, and plot.
+
+### Overview
+
+```
+Scene Summaries (above):     "What happened in each scene"
+Series Memory Layer (below): "What we know about characters, world, and timeline"
+```
+
+### Storage Structure
+
+```
+data/series/{series-id}/
+├── series.json              # Series metadata
+├── memory/
+│   ├── manifest.json        # Hashes, timestamps, extraction tracking
+│   ├── character_states.md  # Current state of all characters
+│   ├── world_state.md       # Established world facts by category
+│   ├── timeline.md          # Chronological plot events
+│   └── extractions/         # Raw extraction logs per scene
+│       ├── {scene-id}.json
+│       └── ...
+```
+
+### How It Works
+
+#### 1. Extraction (Automatic on Mark as Canon)
+
+When a scene is marked as canon, the system automatically extracts:
+
+- **Character State Changes**: Emotional, physical, relational, knowledge, status changes
+- **World Facts**: Locations, rules, history, culture elements established
+- **Plot Events**: Key events for timeline tracking with ordering metadata
+
+```json
+{
+  "scene_id": "scene-042",
+  "book_id": "the-crimson-rites",
+  "character_changes": [
+    {
+      "character": "Elena",
+      "change_type": "emotional",
+      "before": "Hopeful about the expedition",
+      "after": "Wary after seeing the Cult scouts"
+    }
+  ],
+  "world_facts": [
+    {
+      "category": "location",
+      "fact": "The Lost Temple entrance features three interlocking circles carved in stone"
+    }
+  ],
+  "plot_events": [
+    {
+      "event": "Elena's team discovered the Lost Temple",
+      "significance": "major"
+    }
+  ]
+}
+```
+
+#### 2. Summary Generation
+
+The `/generate-summaries` endpoint synthesizes all extractions into readable markdown:
+
+- **character_states.md**: Current state of each character across the series
+- **world_state.md**: Organized world facts by category (locations, rules, culture, etc.)
+- **timeline.md**: Chronological plot events
+
+#### 3. Context Assembly
+
+When generating new prose, the memory layer is automatically included:
+
+```
+System Prompt includes:
+├── Style Guide
+├── Characters (sheets)
+├── World Context (documents)
+├── References
+├── Previous Books (summaries)
+├── SERIES MEMORY ← NEW
+│   ├── Character States
+│   ├── World State
+│   └── Timeline
+└── Story So Far (scene summaries)
+```
+
+#### 4. Staleness Detection
+
+When character or world files are modified, the system:
+1. Detects hash changes via `check_staleness()`
+2. Auto-regenerates summaries before next generation
+3. Updates stored hashes
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/{series_id}/memory` | GET | Get complete memory state |
+| `/{series_id}/memory/initialize` | POST | Initialize memory structure |
+| `/{series_id}/memory/context` | GET | Get compact summaries for prompts |
+| `/{series_id}/memory/staleness` | GET | Check if summaries are stale |
+| `/{series_id}/memory/generate-summaries` | POST | Generate all summaries from extractions |
+| `/{series_id}/memory/generate-book-summary` | POST | Generate book summary from memory |
+| `/{series_id}/memory/extract` | POST | Save extraction results |
+| `/{series_id}/memory/refresh-hashes` | POST | Refresh stored file hashes |
+| `/{series_id}/memory` | DELETE | Clear all memory |
+
+### Scene Summaries vs Memory Layer
+
+| Aspect | Scene Summaries | Memory Layer |
+|--------|-----------------|--------------|
+| **Scope** | Per-scene narrative recap | Accumulated series knowledge |
+| **Format** | Prose paragraph | Structured facts |
+| **Generated** | On accept as canon | Synthesized from extractions |
+| **Purpose** | "What happened in Scene 5?" | "What do we know about Elena?" |
+| **Token Cost** | ~600 per scene | ~1,000-2,000 total for series |
+
+### Best Practices
+
+1. **Let Extraction Run**: Don't skip the background extraction when marking canon
+2. **Regenerate Periodically**: Call `/generate-summaries` after marking several scenes
+3. **Check Staleness**: Before major generation sessions, verify summaries aren't stale
+4. **Use for Series**: Memory layer is most valuable for multi-book series continuity
+
+### Future: Deep Import
+
+For importing existing manuscripts, a future "Deep Import" feature will:
+- Batch-process chapters through extraction
+- Build memory from imported text
+- Option: "Quick Import" (just text) vs "Deep Import" (builds memory)
