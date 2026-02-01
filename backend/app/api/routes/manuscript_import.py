@@ -272,19 +272,23 @@ def detect_chapter_splits(text: str) -> List[ChapterSplit]:
     Attempt to split text into chapters based on common patterns.
 
     Tries patterns in order of specificity:
-    1. "Chapter X" / "CHAPTER X" / "Chapter One" (with optional title)
+    1. "Chapter X" / "CHAPTER X" / "Chapter One" / "Chapter 01" (with optional title)
     2. "Part X" / "PART X"
     3. Standalone number words on own line: "One", "Two", "Three"
     4. Standalone digits on own line: "1", "2", "3"
     5. Roman numerals on own line: "I", "II", "III"
     """
 
+    # Normalize line endings to \n
+    text = text.replace('\r\n', '\n').replace('\r', '\n')
+
     # Patterns to try, in order of specificity
     patterns = [
-        # "Chapter 1" / "Chapter One" / "CHAPTER 1: Title"
-        (r'^(?:#\s*)?(?:CHAPTER|Chapter)\s+(\d+|[A-Za-z]+(?:-[A-Za-z]+)?)(?:\s*[-:]\s*(.+?))?$', 'chapter'),
+        # "Chapter 1" / "Chapter 01" / "Chapter One" / "CHAPTER 1: Title"
+        # Allows trailing whitespace, optional title after : or -
+        (r'^(?:#\s*)?(?:CHAPTER|Chapter)\s+(\d+|[A-Za-z]+(?:-[A-Za-z]+)?)(?:\s*[-:]\s*(.+?))?\s*$', 'chapter'),
         # "Part 1" / "Part One"
-        (r'^(?:PART|Part)\s+(\d+|[A-Za-z]+(?:-[A-Za-z]+)?)(?:\s*[-:]\s*(.+?))?$', 'part'),
+        (r'^(?:PART|Part)\s+(\d+|[A-Za-z]+(?:-[A-Za-z]+)?)(?:\s*[-:]\s*(.+?))?\s*$', 'part'),
         # Standalone number word on its own line (preceded by blank line)
         (r'(?:\n\s*\n\s*\n+)(One|Two|Three|Four|Five|Six|Seven|Eight|Nine|Ten|Eleven|Twelve|Thirteen|Fourteen|Fifteen|Sixteen|Seventeen|Eighteen|Nineteen|Twenty(?:-(?:One|Two|Three|Four|Five|Six|Seven|Eight|Nine))?)(?:\s*\n)', 'word'),
         # Standalone digit(s) on own line (preceded by blank lines)

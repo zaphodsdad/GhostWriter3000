@@ -7155,7 +7155,7 @@ background: Elena's trusted partner with expertise in ancient languages.
 
 (Or paste free-form text and AI will extract characters)`;
     } else if (type === 'manuscript') {
-        helpText.textContent = 'Upload a manuscript file (.docx, .txt, .md) or paste text. Scenes will be created in edit mode for critique/revision.';
+        helpText.textContent = 'Upload or paste your manuscript. Chapters are auto-detected from "Chapter 1", "Chapter 01", "CHAPTER ONE", etc. No markdown headers needed.';
     }
 }
 
