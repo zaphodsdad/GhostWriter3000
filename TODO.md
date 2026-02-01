@@ -168,10 +168,10 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [x] Scene-relevant entity filtering (filter characters/world by scene mentions)
 - [x] Tiered book summaries (essential 500 words vs full 2500 words)
 
-**Priority 5: Quality of Life**
-- [ ] GUI for manuscript import with extraction
-- [ ] Series dashboard
-- [ ] Continuity warnings
+**Priority 5: Quality of Life** - COMPLETE 2026-02-01
+- [x] GUI for manuscript import with extraction (deep import progress tracking)
+- [x] Series dashboard (stats, memory status, books grid, quick actions)
+- [x] Continuity warnings (LLM-based contradiction detection)
 
 ### Research & Exploration
 
