@@ -3044,16 +3044,11 @@ async function saveStyleGuide() {
 
         styleGuide = await response.json();
 
-        // Show save confirmation
-        const status = document.getElementById('style-save-status');
-        status.textContent = 'Style guide saved successfully!';
-        status.style.color = 'var(--success)';
-        setTimeout(() => {
-            status.textContent = '';
-        }, 3000);
+        // Show save confirmation with toast
+        showToast('Success', 'Style guide saved', 'success');
 
     } catch (e) {
-        alert('Error saving style guide: ' + e.message);
+        showToast('Error', 'Failed to save style guide: ' + e.message, 'error');
     }
 }
 
