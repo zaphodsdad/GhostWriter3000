@@ -165,6 +165,22 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [x] Personality options: helpful, direct, enthusiastic
 - [x] Draggable widget (drag header to reposition anywhere)
 - [x] Auto-appears when opening any book in a series
+- [x] Resizable window (drag corner to resize)
+- [x] Adjustable text size (A-/A+ buttons, saved to localStorage)
+
+**Priority 6: Agentic Chico** - FUTURE
+- [ ] **Tool/function calling** - Give Chico actions to execute:
+  - `generate_chapter(chapter_id)` - Generate all scenes in a chapter
+  - `evaluate_scene(scene_id)` - Run critique on a scene
+  - `mark_as_canon(scene_id)` - Accept scene as canon
+  - `run_deep_import(file)` - Import manuscript with extraction
+- [ ] **Task queue with status** - Background jobs with progress tracking
+- [ ] **Notification system** - Alert when tasks complete:
+  - Browser notifications (simple, requires tab open)
+  - Discord webhook (leverage existing Clawdbot infrastructure)
+  - Email (optional)
+- [ ] **Batch operations** - "Generate chapters 1-5 overnight"
+- [ ] **Proactive suggestions** - Notice gaps, suggest fixes
 
 **Priority 4: Token Optimization** - COMPLETE 2026-02-01
 - [x] Scene-relevant entity filtering (filter characters/world by scene mentions)

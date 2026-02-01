@@ -3754,7 +3754,11 @@ nav {
     bottom: 90px;
     right: 24px;
     width: 380px;
-    max-height: 500px;
+    min-width: 300px;
+    max-width: 800px;
+    height: 450px;
+    min-height: 200px;
+    max-height: 80vh;
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 16px;
@@ -3763,7 +3767,7 @@ nav {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    transition: opacity 0.2s, transform 0.2s;
+    resize: both;
 }
 
 .chico-widget.minimized {

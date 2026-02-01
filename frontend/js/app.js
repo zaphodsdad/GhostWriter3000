@@ -9542,6 +9542,7 @@ function initChico() {
         loadChicoHistory();
     }
     setupChicoDrag();
+    loadChicoFontSize();
 }
 
 // Make Chico widget draggable by its header
@@ -9599,4 +9600,35 @@ function setupChicoDrag() {
     document.addEventListener('mouseup', () => {
         isDragging = false;
     });
+}
+
+// Chico font size adjustment
+let chicoFontSizeLevel = 0; // -2 to +2
+const chicoFontSizes = [12, 13, 14, 15, 16]; // px values
+
+function chicoFontSize(delta) {
+    chicoFontSizeLevel = Math.max(-2, Math.min(2, chicoFontSizeLevel + delta));
+    const size = chicoFontSizes[chicoFontSizeLevel + 2];
+
+    const messages = document.getElementById('chico-messages');
+    const input = document.getElementById('chico-input');
+
+    if (messages) messages.style.fontSize = size + 'px';
+    if (input) input.style.fontSize = size + 'px';
+
+    // Save preference
+    localStorage.setItem('chicoFontSize', chicoFontSizeLevel);
+}
+
+// Load saved font size on init
+function loadChicoFontSize() {
+    const saved = localStorage.getItem('chicoFontSize');
+    if (saved !== null) {
+        chicoFontSizeLevel = parseInt(saved, 10);
+        const size = chicoFontSizes[chicoFontSizeLevel + 2];
+        const messages = document.getElementById('chico-messages');
+        const input = document.getElementById('chico-input');
+        if (messages) messages.style.fontSize = size + 'px';
+        if (input) input.style.fontSize = size + 'px';
+    }
 }
