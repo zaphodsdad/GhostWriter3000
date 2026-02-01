@@ -163,6 +163,8 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [x] Continuity guardian: can catch contradictions across books
 - [x] Storage: `data/series/{series-id}/chat/chico_history.json`
 - [x] Personality options: helpful, direct, enthusiastic
+- [x] Draggable widget (drag header to reposition anywhere)
+- [x] Auto-appears when opening any book in a series
 
 **Priority 4: Token Optimization** - COMPLETE 2026-02-01
 - [x] Scene-relevant entity filtering (filter characters/world by scene mentions)
@@ -172,6 +174,9 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [x] GUI for manuscript import with extraction (deep import progress tracking)
 - [x] Series dashboard (stats, memory status, books grid, quick actions)
 - [x] Continuity warnings (LLM-based contradiction detection)
+- [x] Book summary modal (full-width, 900px, proper sizing)
+- [x] Style guide toast notifications (visible save feedback)
+- [x] Series-level data hierarchy (characters/world load from series when book is in series)
 
 ### Research & Exploration
 
@@ -225,39 +230,33 @@ Our approach: prompt caching + smart filtering.
   - Previous book loading uses essential tier by default
   - API endpoints: generate-tiered-summary, book-summary/{book_id}, book-summaries
 
-### Quality of Life
+### Quality of Life - COMPLETE 2026-02-01
 
-- [ ] **GUI for manuscript import with extraction** - Currently API-only
-  - Upload → auto-detect chapters → preview → extract characters/world/style → import
-- [ ] **Series dashboard** - See all books, their status, shared resources
-- [ ] **Continuity warnings** - Flag when scene contradicts previous canon
+- [x] **GUI for manuscript import with extraction** - Deep import with progress tracking
+- [x] **Series dashboard** - Stats, memory status, books grid, quick actions
+- [x] **Continuity warnings** - LLM-based contradiction detection with severity levels
+- [x] **Book summary modal** - Full-width modal for editing book summaries
+- [x] **Series-level data hierarchy** - Characters/world load from series level for books in series
 
-### Clawdbot In-App (Floating AI Assistant)
+### Chico In-App (Floating AI Assistant) - COMPLETE 2026-02-01
 
-- [ ] **Floating chat window** - Draggable/hideable persistent chat with AI co-author
-  - Knows ALL project context (characters, world, plot, memory layer)
-  - Conversation history persists per-project or series
-  - Not just current scene - full story awareness
+- [x] **Floating chat window** - Draggable persistent chat with AI co-author
+  - Knows ALL series context (characters, world, memory layer, style)
+  - Conversation history persists per-series
+  - Full story awareness across all books in series
   - **Implementation:**
-    - Floating draggable div (minimize/close buttons)
-    - Store conversation in `data/projects/{id}/chat_history.json`
-    - System prompt = memory layer + character sheets + "You are Clawdbot..."
-    - Uses existing chat backend infrastructure
+    - Floating draggable widget (minimize/close buttons, drag by header)
+    - Storage: `data/series/{series-id}/chat/chico_history.json`
+    - System prompt = memory layer + character sheets + personality
+    - Auto-appears when opening any book in a series
   - **Capabilities:**
-    - Answer questions: "Who is Elias's love interest?"
+    - Answer questions: "Who is Elias's dragon?"
     - Suggest next steps: "What should happen in Chapter 3?"
     - Brainstorm: "Give me 3 ways the betrayal could be revealed"
     - Continuity check: "Does this contradict anything established?"
-    - Proactive: Could notice gaps, suggest fixes
-  - **Personality layer:**
-    - Not generic AI, but a co-author persona
-    - Remembers previous conversations ("Last week you said...")
-    - Learns preferences via Drift-style memory
-  - **Minimal MVP:**
-    - Floating chat widget
-    - Project context in system prompt
-    - Persistent conversation history
-    - Basic personality prompt
+    - Character voice: "How would Elena say this?"
+  - **Personality options:** helpful, direct, enthusiastic
+  - **Customizable name** in settings (default: "Chico")
 
 ---
 

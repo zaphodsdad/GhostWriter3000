@@ -835,12 +835,15 @@ Chico is a series-level AI writing assistant that knows everything about your se
 - **Persistent history**: Conversations saved per series
 - **Configurable personality**: "helpful", "direct", or "enthusiastic"
 - **Customizable name**: Call your assistant whatever you like
+- **Draggable widget**: Drag by the header to reposition anywhere on screen
+- **Auto-appears**: Toggle shows automatically when opening any book in a series
 
 ### How to Use
 
-1. Select a series in the UI
-2. Click the **Chico** toggle button (bottom-right corner)
-3. Chat with your AI co-author
+1. Open any book that's part of a series
+2. Click the **💬 Chico** toggle button (bottom-right corner)
+3. Drag the header to reposition the widget anywhere
+4. Chat with your AI co-author
 
 ### Capabilities
 
