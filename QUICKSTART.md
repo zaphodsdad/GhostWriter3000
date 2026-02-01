@@ -100,6 +100,28 @@ For multi-book series:
 3. Write a **Book Summary** in the Structure tab when a book is complete
 4. Later books can reference earlier book summaries for continuity
 
+### Chico AI Assistant
+
+Each series has **Chico**, a floating AI assistant that knows everything about your series:
+
+1. Click the **Chico** toggle button (bottom-right corner)
+2. Ask questions: "Who is Elena's love interest?" or "What happened in Book 1?"
+3. Get continuity checks: "Does this contradict anything established?"
+4. Brainstorm: "Give me 3 ways the betrayal could be revealed"
+
+Chico's name and personality can be customized in the settings modal.
+
+### Memory Layer
+
+When you mark scenes as canon, the system automatically:
+
+- **Extracts facts**: Character changes, world elements, plot events
+- **Applies decay**: Older facts get lower weight in later books
+- **Learns your style**: Detects patterns from your edits
+- **Tracks causality**: Links plot events by cause and consequence
+
+Use the Memory endpoints to generate summaries or check what the AI "knows" about your series.
+
 ## File Locations
 
 ```

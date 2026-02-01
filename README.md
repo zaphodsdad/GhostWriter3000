@@ -13,6 +13,12 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **Scene-based Generation**: Generate prose from detailed scene outlines
 - **Critique-Revision Loop**: Automatic critique with manual approval for each revision iteration
 - **Series System**: Group related books with shared characters, world-building, and style guides with full context maintained across revision iterations
+- **Series Memory Layer**: Accumulated knowledge across canon scenes with automatic extraction, staleness detection, and context assembly
+- **Memory Decay**: Older facts automatically deprioritized based on book distance, with configurable decay rates
+- **Style Learning**: System learns from user edits to extract writing preferences (vocabulary, sentence structure, dialogue patterns)
+- **Causal Chains**: Plot events linked by cause and consequence for narrative coherence
+- **Chico AI Assistant**: Series-level conversational AI that knows all characters, world, and plot for continuity checking
+- **Token Optimization**: Scene-relevant entity filtering and tiered book summaries to reduce context size
 - **Reference Library**: Import style guides, published works, or notes as AI context
 - **Edit Mode**: Revise existing prose through the critique loop
 - **Manuscript Import**: Upload .docx/.txt/.md files, auto-detect chapters, create scenes in edit mode
@@ -354,6 +360,28 @@ GET    /api/settings                    # Get all settings (API keys, data dir, 
 PUT    /api/settings/data-dir           # Change data directory (with optional migration)
 DELETE /api/settings/data-dir           # Reset data directory to default
 GET    /api/settings/backup             # Download full backup as ZIP (all projects, series, settings)
+```
+
+#### Series Memory
+```
+GET    /api/series/{id}/memory                       # Get complete memory state
+POST   /api/series/{id}/memory/initialize            # Initialize memory structure
+GET    /api/series/{id}/memory/context               # Get compact summaries for prompts
+GET    /api/series/{id}/memory/staleness             # Check if summaries are stale
+POST   /api/series/{id}/memory/generate-summaries    # Generate all summaries from extractions
+POST   /api/series/{id}/memory/generate-tiered-summary  # Generate essential/full book summaries
+GET    /api/series/{id}/memory/book-summary/{book}   # Get tiered book summary
+GET    /api/series/{id}/memory/book-summaries        # List all book summaries
+DELETE /api/series/{id}/memory                       # Clear all memory
+```
+
+#### Chico AI Assistant
+```
+POST   /api/series/{id}/chat            # Send message to Chico
+GET    /api/series/{id}/history         # Get conversation history
+DELETE /api/series/{id}/history         # Clear conversation history
+GET    /api/series/{id}/settings        # Get Chico settings (name, personality)
+PUT    /api/series/{id}/settings        # Update Chico settings
 ```
 
 ## Configuration

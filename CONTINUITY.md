@@ -627,4 +627,259 @@ Brooding, strategic, protective
 - Characters defined once, evolve across series
 - No duplicate entity files per book
 - `book_number` enables chronological understanding
-- Memory layer handles "what matters now" via decay (future)
+- Memory layer handles "what matters now" via decay
+
+---
+
+## Memory Enhancement Features
+
+### Memory Decay (Implemented)
+
+Older facts automatically receive lower relevance scores based on distance from the current book. This ensures recent events are prioritized while distant history fades appropriately.
+
+**How it works:**
+
+```python
+relevance = base_significance * (decay_rate ^ book_distance) + reference_boost
+
+# Example for Book 3:
+# - Book 3 fact: 1.0 * 0.7^0 = 1.0 (full relevance)
+# - Book 2 fact: 0.8 * 0.7^1 = 0.56
+# - Book 1 fact: 0.6 * 0.7^2 = 0.29
+# - Book 0 fact: 0.5 * 0.7^3 = 0.17
+```
+
+**Configurable parameters (DecayConfig):**
+- `decay_rate`: How quickly relevance drops (default: 0.7)
+- `significance_weights`: Base weights by importance level
+- `min_relevance`: Floor to prevent complete forgetting (default: 0.1)
+- `reference_boost`: Bonus for frequently referenced facts (default: 0.05)
+
+**API:**
+```bash
+# Set current book number (triggers decay calculation)
+PUT /api/series/{id}/memory/current-book
+{"book_number": 3}
+
+# Get context with decay applied
+GET /api/series/{id}/memory/context?current_book_number=3
+```
+
+### Style Learning (Implemented)
+
+The system learns from user edits to extract writing preferences. When you edit AI-generated prose, the differences are analyzed to detect patterns.
+
+**What it learns:**
+- **Vocabulary preferences**: Words you avoid, words you prefer
+- **Sentence structure**: Sentence length patterns, comma usage
+- **Dialogue style**: Tag preferences, beat patterns
+- **Pacing**: Paragraph length, scene rhythm
+- **Description**: Adjective density, sensory preferences
+- **Tone**: Formality level, emotional intensity
+
+**How it works:**
+1. User edits prose in the workspace
+2. On save, system compares original vs edited
+3. `StyleLearningService` detects patterns:
+   - Word replacements ("said" → "muttered")
+   - Sentence restructuring (complex → simple)
+   - Deletions (removing adverbs, hedging language)
+4. Patterns stored in `StyleMemory` with confidence scores
+5. Future generations include learned preferences in prompts
+
+**Storage:**
+```
+data/series/{series-id}/memory/style_memory.json
+```
+
+**API:**
+```bash
+# Get learned preferences
+GET /api/series/{id}/memory/style-preferences
+
+# Manually add a preference
+POST /api/series/{id}/memory/style-preferences
+{
+  "category": "vocabulary",
+  "preference": "Avoid 'suddenly' - show the surprise instead",
+  "confidence": 0.8
+}
+```
+
+### Causal Chains (Implemented)
+
+Plot events are linked by cause and consequence relationships, enabling the AI to trace WHY something happened, not just WHAT happened.
+
+**Data model:**
+```json
+{
+  "event_id": "evt-042",
+  "event": "Elena discovers the temple entrance",
+  "significance": "major",
+  "causes": ["evt-038", "evt-041"],  // What led to this
+  "consequences": ["evt-043", "evt-044"],  // What this caused
+  "causal_summary": "This discovery was made possible by her uncle's journal (evt-038) and the expedition's persistence (evt-041). It directly leads to the Cult's attack (evt-043) and Elena's decision to enter (evt-044)."
+}
+```
+
+**API:**
+```bash
+# Trace causal chain for an event
+GET /api/series/{id}/memory/causal-chain/{event_id}
+
+# Get narrative summary of cause/effect
+GET /api/series/{id}/memory/causal-narrative/{event_id}
+
+# Link events manually
+POST /api/series/{id}/memory/link-events
+{
+  "event_id": "evt-044",
+  "causes": ["evt-042"],
+  "consequences": ["evt-045"]
+}
+```
+
+---
+
+## Token Optimization (Implemented)
+
+### Scene-Relevant Entity Filtering
+
+When generating prose, only characters and world elements mentioned in the scene outline are included in context. This dramatically reduces token usage for series with many entities.
+
+**How it works:**
+1. Scene outline + beats are analyzed for mentions
+2. Character names are matched against entity files
+3. World elements are matched by name
+4. Only matching entities are included
+5. Foundational world elements (magic systems, rules) are always included
+
+**Fallback behavior:**
+- If nothing matches, first 5 characters and 3 world elements are included
+- Prevents empty context when scene references are vague
+
+**Configuration:**
+- Enabled by default during generation
+- Pass `filter_by_relevance=True` to `get_combined_context()`
+
+### Tiered Book Summaries
+
+Book summaries are generated in two tiers to optimize token usage:
+
+| Tier | Word Count | Purpose |
+|------|------------|---------|
+| **Essential** | ~500 words | Key plot points, major changes only. Used in generation context. |
+| **Full** | ~2500 words | Complete details, all character arcs. Available for reference/export. |
+
+**How it works:**
+1. When generating a book summary, both tiers are created
+2. Essential tier is used by default when loading previous books
+3. Full tier is available for manual reference or export
+
+**API:**
+```bash
+# Generate tiered summary
+POST /api/series/{id}/memory/generate-tiered-summary
+{
+  "book_id": "the-jade-vow",
+  "book_title": "The Jade Vow",
+  "book_number": 1,
+  "tier": "both"  // or "essential" or "full"
+}
+
+# Get specific tier
+GET /api/series/{id}/memory/book-summary/the-jade-vow?tier=essential
+
+# List all book summaries
+GET /api/series/{id}/memory/book-summaries
+```
+
+**Storage:**
+```json
+{
+  "book_id": "the-jade-vow",
+  "book_number": 1,
+  "title": "The Jade Vow",
+  "essential": "Elena discovered the temple...",
+  "essential_word_count": 487,
+  "full": "In the opening chapters, Elena's expedition...",
+  "full_word_count": 2341,
+  "generated_at": "2026-02-01T15:30:00Z"
+}
+```
+
+**Token savings example:**
+```
+Before optimization:
+- 5 characters × 1000 tokens = 5000 tokens
+- 8 world elements × 500 tokens = 4000 tokens
+- 2 previous books × 2500 words = 5000 tokens
+Total: ~14,000 tokens
+
+After optimization:
+- 2 relevant characters × 1000 = 2000 tokens
+- 3 relevant world elements × 500 = 1500 tokens
+- 2 previous books (essential) × 500 words = 1000 tokens
+Total: ~4,500 tokens (68% reduction)
+```
+
+---
+
+## Chico AI Assistant (Implemented)
+
+Chico is a series-level AI writing assistant that knows everything about your series and maintains a persistent conversation history.
+
+### Features
+
+- **Full series context**: Knows all characters, world, memory layer, style preferences
+- **Persistent history**: Conversations saved per series
+- **Configurable personality**: "helpful", "direct", or "enthusiastic"
+- **Customizable name**: Call your assistant whatever you like
+
+### How to Use
+
+1. Select a series in the UI
+2. Click the **Chico** toggle button (bottom-right corner)
+3. Chat with your AI co-author
+
+### Capabilities
+
+- Answer questions: "Who is Elias's dragon?"
+- Suggest next steps: "What should happen in Chapter 3?"
+- Brainstorm: "Give me 3 ways the betrayal could be revealed"
+- Continuity check: "Does this contradict anything established?"
+- Character voice: "How would Elena say this?"
+
+### API
+
+```bash
+# Send message
+POST /api/series/{id}/chat
+{
+  "message": "Who is the main antagonist?",
+  "context_focus": "characters"  // optional: characters, world, plot, all
+}
+
+# Get history
+GET /api/series/{id}/history
+
+# Clear history
+DELETE /api/series/{id}/history
+
+# Get/update settings
+GET /api/series/{id}/settings
+PUT /api/series/{id}/settings
+{
+  "assistant_name": "Chico",
+  "personality": "helpful",  // helpful, direct, enthusiastic
+  "enabled": true
+}
+```
+
+### Storage
+
+```
+data/series/{series-id}/chat/
+├── chico_history.json   # Conversation history
+└── chico_settings.json  # Name, personality, preferences
+```
