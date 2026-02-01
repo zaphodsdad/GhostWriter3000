@@ -2938,7 +2938,15 @@ async function loadAllData() {
 
 async function loadCharacters() {
     try {
-        const response = await fetch(apiUrl('/characters/'));
+        // If project is in a series, load from series level (source of truth)
+        // Otherwise load from project level (standalone book)
+        let url;
+        if (currentProject?.series_id) {
+            url = `/api/series/${currentProject.series_id}/characters/`;
+        } else {
+            url = apiUrl('/characters/');
+        }
+        const response = await fetch(url);
         characters = await response.json();
         renderCharacters();
     } catch (e) {
@@ -2948,7 +2956,15 @@ async function loadCharacters() {
 
 async function loadWorlds() {
     try {
-        const response = await fetch(apiUrl('/world/'));
+        // If project is in a series, load from series level (source of truth)
+        // Otherwise load from project level (standalone book)
+        let url;
+        if (currentProject?.series_id) {
+            url = `/api/series/${currentProject.series_id}/world/`;
+        } else {
+            url = apiUrl('/world/');
+        }
+        const response = await fetch(url);
         worlds = await response.json();
         renderWorlds();
     } catch (e) {
@@ -3813,10 +3829,14 @@ async function saveCharacter(e) {
 
     try {
         let characterId;
+        // Use series endpoint if project is in a series, otherwise project endpoint
+        const baseUrl = currentProject?.series_id
+            ? `/api/series/${currentProject.series_id}/characters`
+            : apiUrl('/characters');
 
         if (editingCharacterId) {
             // Update existing character
-            const response = await fetch(apiUrl(`/characters/${editingCharacterId}`), {
+            const response = await fetch(`${baseUrl}/${editingCharacterId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ metadata, content })
@@ -3831,7 +3851,7 @@ async function saveCharacter(e) {
         } else {
             // Create new character
             const filename = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.md';
-            const response = await fetch(apiUrl('/characters/'), {
+            const response = await fetch(`${baseUrl}/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename, metadata, content })
@@ -3864,7 +3884,15 @@ async function deleteCharacter(characterId) {
     if (!confirm('Delete this character?')) return;
 
     try {
-        await fetch(apiUrl(`/characters/${characterId}`), { method: 'DELETE' });
+        // If project is in a series, delete from series level
+        // Otherwise delete from project level
+        let url;
+        if (currentProject?.series_id) {
+            url = `/api/series/${currentProject.series_id}/characters/${characterId}`;
+        } else {
+            url = apiUrl(`/characters/${characterId}`);
+        }
+        await fetch(url, { method: 'DELETE' });
         await loadCharacters();
         updateStats();
         populateFormSelects();
@@ -3912,7 +3940,12 @@ async function saveWorld(e) {
     };
 
     try {
-        const response = await fetch(apiUrl('/world/'), {
+        // Use series endpoint if project is in a series, otherwise project endpoint
+        const baseUrl = currentProject?.series_id
+            ? `/api/series/${currentProject.series_id}/world/`
+            : apiUrl('/world/');
+
+        const response = await fetch(baseUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ filename, metadata, content })
@@ -3936,7 +3969,15 @@ async function deleteWorld(worldId) {
     if (!confirm('Delete this world context?')) return;
 
     try {
-        await fetch(apiUrl(`/world/${worldId}`), { method: 'DELETE' });
+        // If project is in a series, delete from series level
+        // Otherwise delete from project level
+        let url;
+        if (currentProject?.series_id) {
+            url = `/api/series/${currentProject.series_id}/world/${worldId}`;
+        } else {
+            url = apiUrl(`/world/${worldId}`);
+        }
+        await fetch(url, { method: 'DELETE' });
         await loadWorlds();
         updateStats();
         populateFormSelects();
