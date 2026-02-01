@@ -669,6 +669,115 @@ async def delete_project(project_id: str):
 
 
 # ============================================
+# Book Summary (for series continuity)
+# ============================================
+
+class BookSummaryUpdate(BaseModel):
+    """Request to update book summary."""
+    summary: str = Field(..., description="Book summary text (markdown supported)")
+
+
+@router.get("/{project_id}/summary")
+async def get_book_summary(project_id: str):
+    """
+    Get the book summary for a project.
+
+    This summary is used for series continuity - when writing later books,
+    the AI references summaries from earlier books in the series.
+
+    Args:
+        project_id: Project ID
+
+    Returns:
+        Book summary content and metadata
+    """
+    project_dir = settings.project_dir(project_id)
+    if not project_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+    summary_file = project_dir / "summary.md"
+
+    if summary_file.exists():
+        content = summary_file.read_text(encoding="utf-8")
+        return {
+            "exists": True,
+            "summary": content,
+            "word_count": len(content.split())
+        }
+    else:
+        return {
+            "exists": False,
+            "summary": None,
+            "word_count": 0
+        }
+
+
+@router.put("/{project_id}/summary")
+async def update_book_summary(project_id: str, request: BookSummaryUpdate):
+    """
+    Update the book summary for a project.
+
+    The summary should capture:
+    - Major plot points and events
+    - Character arcs and development
+    - World state changes
+    - Key relationships and conflicts
+    - Anything needed for continuity in future books
+
+    Args:
+        project_id: Project ID
+        request: Summary content
+
+    Returns:
+        Success confirmation with word count
+    """
+    project_dir = settings.project_dir(project_id)
+    if not project_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+    summary_file = project_dir / "summary.md"
+
+    # Write the summary
+    summary_file.write_text(request.summary, encoding="utf-8")
+
+    # Update project's updated_at timestamp
+    project_file = project_dir / "project.json"
+    if project_file.exists():
+        data = json.loads(project_file.read_text())
+        data["updated_at"] = datetime.utcnow().isoformat()
+        project_file.write_text(json.dumps(data, indent=2))
+
+    return {
+        "message": "Book summary saved",
+        "word_count": len(request.summary.split())
+    }
+
+
+@router.delete("/{project_id}/summary")
+async def delete_book_summary(project_id: str):
+    """
+    Delete the book summary for a project.
+
+    Args:
+        project_id: Project ID
+
+    Returns:
+        Success confirmation
+    """
+    project_dir = settings.project_dir(project_id)
+    if not project_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+    summary_file = project_dir / "summary.md"
+
+    if summary_file.exists():
+        summary_file.unlink()
+        return {"message": "Book summary deleted"}
+    else:
+        return {"message": "No summary to delete"}
+
+
+# ============================================
 # Story Structure Templates
 # ============================================
 

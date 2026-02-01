@@ -17,7 +17,7 @@ class Project(BaseModel):
 
     # Series integration
     series_id: Optional[str] = Field(None, description="Series this project belongs to (if any)")
-    book_number: Optional[int] = Field(None, ge=1, description="Book number within series (1, 2, 3...)")
+    book_number: Optional[int] = Field(None, ge=0, description="Book number within series (0 for prequel, 1, 2, 3...)")
 
     # Word count goal
     word_count_goal: Optional[int] = Field(None, ge=0, description="Target word count for the project")
@@ -68,7 +68,7 @@ class ProjectCreate(BaseModel):
 
     # Series integration (optional - project can be standalone)
     series_id: Optional[str] = Field(None, description="Series to add this project to")
-    book_number: Optional[int] = Field(None, ge=1, description="Book number in series")
+    book_number: Optional[int] = Field(None, ge=0, description="Book number in series (0 for prequel)")
 
     # Word count goal
     word_count_goal: Optional[int] = Field(None, ge=0, description="Target word count")
@@ -95,7 +95,7 @@ class ProjectUpdate(BaseModel):
 
     # Series integration
     series_id: Optional[str] = Field(None, description="Series this project belongs to")
-    book_number: Optional[int] = Field(None, ge=1, description="Book number in series")
+    book_number: Optional[int] = Field(None, ge=0, description="Book number in series (0 for prequel)")
 
     # Word count goal
     word_count_goal: Optional[int] = Field(None, ge=0, description="Target word count")

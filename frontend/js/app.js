@@ -858,6 +858,8 @@ function renderProjects() {
 function showNewProjectForm() {
     // Hide outline form if open
     hideFromOutlineForm();
+    // Hide the button section to prevent overlap
+    document.getElementById('new-book-section').style.display = 'none';
     document.getElementById('new-project-form').style.display = 'block';
 
     // Populate series select
@@ -882,6 +884,10 @@ function showNewProjectForm() {
 
 function hideNewProjectForm() {
     document.getElementById('new-project-form').style.display = 'none';
+    // Only show button section if outline form is also hidden
+    if (document.getElementById('from-outline-form').style.display === 'none') {
+        document.getElementById('new-book-section').style.display = 'block';
+    }
     document.getElementById('project-title').value = '';
     document.getElementById('project-description').value = '';
     document.getElementById('project-author').value = '';
@@ -892,14 +898,20 @@ function hideNewProjectForm() {
 }
 
 function showFromOutlineForm() {
-    // Hide the manual form if open
-    hideNewProjectForm();
+    // Hide the manual form if open (don't restore button section yet)
+    document.getElementById('new-project-form').style.display = 'none';
+    // Hide the button section to prevent overlap
+    document.getElementById('new-book-section').style.display = 'none';
     document.getElementById('from-outline-form').style.display = 'block';
     document.getElementById('outline-markdown').focus();
 }
 
 function hideFromOutlineForm() {
     document.getElementById('from-outline-form').style.display = 'none';
+    // Only show button section if project form is also hidden
+    if (document.getElementById('new-project-form').style.display === 'none') {
+        document.getElementById('new-book-section').style.display = 'block';
+    }
     document.getElementById('outline-markdown').value = '';
     document.getElementById('outline-create-chars').checked = true;
 }
@@ -991,7 +1003,7 @@ async function createProject(e) {
         const projectData = { title, description, author, genre };
         if (seriesId) {
             projectData.series_id = seriesId;
-            if (bookNumber) {
+            if (bookNumber !== '' && bookNumber !== null) {
                 projectData.book_number = parseInt(bookNumber);
             }
         }
@@ -1004,7 +1016,8 @@ async function createProject(e) {
 
         if (!response.ok) {
             const error = await response.json();
-            throw new Error(error.detail || 'Failed to create project');
+            const errorMsg = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail || error);
+            throw new Error(errorMsg || 'Failed to create project');
         }
 
         const project = await response.json();
@@ -1017,7 +1030,7 @@ async function createProject(e) {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         project_id: project.id,
-                        book_number: bookNumber ? parseInt(bookNumber) : null
+                        book_number: (bookNumber !== '' && bookNumber !== null) ? parseInt(bookNumber) : null
                     })
                 });
             } catch (err) {
@@ -1402,6 +1415,7 @@ function renderSeriesList() {
                     <div class="item-actions">
                         <span class="badge">${seriesBooks.length} books</span>
                         ${s.genre ? `<span class="badge">${escapeHtml(s.genre)}</span>` : ''}
+                        <button class="btn btn-small" onclick="event.stopPropagation(); showEditSeriesModal('${s.id}')">Edit</button>
                         <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteSeries('${s.id}')">Delete</button>
                     </div>
                 </div>
@@ -1485,6 +1499,62 @@ async function createSeries(e) {
         await loadSeries();
     } catch (e) {
         alert('Error creating series: ' + e.message);
+    }
+}
+
+// Edit Series Modal
+function showEditSeriesModal(seriesId) {
+    const series = seriesList.find(s => s.id === seriesId);
+    if (!series) {
+        alert('Series not found');
+        return;
+    }
+
+    document.getElementById('edit-series-id').value = series.id;
+    document.getElementById('edit-series-title').value = series.title || '';
+    document.getElementById('edit-series-description').value = series.description || '';
+    document.getElementById('edit-series-author').value = series.author || '';
+    document.getElementById('edit-series-genre').value = series.genre || '';
+
+    document.getElementById('edit-series-modal').style.display = 'flex';
+    document.getElementById('edit-series-title').focus();
+}
+
+function hideEditSeriesModal() {
+    document.getElementById('edit-series-modal').style.display = 'none';
+}
+
+async function updateSeries(e) {
+    e.preventDefault();
+
+    const seriesId = document.getElementById('edit-series-id').value;
+    const title = document.getElementById('edit-series-title').value.trim();
+    const description = document.getElementById('edit-series-description').value.trim();
+    const author = document.getElementById('edit-series-author').value.trim();
+    const genre = document.getElementById('edit-series-genre').value.trim();
+
+    if (!title) {
+        alert('Please enter a series title');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/series/${seriesId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, description, author, genre })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to update series');
+        }
+
+        hideEditSeriesModal();
+        await loadSeries();
+        showToast('Success', 'Series updated', 'success');
+    } catch (e) {
+        alert('Error updating series: ' + e.message);
     }
 }
 
@@ -2651,6 +2721,11 @@ async function navigateToView(view) {
     if (view === 'outline') {
         renderOutlineView();
     }
+
+    // Handle structure view - load book summary
+    if (view === 'structure') {
+        loadBookSummary();
+    }
 }
 
 // ============================================
@@ -2665,7 +2740,8 @@ async function loadAllData() {
         loadScenes(),
         loadStyleGuide(),
         loadReferences(),
-        loadQueue()
+        loadQueue(),
+        loadBookSummary()
     ]);
     updateStats();
     populateFormSelects();
@@ -2775,6 +2851,131 @@ async function saveStyleGuide() {
 
     } catch (e) {
         alert('Error saving style guide: ' + e.message);
+    }
+}
+
+// ============================================
+// Book Summary (for series continuity)
+// ============================================
+let bookSummary = null;
+
+async function loadBookSummary() {
+    const display = document.getElementById('book-summary-display');
+    const actions = document.getElementById('book-summary-actions');
+
+    if (!display || !actions) return;
+
+    try {
+        const response = await fetch(apiUrl('/summary'));
+        if (!response.ok) throw new Error('Failed to load summary');
+
+        const data = await response.json();
+        bookSummary = data;
+
+        if (data.exists && data.summary) {
+            // Show the summary with markdown rendering
+            display.innerHTML = `
+                <div class="book-summary-content" style="white-space: pre-wrap; line-height: 1.6;">
+                    ${escapeHtml(data.summary)}
+                </div>
+                <p class="text-muted" style="margin-top: 1rem; font-size: 0.85rem;">
+                    ${data.word_count} words
+                </p>
+            `;
+            actions.innerHTML = `
+                <button class="btn btn-small" onclick="editBookSummary()">Edit</button>
+                <button class="btn btn-small btn-danger" onclick="deleteBookSummary()">Delete</button>
+            `;
+        } else {
+            display.innerHTML = `
+                <p class="text-muted">No book summary yet. Add one to help maintain continuity when writing later books in the series.</p>
+            `;
+            actions.innerHTML = `
+                <button class="btn btn-small" onclick="editBookSummary()">Add Summary</button>
+            `;
+        }
+    } catch (e) {
+        console.error('Failed to load book summary:', e);
+        display.innerHTML = '<p class="text-muted">Failed to load book summary</p>';
+        actions.innerHTML = '';
+    }
+}
+
+function editBookSummary() {
+    const display = document.getElementById('book-summary-display');
+    const editor = document.getElementById('book-summary-editor');
+    const actions = document.getElementById('book-summary-actions');
+    const textarea = document.getElementById('book-summary-textarea');
+
+    // Pre-populate with existing content
+    textarea.value = (bookSummary && bookSummary.summary) || '';
+
+    // Toggle visibility
+    display.style.display = 'none';
+    editor.style.display = 'block';
+
+    // Update actions
+    actions.innerHTML = `
+        <button class="btn btn-small btn-primary" onclick="saveBookSummary()">Save</button>
+        <button class="btn btn-small" onclick="cancelBookSummaryEdit()">Cancel</button>
+    `;
+
+    textarea.focus();
+}
+
+async function saveBookSummary() {
+    const textarea = document.getElementById('book-summary-textarea');
+    const summary = textarea.value.trim();
+
+    if (!summary) {
+        alert('Please enter a summary');
+        return;
+    }
+
+    try {
+        const response = await fetch(apiUrl('/summary'), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ summary })
+        });
+
+        if (!response.ok) throw new Error('Failed to save summary');
+
+        // Reload to show updated content
+        await loadBookSummary();
+
+        // Hide editor
+        document.getElementById('book-summary-editor').style.display = 'none';
+        document.getElementById('book-summary-display').style.display = 'block';
+
+    } catch (e) {
+        alert('Error saving book summary: ' + e.message);
+    }
+}
+
+function cancelBookSummaryEdit() {
+    document.getElementById('book-summary-editor').style.display = 'none';
+    document.getElementById('book-summary-display').style.display = 'block';
+
+    // Restore original action buttons
+    loadBookSummary();
+}
+
+async function deleteBookSummary() {
+    if (!confirm('Delete the book summary? This cannot be undone.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(apiUrl('/summary'), {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to delete summary');
+
+        await loadBookSummary();
+    } catch (e) {
+        alert('Error deleting book summary: ' + e.message);
     }
 }
 
@@ -5650,6 +5851,10 @@ function setupSelectionTracking() {
 
     // Track selection changes
     document.addEventListener('selectionchange', () => {
+        // Skip if focus is in a form input
+        if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT')) {
+            return;
+        }
         // Only track if we're in the review step
         const reviewStep = document.getElementById('gen-step-review');
         if (!reviewStep || reviewStep.style.display === 'none') return;
@@ -5832,8 +6037,8 @@ function getActiveProseContainer() {
 
 // Handle text selection and show bubble
 function handleTextSelection(e) {
-    // Skip if we're inside a modal (don't interfere with modal inputs)
-    if (e && e.target && e.target.closest('.modal')) {
+    // Skip if we're inside a modal or form (don't interfere with inputs)
+    if (e && e.target && (e.target.closest('.modal') || e.target.closest('form') || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
         return;
     }
 
@@ -5894,8 +6099,8 @@ function handleTextSelection(e) {
 
 // Handle selection changes (for when selection is cleared)
 function handleSelectionChange() {
-    // Skip if focus is inside a modal (don't interfere with modal inputs)
-    if (document.activeElement && document.activeElement.closest('.modal')) {
+    // Skip if focus is inside a modal or form input (don't interfere with inputs)
+    if (document.activeElement && (document.activeElement.closest('.modal') || document.activeElement.closest('form') || document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT')) {
         return;
     }
 
@@ -5923,8 +6128,8 @@ function setupReadingSelectionTracking() {
 
     // Selection start: hide bubble when starting a new selection
     document.addEventListener('selectstart', (e) => {
-        // Skip if we're inside a modal (don't interfere with modal inputs)
-        if (e.target && e.target.closest('.modal')) {
+        // Skip if we're inside a modal or form input (don't interfere with inputs)
+        if (e.target && (e.target.closest('.modal') || e.target.closest('form') || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
             return;
         }
 

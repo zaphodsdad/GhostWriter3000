@@ -1,29 +1,17 @@
 # Quick Start Guide
 
-## Testing the Prose Generation Pipeline (Phase 1)
+Get up and running with the Prose Generation Pipeline in minutes.
 
-The foundation is complete! Here's how to test what we have so far.
+## Prerequisites
 
-### What's Working Now
+- Python 3.11+
+- An API key from one of:
+  - **Anthropic** (Claude API) - recommended for best quality
+  - **OpenRouter** - for model variety and cost control
 
-✅ **Project Structure** - All directories and files in place
-✅ **Example Data** - Character, world, and scene examples
-✅ **FastAPI Backend** - Basic server with health check endpoint
-✅ **Web Interface** - Basic UI showing example data
-✅ **Configuration** - Environment-based settings management
-
-### What's Not Yet Implemented
-
-⏳ **Data Management API** - CRUD endpoints for characters/world/scenes (Phase 2)
-⏳ **Claude Integration** - Generation/critique/revision (Phase 3)
-⏳ **Generation Pipeline** - Full orchestration and state management (Phase 4)
-⏳ **Interactive Frontend** - Full UI with real-time updates (Phases 5-6)
-
-## Quick Test (3 Steps)
+## Quick Start (3 Steps)
 
 ### Step 1: Start the Server
-
-Run the startup script:
 
 ```bash
 ./run_server.sh
@@ -34,198 +22,139 @@ This will:
 - Install Python dependencies
 - Start the FastAPI server on port 8000
 
-### Step 2: View the Web Interface
-
-Open your browser to:
+### Step 2: Open the Web Interface
 
 ```
 http://localhost:8000
 ```
 
-You'll see:
-- **Overview** - Project introduction and system status
-- **Characters** - Elena Blackwood character profile
-- **World** - The Shattered Empire setting
-- **Scenes** - "Discovery in the Wastes" scene outline
-- **Generate** - Instructions for the generation pipeline
+### Step 3: Configure API Keys
 
-### Step 3: Check API Health
+1. On the start page, expand the **Settings** panel
+2. Enter your **Anthropic API Key** and/or **OpenRouter API Key**
+3. Select your preferred generation and critique models
+4. Click **Save**
 
-Visit the API health endpoint:
+You're ready to write!
+
+## Creating Your First Project
+
+1. Click **New Project** on the start page
+2. Enter a project name (e.g., "My Novel")
+3. Optionally assign it to a Series for multi-book continuity
+
+## Adding Content
+
+### Option A: Import an Existing Manuscript
+
+1. Go to **Structure** tab → **Import**
+2. Upload a `.docx`, `.txt`, or `.md` file
+3. The system auto-detects chapters and creates scenes
+4. Each chapter becomes ready for the critique/revision loop
+
+### Option B: Import a Structured Outline
+
+1. Go to **Structure** tab → **Import Outline**
+2. Paste a markdown outline with acts, chapters, and scenes
+3. Preview the parsed structure
+4. Click **Import** to create all scenes at once
+
+### Option C: Build Structure Manually
+
+1. Go to **Structure** tab
+2. Click **+ Act** to create an act
+3. Click **+ Chapter** within an act
+4. Click **+ Scene** within a chapter
+5. Fill in scene outlines, POV, tone, target length
+
+## Generating Prose
+
+1. Click any scene in the sidebar
+2. The **Unified Workspace** opens
+3. Click **Generate** to start AI prose generation
+4. Review the generated prose and automatic critique
+5. Choose:
+   - **Approve & Revise** - trigger another revision pass
+   - **Accept as Canon** - finalize the scene
+   - **Reject** - discard and try again
+
+## Key Features
+
+| Feature | How to Access |
+|---------|---------------|
+| Characters | Characters tab → + New Character |
+| World Building | Worlds tab → + New World Context |
+| References | References tab → upload style guides, examples |
+| Series | Start page → + New Series (for multi-book projects) |
+| Book Summary | Structure tab → Book Summary section (for series continuity) |
+| Batch Generation | Select multiple scenes → Generate Selected |
+| Evaluate Only | Click Evaluate to get critique without revision |
+| Floating AI Bubble | Select text in prose view for quick AI edits |
+
+## Series Continuity
+
+For multi-book series:
+
+1. Create a **Series** on the start page
+2. Add books to the series (use book number 0 for prequels)
+3. Write a **Book Summary** in the Structure tab when a book is complete
+4. Later books can reference earlier book summaries for continuity
+
+## File Locations
 
 ```
-http://localhost:8000/api/health
+prose-pipeline/
+├── data/                    # Default data storage
+│   └── projects/            # Your projects
+│       └── {project-id}/
+│           ├── characters/  # Character markdown files
+│           ├── world/       # World context files
+│           ├── scenes/      # Scene JSON files
+│           ├── references/  # Reference documents
+│           └── summary.md   # Book summary (for series continuity)
+├── backend/                 # FastAPI application
+└── frontend/                # Web interface
 ```
 
-Or use curl:
+## Accessing from Other Devices
+
+The server binds to `0.0.0.0` by default, so it's accessible on your local network.
 
 ```bash
-curl http://localhost:8000/api/health
+# Find your server IP
+hostname -I
+
+# Access from another device
+http://YOUR_SERVER_IP:8000
 ```
 
-You should see:
+## API Documentation
 
-```json
-{
-  "status": "healthy",
-  "timestamp": "2026-01-12T...",
-  "version": "1.0.0"
-}
-```
-
-## View Example Data Files
-
-### Character Sheet
-
-```bash
-cat data/characters/elena-blackwood.md
-```
-
-This shows the markdown format with YAML frontmatter for character data.
-
-### World Context
-
-```bash
-cat data/world/shattered-empire.md
-```
-
-This shows the world building information format.
-
-### Scene Outline
-
-```bash
-cat data/scenes/scene-001.json
-```
-
-This shows the JSON format for scene definitions.
-
-## Interactive API Documentation
-
-FastAPI provides automatic interactive API documentation:
-
-**Swagger UI:**
-```
-http://localhost:8000/docs
-```
-
-**ReDoc:**
-```
-http://localhost:8000/redoc
-```
-
-Currently, only the `/api/health` endpoint is available.
+Interactive API docs available at:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
 
 ## Troubleshooting
 
-### Port 8000 Already in Use
+### Port Already in Use
 
-If port 8000 is already in use, edit `.env` and change:
+Edit `.env` and change `PORT=8000` to another port, then restart.
 
-```
-PORT=8000
-```
+### API Key Errors
 
-To a different port (e.g., `PORT=8080`), then restart the server.
+- Verify keys are correct in Settings
+- Check you have credits/balance remaining
+- Anthropic keys start with `sk-ant-`
 
-### Python Virtual Environment Issues
-
-If the virtual environment has issues:
+### Virtual Environment Issues
 
 ```bash
-# Remove the old venv
 rm -rf backend/venv
-
-# Run the script again to recreate it
 ./run_server.sh
-```
-
-### Missing Dependencies
-
-If you get import errors:
-
-```bash
-# Activate virtual environment
-source backend/venv/bin/activate
-
-# Reinstall dependencies
-pip install -r backend/requirements.txt
-```
-
-### Can't Access from Other Devices
-
-The server binds to `0.0.0.0` by default, which means it's accessible from other devices on your network.
-
-Find your server's IP:
-
-```bash
-hostname -I
-```
-
-Then access from another device:
-
-```
-http://YOUR_SERVER_IP:8000
 ```
 
 ## Next Steps
 
-To continue building the pipeline:
-
-1. **Phase 2**: Implement CRUD endpoints for characters, world contexts, and scenes
-2. **Phase 3**: Add Claude API integration for generation and critique
-3. **Phase 4**: Build the complete generation pipeline with state management
-4. **Phase 5-6**: Complete the interactive web interface
-5. **Phase 7**: Add Docker containerization
-
-## Getting Your API Key
-
-To use the generation features (Phase 3+), you'll need a Claude API key:
-
-1. Visit https://console.anthropic.com/
-2. Sign up or log in
-3. Go to API Keys section
-4. Create a new API key
-5. Add it to your `.env` file:
-
-```
-ANTHROPIC_API_KEY=sk-ant-your-key-here
-```
-
-## File Structure Overview
-
-```
-prose-pipeline/
-├── run_server.sh           # Quick start script
-├── QUICKSTART.md          # This file
-├── README.md              # Full documentation
-├── .env                   # Your configuration
-├── .env.example           # Configuration template
-│
-├── backend/
-│   ├── app/
-│   │   ├── main.py        # FastAPI app
-│   │   ├── config.py      # Settings
-│   │   ├── models/        # Data models
-│   │   ├── services/      # Business logic
-│   │   ├── api/routes/    # API endpoints
-│   │   └── utils/         # Utilities
-│   └── requirements.txt   # Python dependencies
-│
-├── frontend/
-│   ├── index.html         # Web interface
-│   ├── css/main.css       # Styles
-│   └── js/main.js         # JavaScript
-│
-└── data/
-    ├── characters/        # Character markdown files
-    ├── world/             # World context files
-    ├── scenes/            # Scene JSON files
-    └── generations/       # Generated prose (Phase 4+)
-```
-
-## Support
-
-For questions or issues:
-- Check the main README.md for detailed documentation
-- Review the API docs at http://localhost:8000/docs
-- Look at the example data files in the `data/` directory
+- Read `README.md` for full feature documentation
+- Check `TODO.md` for development roadmap
+- See `CONTINUITY.md` for how scene summaries work

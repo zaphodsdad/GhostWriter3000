@@ -66,7 +66,7 @@ class AddBookToSeries(BaseModel):
     """Model for adding a project/book to a series."""
 
     project_id: str = Field(..., description="Project ID to add to series")
-    book_number: Optional[int] = Field(None, ge=1, description="Position in series (auto-assigned if not provided)")
+    book_number: Optional[int] = Field(None, ge=0, description="Position in series (0 for prequel, auto-assigned if not provided)")
 
 
 class ReorderBooks(BaseModel):

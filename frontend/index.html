@@ -150,20 +150,20 @@
                 <h3>Create New Series</h3>
                 <form onsubmit="createSeries(event)">
                     <div class="form-group">
-                        <label>Series Title *</label>
+                        <label for="series-title">Series Title *</label>
                         <input type="text" id="series-title" required placeholder="e.g., The Starlight Chronicles">
                     </div>
                     <div class="form-group">
-                        <label>Description</label>
+                        <label for="series-description">Description</label>
                         <textarea id="series-description" placeholder="What is this series about?"></textarea>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Author</label>
+                            <label for="series-author">Author</label>
                             <input type="text" id="series-author" placeholder="Your name">
                         </div>
                         <div class="form-group">
-                            <label>Genre</label>
+                            <label for="series-genre">Genre</label>
                             <input type="text" id="series-genre" placeholder="e.g., Fantasy, Sci-Fi">
                         </div>
                     </div>
@@ -199,20 +199,20 @@
                 <h3>Create New Book</h3>
                 <form onsubmit="createProject(event)">
                     <div class="form-group">
-                        <label>Book Title *</label>
+                        <label for="project-title">Book Title *</label>
                         <input type="text" id="project-title" required placeholder="e.g., The Crimson Rites">
                     </div>
                     <div class="form-group">
-                        <label>Description</label>
+                        <label for="project-description">Description</label>
                         <textarea id="project-description" placeholder="What is this book about?"></textarea>
                     </div>
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Author</label>
+                            <label for="project-author">Author</label>
                             <input type="text" id="project-author" placeholder="Your name">
                         </div>
                         <div class="form-group">
-                            <label>Genre</label>
+                            <label for="project-genre">Genre</label>
                             <input type="text" id="project-genre" placeholder="e.g., Fantasy, Sci-Fi">
                         </div>
                     </div>
@@ -225,7 +225,7 @@
                     </div>
                     <div class="form-group" id="book-number-group" style="display: none;">
                         <label>Book Number</label>
-                        <input type="number" id="project-book-number" min="1" placeholder="e.g., 1, 2, 3">
+                        <input type="number" id="project-book-number" placeholder="e.g., 0 for prequel, 1, 2, 3">
                         <small class="text-muted">Position in the series</small>
                     </div>
                     <div class="action-bar">
@@ -570,6 +570,47 @@ Outline paragraph...
                                 <!-- Structure Tree -->
                                 <div id="structure-tree" class="structure-tree">
                                     <div class="empty-state">Loading structure...</div>
+                                </div>
+                            </div>
+
+                            <!-- Book Summary Section -->
+                            <div class="card" id="book-summary-section">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                    <div>
+                                        <h3 style="margin: 0;">Book Summary</h3>
+                                        <p class="text-muted" style="margin: 4px 0 0 0; font-size: 0.85rem;">
+                                            Used for series continuity when writing later books
+                                        </p>
+                                    </div>
+                                    <div id="book-summary-actions">
+                                        <button class="btn btn-primary btn-small" id="edit-summary-btn" onclick="editBookSummary()" style="display: none;">Edit</button>
+                                        <button class="btn btn-success btn-small" id="save-summary-btn" onclick="saveBookSummary()" style="display: none;">Save</button>
+                                        <button class="btn btn-secondary btn-small" id="cancel-summary-btn" onclick="cancelBookSummaryEdit()" style="display: none;">Cancel</button>
+                                    </div>
+                                </div>
+                                <div id="book-summary-display">
+                                    <div class="empty-state" id="book-summary-empty">
+                                        <p>No summary yet</p>
+                                        <p class="text-muted">Add a summary of this book for use in future books in the series.</p>
+                                        <button class="btn btn-primary" onclick="editBookSummary()">Add Summary</button>
+                                    </div>
+                                    <div id="book-summary-content" style="display: none;">
+                                        <div id="book-summary-text" class="prose-content"></div>
+                                        <div class="text-muted" style="margin-top: 8px; font-size: 0.85rem;">
+                                            <span id="book-summary-word-count">0</span> words
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="book-summary-editor" style="display: none;">
+                                    <textarea id="book-summary-textarea" rows="12" placeholder="Write a summary of this book that captures:
+
+• Major plot points and events
+• Character arcs and development
+• World state changes
+• Key relationships and conflicts
+• Anything needed for continuity in future books
+
+Aim for 500-2000 words for a novel, less for shorter works."></textarea>
                                 </div>
                             </div>
 
@@ -1724,7 +1765,7 @@ This will be included in the AI prompt during generation."></textarea>
                 </div>
                 <div class="form-group" id="move-book-number-group" style="display: none;">
                     <label>Book Number</label>
-                    <input type="number" id="move-book-number" min="1" placeholder="e.g., 1, 2, 3">
+                    <input type="number" id="move-book-number" placeholder="e.g., 0 for prequel, 1, 2, 3">
                 </div>
             </div>
             <div class="modal-footer">
@@ -1851,6 +1892,36 @@ This will be included in the AI prompt during generation."></textarea>
                 <button class="btn btn-secondary" onclick="discardRecovery()">Discard</button>
                 <button class="btn btn-primary" onclick="restoreRecovery()">Restore</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Edit Series Modal -->
+    <div id="edit-series-modal" class="modal-overlay" style="display: none;" onclick="hideEditSeriesModal()">
+        <div class="modal-content" style="max-width: 500px;" onclick="event.stopPropagation()">
+            <h3>Edit Series</h3>
+            <form onsubmit="updateSeries(event)">
+                <input type="hidden" id="edit-series-id">
+                <div class="form-group">
+                    <label>Series Title *</label>
+                    <input type="text" id="edit-series-title" required placeholder="e.g., The Starlight Chronicles">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea id="edit-series-description" rows="3" placeholder="What is this series about?"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Author</label>
+                    <input type="text" id="edit-series-author" placeholder="Your name">
+                </div>
+                <div class="form-group">
+                    <label>Genre</label>
+                    <input type="text" id="edit-series-genre" placeholder="e.g., Fantasy, Sci-Fi">
+                </div>
+                <div class="action-bar">
+                    <button type="submit" class="btn btn-success">Save Changes</button>
+                    <button type="button" class="btn btn-secondary" onclick="hideEditSeriesModal()">Cancel</button>
+                </div>
+            </form>
         </div>
     </div>
 

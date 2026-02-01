@@ -134,6 +134,47 @@ nav {
     border-radius: 12px;
     padding: 24px;
     margin-bottom: 20px;
+    position: relative;
+}
+
+/* Ensure all creation forms inputs are fully interactive */
+#new-series-form,
+#new-project-form,
+#from-outline-form {
+    position: relative;
+    z-index: 100;
+    isolation: isolate;
+}
+
+#new-series-form *,
+#new-project-form *,
+#from-outline-form * {
+    position: relative;
+}
+
+#new-series-form input,
+#new-series-form textarea,
+#new-series-form select,
+#new-project-form input,
+#new-project-form textarea,
+#new-project-form select,
+#from-outline-form input,
+#from-outline-form textarea,
+#from-outline-form select {
+    position: relative !important;
+    z-index: 999 !important;
+    pointer-events: auto !important;
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    cursor: text !important;
+}
+
+#new-project-form input[type="text"],
+#new-project-form textarea,
+#new-series-form input[type="text"],
+#new-series-form textarea {
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .card h2 {
@@ -368,6 +409,10 @@ nav {
     color: var(--text);
     font-size: 1rem;
     font-family: inherit;
+    /* Ensure inputs are always interactive */
+    pointer-events: auto;
+    user-select: text;
+    -webkit-user-select: text;
 }
 
 .form-group input:focus,
@@ -393,6 +438,16 @@ nav {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
+}
+
+.form-row .form-group {
+    /* No special positioning needed */
+}
+
+.form-row input,
+.form-row textarea,
+.form-row select {
+    /* Inherit normal stacking */
 }
 
 @media (max-width: 600px) {
