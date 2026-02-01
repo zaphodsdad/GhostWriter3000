@@ -1071,6 +1071,20 @@ async function selectProject(projectId) {
         const response = await fetch(`/api/projects/${projectId}`);
         currentProject = await response.json();
 
+        // If project is in a series, load the series data for Chico and other features
+        if (currentProject.series_id) {
+            try {
+                const seriesResponse = await fetch(`/api/series/${currentProject.series_id}`);
+                if (seriesResponse.ok) {
+                    currentSeries = await seriesResponse.json();
+                }
+            } catch (e) {
+                console.warn('Failed to load series for project:', e);
+            }
+        } else {
+            currentSeries = null;
+        }
+
         // Update UI
         document.getElementById('project-selector').classList.remove('active');
         document.getElementById('main-app').style.display = 'block';
@@ -1080,6 +1094,9 @@ async function selectProject(projectId) {
 
         // Show series info if project is in a series
         updateProjectSeriesDisplay();
+
+        // Initialize Chico (will show toggle if in a series)
+        initChico();
 
         // Setup navigation and load data
         setupNavigation();
