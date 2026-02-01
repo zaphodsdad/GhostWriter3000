@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 from app.config import settings
 from app.models.series import Series, SeriesCreate, SeriesSummary
 from app.services.markdown_parser import MarkdownParser
+from app.services.memory_service import memory_service
 
 
 class SeriesService:
@@ -199,13 +200,15 @@ class SeriesService:
         """
         Get combined context from series (if any) + project.
         Series resources come first, project resources extend/override.
+        Includes memory context from marked-as-canon scenes.
         """
         context = {
             "characters": [],
             "worlds": [],
             "style_guide": None,
             "references": [],
-            "previous_books": []
+            "previous_books": [],
+            "memory_context": {}
         }
 
         # Load project to check for series
@@ -227,6 +230,9 @@ class SeriesService:
             context["worlds"].extend(series_worlds)
             context["style_guide"] = series_style
             context["references"].extend(series_refs)
+
+            # Load memory context from series (accumulated canon knowledge)
+            context["memory_context"] = memory_service.get_context_for_generation(series_id)
 
             # Load summaries from previous books in series
             if book_number and book_number > 1:

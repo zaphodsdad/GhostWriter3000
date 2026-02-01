@@ -477,6 +477,7 @@ async def revise_selection_direct(project_id: str, generation_id: str, request: 
         all_references = [r for r in combined_context.get("references", []) if r.get("use_in_generation", True)]
         previous_books = combined_context.get("previous_books", [])
         style_guide = combined_context.get("style_guide")
+        memory_context = combined_context.get("memory_context", {})
 
         # Build full system prompt with context (cached for Anthropic)
         system_prompt = build_system_prompt_cached(
@@ -485,7 +486,8 @@ async def revise_selection_direct(project_id: str, generation_id: str, request: 
             [],  # No previous scene summaries needed for inline edits
             style_guide,
             references=all_references,
-            previous_books=previous_books
+            previous_books=previous_books,
+            memory_context=memory_context
         )
 
         # Combine quick_action with custom instructions

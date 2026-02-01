@@ -215,7 +215,8 @@ class ChatService:
             "current_scene": None,
             "current_chapter": None,
             "style_guide": None,
-            "references": []
+            "references": [],
+            "memory_context": {}
         }
 
         # Load combined context from series service (handles series inheritance)
@@ -226,6 +227,7 @@ class ChatService:
             context["characters"] = combined.get("characters", [])
             context["worlds"] = combined.get("worlds", [])
             context["style_guide"] = combined.get("style_guide")
+            context["memory_context"] = combined.get("memory_context", {})
 
             # Filter references that have use_in_chat enabled
             all_refs = combined.get("references", [])
@@ -413,6 +415,22 @@ class ChatService:
             parts.append("SCENE SUMMARIES (for continuity):")
             for scene in context["scenes"]:
                 parts.append(f"- {scene.get('title', 'Untitled')}: {scene.get('summary', scene.get('outline', 'No summary'))[:200]}...")
+            parts.append("")
+
+        # Add series memory context (accumulated canon knowledge)
+        memory_ctx = context.get("memory_context", {})
+        if memory_ctx and any([
+            memory_ctx.get('character_states'),
+            memory_ctx.get('world_state'),
+            memory_ctx.get('timeline')
+        ]):
+            parts.append("SERIES MEMORY (accumulated from canon scenes):")
+            if memory_ctx.get('character_states'):
+                parts.append(f"\nCharacter States:\n{memory_ctx['character_states'][:1500]}...")
+            if memory_ctx.get('world_state'):
+                parts.append(f"\nWorld State:\n{memory_ctx['world_state'][:1500]}...")
+            if memory_ctx.get('timeline'):
+                parts.append(f"\nTimeline:\n{memory_ctx['timeline'][:1500]}...")
             parts.append("")
 
         # Add current focus

@@ -59,10 +59,13 @@ data/series/{series-id}/
   - API endpoints: POST generate-summaries, POST generate-book-summary
   - UI integration pending (API ready)
 
-- [ ] **Phase 4: Context Assembly**
-  - Modify generation to use memory layer
-  - Assemble: series memory + book summaries + style guide + scene context
-  - Compact token-efficient prompts
+- [x] **Phase 4: Context Assembly** - COMPLETE 2026-02-01
+  - Modified prompt_templates.py: added memory_context parameter to both build_system_prompt functions
+  - Updated series_service.get_combined_context() to include memory_context from memory_service
+  - Updated generation_service.py: all 3 calls to build_system_prompt_cached now pass memory_context
+  - Updated chat_service.py: chat context now includes series memory
+  - Updated generation.py direct revision endpoint: passes memory_context
+  - Memory summaries appear in "SERIES MEMORY (Accumulated Canon)" section of prompts
 
 - [ ] **Phase 5: Staleness Detection**
   - Hash character/world files

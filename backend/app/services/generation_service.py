@@ -438,6 +438,7 @@ class GenerationService:
             all_references = [r for r in combined_context.get("references", []) if r.get("use_in_generation", True)]
             previous_books = combined_context.get("previous_books", [])
             style_guide = combined_context.get("style_guide")
+            memory_context = combined_context.get("memory_context", {})
 
             # Build prompts with full context including references
             # Use cached version for Anthropic prompt caching support
@@ -447,7 +448,8 @@ class GenerationService:
                 previous_summaries,
                 style_guide,
                 references=all_references,
-                previous_books=previous_books
+                previous_books=previous_books,
+                memory_context=memory_context
             )
 
             # Get scene data for prompt, optionally excluding beats
@@ -641,6 +643,7 @@ class GenerationService:
             all_references = [r for r in combined_context.get("references", []) if r.get("use_in_generation", True)]
             previous_books = combined_context.get("previous_books", [])
             style_guide = combined_context.get("style_guide")
+            memory_context = combined_context.get("memory_context", {})
 
             # Build system prompt with full context (cached for Anthropic)
             system_prompt = build_system_prompt_cached(
@@ -649,7 +652,8 @@ class GenerationService:
                 previous_summaries,
                 style_guide,
                 references=all_references,
-                previous_books=previous_books
+                previous_books=previous_books,
+                memory_context=memory_context
             )
 
             # Get current prose and critique
@@ -784,6 +788,7 @@ class GenerationService:
             all_references = [r for r in combined_context.get("references", []) if r.get("use_in_generation", True)]
             previous_books = combined_context.get("previous_books", [])
             style_guide = combined_context.get("style_guide")
+            memory_context = combined_context.get("memory_context", {})
 
             # Build system prompt with full context (cached for Anthropic)
             system_prompt = build_system_prompt_cached(
@@ -792,7 +797,8 @@ class GenerationService:
                 previous_summaries,
                 style_guide,
                 references=all_references,
-                previous_books=previous_books
+                previous_books=previous_books,
+                memory_context=memory_context
             )
 
             # Get current prose and critique

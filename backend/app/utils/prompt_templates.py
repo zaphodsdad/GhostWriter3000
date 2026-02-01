@@ -164,7 +164,8 @@ def build_system_prompt(
     previous_scene_summaries: List[Dict[str, Any]] = None,
     style_guide: Dict[str, Any] = None,
     references: List[Dict[str, Any]] = None,
-    previous_books: List[Dict[str, Any]] = None
+    previous_books: List[Dict[str, Any]] = None,
+    memory_context: Dict[str, str] = None
 ) -> str:
     """
     Build system prompt with character, world context, previous scene summaries, style guide,
@@ -291,6 +292,32 @@ def build_system_prompt(
             prompt_parts.append(f"{summary}\n")
         prompt_parts.append("")
 
+    # Add series memory context (accumulated knowledge from marked-as-canon scenes)
+    if memory_context:
+        has_memory = any([
+            memory_context.get('character_states'),
+            memory_context.get('world_state'),
+            memory_context.get('timeline')
+        ])
+        if has_memory:
+            prompt_parts.append("\n# SERIES MEMORY (Accumulated Canon)\n")
+            prompt_parts.append("The following information was extracted from previously marked-as-canon scenes:\n")
+
+            if memory_context.get('character_states'):
+                prompt_parts.append("## Character States\n")
+                prompt_parts.append(memory_context['character_states'])
+                prompt_parts.append("")
+
+            if memory_context.get('world_state'):
+                prompt_parts.append("## World State\n")
+                prompt_parts.append(memory_context['world_state'])
+                prompt_parts.append("")
+
+            if memory_context.get('timeline'):
+                prompt_parts.append("## Timeline\n")
+                prompt_parts.append(memory_context['timeline'])
+                prompt_parts.append("")
+
     # DYNAMIC CONTENT LAST (changes per scene, not cached)
     # Add previous scene summaries for continuity
     if previous_scene_summaries:
@@ -311,7 +338,8 @@ def build_system_prompt_cached(
     previous_scene_summaries: List[Dict[str, Any]] = None,
     style_guide: Dict[str, Any] = None,
     references: List[Dict[str, Any]] = None,
-    previous_books: List[Dict[str, Any]] = None
+    previous_books: List[Dict[str, Any]] = None,
+    memory_context: Dict[str, str] = None
 ) -> List[Dict[str, Any]]:
     """
     Build system prompt as content blocks for Anthropic prompt caching.
@@ -400,6 +428,28 @@ def build_system_prompt_cached(
             title = book.get('title', 'Untitled')
             static_parts.append(f"## Book {book_num}: {title}\n")
             static_parts.append(f"{book.get('summary', 'No summary available.')}\n")
+
+    # Series memory context (accumulated knowledge from marked-as-canon scenes)
+    if memory_context:
+        has_memory = any([
+            memory_context.get('character_states'),
+            memory_context.get('world_state'),
+            memory_context.get('timeline')
+        ])
+        if has_memory:
+            static_parts.append("\n# SERIES MEMORY (Accumulated Canon)\n")
+            if memory_context.get('character_states'):
+                static_parts.append("## Character States\n")
+                static_parts.append(memory_context['character_states'])
+                static_parts.append("")
+            if memory_context.get('world_state'):
+                static_parts.append("## World State\n")
+                static_parts.append(memory_context['world_state'])
+                static_parts.append("")
+            if memory_context.get('timeline'):
+                static_parts.append("## Timeline\n")
+                static_parts.append(memory_context['timeline'])
+                static_parts.append("")
 
     static_content = "\n".join(static_parts)
 
