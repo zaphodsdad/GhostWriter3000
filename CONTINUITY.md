@@ -883,3 +883,112 @@ data/series/{series-id}/chat/
 ├── chico_history.json   # Conversation history
 └── chico_settings.json  # Name, personality, preferences
 ```
+
+---
+
+## Continuity Checking (Implemented)
+
+The continuity check feature compares prose against established canon facts to detect contradictions before they become permanent.
+
+### How It Works
+
+1. **Gather Facts**: Loads all character states, world facts, and timeline events from memory
+2. **LLM Analysis**: Sends prose + facts to LLM to identify contradictions
+3. **Issue Detection**: Returns list of potential problems with severity ratings
+4. **User Review**: Author reviews issues and fixes before marking as canon
+
+### Severity Levels
+
+| Level | Description |
+|-------|-------------|
+| **High** | Major plot or character contradiction readers would notice |
+| **Medium** | Noticeable inconsistency but recoverable |
+| **Low** | Minor detail inconsistency |
+
+### Using the Feature
+
+1. Open a scene with prose in a series project
+2. Click **Check Continuity** in the workspace header
+3. Wait for LLM analysis (checks against all established facts)
+4. Review the results panel:
+   - Green summary = no issues found
+   - Yellow summary = issues detected with details
+5. Each issue shows:
+   - Severity badge
+   - Category (character/world/timeline)
+   - The contradiction found
+   - The established fact being violated
+   - Suggested fix
+
+### API
+
+```bash
+# Check prose for continuity issues
+POST /api/series/{id}/memory/check-continuity
+{
+  "prose_text": "Elena's blue eyes sparkled...",
+  "scene_context": "Optional scene outline for context"
+}
+
+# Response
+{
+  "has_issues": true,
+  "issue_count": 1,
+  "checked_against": {
+    "character_states": 15,
+    "world_facts": 8,
+    "timeline": 12
+  },
+  "issues": [
+    {
+      "severity": "high",
+      "category": "character",
+      "issue": "Elena is described as having blue eyes",
+      "established_fact": "Elena has green eyes (established in Book 1)",
+      "source_scene": "scene-012",
+      "suggestion": "Change 'blue eyes' to 'green eyes'"
+    }
+  ]
+}
+```
+
+### Best Practices
+
+1. **Check before canon**: Run continuity check before marking scenes as canon
+2. **Review high severity first**: These are the ones readers will notice
+3. **Context matters**: Some "contradictions" may be intentional character development
+4. **Build memory first**: The check is only as good as your accumulated canon
+
+---
+
+## Series Dashboard (Implemented)
+
+When you select a series on the start page, a dashboard panel appears with an overview of the entire series.
+
+### Dashboard Contents
+
+**Stats Cards:**
+- Total words across all books
+- Total scenes
+- Canon scenes (finalized)
+- Series-level characters
+- Series-level world elements
+
+**Memory Status:**
+- Shows if memory layer is active, empty, or stale
+- Displays count of extracted facts
+- Count of book summaries generated
+- Warning if summaries need refresh
+
+**Books Grid:**
+- Each book shows title and book number
+- Word count per book
+- Progress bar showing canon percentage
+- Click any book to open it
+
+**Quick Actions:**
+- Chat with Chico (opens floating assistant)
+- Add Book (new project form)
+- Edit Series (modify series details)
+- Refresh Summaries (regenerate memory summaries)
+- View Memory (opens raw memory JSON)

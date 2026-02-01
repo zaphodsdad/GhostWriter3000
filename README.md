@@ -19,6 +19,8 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **Causal Chains**: Plot events linked by cause and consequence for narrative coherence
 - **Chico AI Assistant**: Series-level conversational AI that knows all characters, world, and plot for continuity checking
 - **Token Optimization**: Scene-relevant entity filtering and tiered book summaries to reduce context size
+- **Continuity Warnings**: LLM-based detection of contradictions with established canon
+- **Series Dashboard**: Overview of all books, memory status, and quick actions when series is selected
 - **Reference Library**: Import style guides, published works, or notes as AI context
 - **Edit Mode**: Revise existing prose through the critique loop
 - **Manuscript Import**: Upload .docx/.txt/.md files, auto-detect chapters, create scenes in edit mode
@@ -372,6 +374,7 @@ POST   /api/series/{id}/memory/generate-summaries    # Generate all summaries fr
 POST   /api/series/{id}/memory/generate-tiered-summary  # Generate essential/full book summaries
 GET    /api/series/{id}/memory/book-summary/{book}   # Get tiered book summary
 GET    /api/series/{id}/memory/book-summaries        # List all book summaries
+POST   /api/series/{id}/memory/check-continuity      # Check prose for contradictions
 DELETE /api/series/{id}/memory                       # Clear all memory
 ```
 

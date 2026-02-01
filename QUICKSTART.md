@@ -122,6 +122,25 @@ When you mark scenes as canon, the system automatically:
 
 Use the Memory endpoints to generate summaries or check what the AI "knows" about your series.
 
+### Series Dashboard
+
+When you click a series on the start page, a dashboard appears showing:
+
+- **Stats**: Total words, scenes, canon progress across all books
+- **Memory Status**: Whether summaries are current or need refresh
+- **Books Grid**: Each book with word count and canon percentage
+- **Quick Actions**: Chat with Chico, add books, refresh memory
+
+### Continuity Checking
+
+Before marking a scene as canon, you can check it for contradictions:
+
+1. Open a scene with prose in a series project
+2. Click **Check Continuity** in the workspace header
+3. The system compares your prose against established facts
+4. Review any issues found (high/medium/low severity)
+5. Fix contradictions before finalizing
+
 ## File Locations
 
 ```
