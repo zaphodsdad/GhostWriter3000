@@ -463,6 +463,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 
 ## BUGS: Fix First
 
+- [ ] .docx files not appearing in file picker for manuscript import (user had to download as .txt)
 - [x] Floating AI bubble inconsistent - fixed with getComputedStyle() and proper event listeners
 - [x] Sidebar not updating after canon toggle - fixed by removing invalid updateWordCount() call
 - [x] Word count in header not updating after marking scene as canon - fixed by sending prose when marking as canon
