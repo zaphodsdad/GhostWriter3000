@@ -1579,6 +1579,7 @@ async function selectSeries(seriesId) {
         currentSeries = await response.json();
         renderSeriesList();
         await loadProjects(); // Reload to filter by series if needed
+        initChico(); // Initialize Chico for selected series
     } catch (e) {
         alert('Error loading series: ' + e.message);
     }
@@ -1588,6 +1589,7 @@ function clearSeriesSelection() {
     currentSeries = null;
     renderSeriesList();
     loadProjects();
+    initChico(); // Update Chico visibility (will hide toggle)
 }
 
 // ============================================
@@ -8793,5 +8795,331 @@ async function restoreSceneVersion(sceneId, filename) {
     } catch (e) {
         console.error('Failed to restore scene version:', e);
         showToast('Error', 'Failed to restore scene version', 'error');
+    }
+}
+
+
+// ============================================
+// Chico - AI Writing Assistant
+// ============================================
+
+let chicoSettings = null;
+let chicoVisible = false;
+let chicoMinimized = false;
+
+// Show/hide Chico toggle based on series selection
+function updateChicoVisibility() {
+    const toggle = document.getElementById('chico-toggle');
+    if (toggle) {
+        toggle.style.display = currentSeries ? 'flex' : 'none';
+    }
+}
+
+// Toggle Chico widget visibility
+function toggleChico() {
+    const widget = document.getElementById('chico-widget');
+    if (!widget) return;
+
+    chicoVisible = !chicoVisible;
+    widget.style.display = chicoVisible ? 'flex' : 'none';
+
+    if (chicoVisible) {
+        loadChicoSettings();
+        loadChicoHistory();
+    }
+}
+
+// Hide Chico widget
+function hideChico() {
+    const widget = document.getElementById('chico-widget');
+    if (widget) {
+        widget.style.display = 'none';
+        chicoVisible = false;
+    }
+}
+
+// Toggle minimize/expand
+function toggleChicoMinimize() {
+    const widget = document.getElementById('chico-widget');
+    if (!widget) return;
+
+    chicoMinimized = !chicoMinimized;
+    widget.classList.toggle('minimized', chicoMinimized);
+}
+
+// Load Chico settings from API
+async function loadChicoSettings() {
+    if (!currentSeries) return;
+
+    try {
+        const response = await fetch(`/api/series/${currentSeries.id}/settings`);
+        if (response.ok) {
+            chicoSettings = await response.json();
+            applyChicoSettings();
+        } else {
+            // Use defaults
+            chicoSettings = { assistant_name: 'Chico', personality: 'helpful' };
+            applyChicoSettings();
+        }
+    } catch (e) {
+        console.error('Failed to load Chico settings:', e);
+        chicoSettings = { assistant_name: 'Chico', personality: 'helpful' };
+        applyChicoSettings();
+    }
+}
+
+// Apply settings to UI
+function applyChicoSettings() {
+    if (!chicoSettings) return;
+
+    const title = document.getElementById('chico-title');
+    const nameDisplay = document.getElementById('chico-name-display');
+    const nameInput = document.getElementById('chico-name-input');
+    const personality = document.getElementById('chico-personality');
+
+    if (title) title.textContent = chicoSettings.assistant_name || 'Chico';
+    if (nameDisplay) nameDisplay.textContent = chicoSettings.assistant_name || 'Chico';
+    if (nameInput) nameInput.value = chicoSettings.assistant_name || 'Chico';
+    if (personality) personality.value = chicoSettings.personality || 'helpful';
+}
+
+// Load conversation history
+async function loadChicoHistory() {
+    if (!currentSeries) return;
+
+    const messagesDiv = document.getElementById('chico-messages');
+    if (!messagesDiv) return;
+
+    try {
+        const response = await fetch(`/api/series/${currentSeries.id}/history`);
+        if (response.ok) {
+            const conversation = await response.json();
+            renderChicoMessages(conversation.messages || []);
+        }
+    } catch (e) {
+        console.error('Failed to load Chico history:', e);
+    }
+}
+
+// Render messages in the chat area
+function renderChicoMessages(messages) {
+    const messagesDiv = document.getElementById('chico-messages');
+    if (!messagesDiv) return;
+
+    if (messages.length === 0) {
+        // Show welcome message
+        messagesDiv.innerHTML = `
+            <div class="chico-welcome">
+                <p>Hi! I'm <strong id="chico-name-display">${chicoSettings?.assistant_name || 'Chico'}</strong>, your AI writing assistant.</p>
+                <p>I know everything about your series - characters, plot, world, and timeline. Ask me anything!</p>
+            </div>
+        `;
+        return;
+    }
+
+    messagesDiv.innerHTML = messages.map(msg => {
+        const time = msg.timestamp ? new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '';
+        return `
+            <div class="chico-message ${msg.role}">
+                <div class="chico-message-content">${escapeHtml(msg.content).replace(/\n/g, '<br>')}</div>
+                ${time ? `<div class="chico-message-time">${time}</div>` : ''}
+            </div>
+        `;
+    }).join('');
+
+    // Scroll to bottom
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+// Handle Enter key in input
+function handleChicoKeydown(event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendChicoMessage();
+    }
+}
+
+// Send a message to Chico
+async function sendChicoMessage() {
+    if (!currentSeries) {
+        showToast('No Series', 'Select a series to chat with ' + (chicoSettings?.assistant_name || 'Chico'), 'warning');
+        return;
+    }
+
+    const input = document.getElementById('chico-input');
+    const sendBtn = document.getElementById('chico-send');
+    const messagesDiv = document.getElementById('chico-messages');
+
+    if (!input || !messagesDiv) return;
+
+    const message = input.value.trim();
+    if (!message) return;
+
+    // Disable input while sending
+    input.disabled = true;
+    if (sendBtn) sendBtn.disabled = true;
+
+    // Clear welcome message if present
+    const welcome = messagesDiv.querySelector('.chico-welcome');
+    if (welcome) welcome.remove();
+
+    // Add user message to UI immediately
+    const userMsgHtml = `
+        <div class="chico-message user">
+            <div class="chico-message-content">${escapeHtml(message).replace(/\n/g, '<br>')}</div>
+            <div class="chico-message-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+        </div>
+    `;
+    messagesDiv.insertAdjacentHTML('beforeend', userMsgHtml);
+
+    // Show typing indicator
+    const typingHtml = `
+        <div id="chico-typing" class="chico-typing">
+            <span class="chico-typing-dot"></span>
+            <span class="chico-typing-dot"></span>
+            <span class="chico-typing-dot"></span>
+        </div>
+    `;
+    messagesDiv.insertAdjacentHTML('beforeend', typingHtml);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    // Clear input
+    input.value = '';
+
+    try {
+        const response = await fetch(`/api/series/${currentSeries.id}/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message: message,
+                current_book_id: currentProject?.id || null,
+                current_scene_id: currentWorkspaceScene?.id || null
+            })
+        });
+
+        // Remove typing indicator
+        const typing = document.getElementById('chico-typing');
+        if (typing) typing.remove();
+
+        if (!response.ok) {
+            throw new Error('Failed to get response');
+        }
+
+        const data = await response.json();
+
+        // Add assistant message
+        const assistantMsgHtml = `
+            <div class="chico-message assistant">
+                <div class="chico-message-content">${escapeHtml(data.message.content).replace(/\n/g, '<br>')}</div>
+                <div class="chico-message-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+            </div>
+        `;
+        messagesDiv.insertAdjacentHTML('beforeend', assistantMsgHtml);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    } catch (e) {
+        console.error('Failed to send message to Chico:', e);
+
+        // Remove typing indicator
+        const typing = document.getElementById('chico-typing');
+        if (typing) typing.remove();
+
+        // Show error
+        const errorHtml = `
+            <div class="chico-message assistant">
+                <div class="chico-message-content" style="color: var(--danger);">Sorry, I couldn't respond. Please try again.</div>
+            </div>
+        `;
+        messagesDiv.insertAdjacentHTML('beforeend', errorHtml);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Re-enable input
+    input.disabled = false;
+    if (sendBtn) sendBtn.disabled = false;
+    input.focus();
+}
+
+// Show Chico settings modal
+function chicoSettings() {
+    const modal = document.getElementById('chico-settings-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+// Hide Chico settings modal
+function hideChicoSettings() {
+    const modal = document.getElementById('chico-settings-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+// Save Chico settings
+async function saveChicoSettings() {
+    if (!currentSeries) return;
+
+    const nameInput = document.getElementById('chico-name-input');
+    const personality = document.getElementById('chico-personality');
+
+    if (!nameInput) return;
+
+    const newSettings = {
+        assistant_name: nameInput.value.trim() || 'Chico',
+        personality: personality?.value || 'helpful',
+        enabled: true
+    };
+
+    try {
+        const response = await fetch(`/api/series/${currentSeries.id}/settings`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newSettings)
+        });
+
+        if (response.ok) {
+            chicoSettings = newSettings;
+            applyChicoSettings();
+            hideChicoSettings();
+            showToast('Settings Saved', `${newSettings.assistant_name} settings updated`, 'success');
+        } else {
+            throw new Error('Failed to save settings');
+        }
+    } catch (e) {
+        console.error('Failed to save Chico settings:', e);
+        showToast('Error', 'Failed to save settings', 'error');
+    }
+}
+
+// Clear conversation history
+async function clearChicoHistory() {
+    if (!currentSeries) return;
+
+    if (!confirm(`Clear conversation history with ${chicoSettings?.assistant_name || 'Chico'}? This cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/series/${currentSeries.id}/history`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            renderChicoMessages([]);
+            hideChicoSettings();
+            showToast('History Cleared', 'Conversation history cleared', 'success');
+        } else {
+            throw new Error('Failed to clear history');
+        }
+    } catch (e) {
+        console.error('Failed to clear Chico history:', e);
+        showToast('Error', 'Failed to clear history', 'error');
+    }
+}
+
+// Initialize Chico when series changes
+// (Call this from selectSeries function)
+function initChico() {
+    updateChicoVisibility();
+    if (currentSeries && chicoVisible) {
+        loadChicoSettings();
+        loadChicoHistory();
     }
 }

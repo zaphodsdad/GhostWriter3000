@@ -155,10 +155,13 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [x] Causal chains: trace WHY through plot events (causes, consequences, trace_causal_chain)
 - Implementation: memory_service.py, style_learning_service.py, memory.py models
 
-**Priority 3: Clawdbot In-App**
-- [ ] Floating chat widget with project context
-- [ ] Persistent conversation history
-- [ ] Full story awareness (not just current scene)
+**Priority 3: Chico (Series-Level AI Assistant)**
+- [ ] Floating chat widget (draggable, minimizable)
+- [ ] Series-level: knows all books, characters, world, memory layer
+- [ ] Persistent conversation history per series
+- [ ] Configurable name in settings (default: "Chico")
+- [ ] Continuity guardian: can catch contradictions across books
+- [ ] Storage: `data/series/{series-id}/chat/history.json`
 
 **Priority 4: Token Optimization**
 - [ ] Scene-relevant entity filtering

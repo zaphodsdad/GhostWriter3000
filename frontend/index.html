@@ -1933,6 +1933,59 @@ This will be included in the AI prompt during generation."></textarea>
         </div>
     </div>
 
+    <!-- Chico - AI Writing Assistant Widget -->
+    <div id="chico-widget" class="chico-widget" style="display: none;">
+        <div id="chico-header" class="chico-header">
+            <span id="chico-title">Chico</span>
+            <div class="chico-header-actions">
+                <button class="chico-btn" onclick="chicoSettings()" title="Settings">&#9881;</button>
+                <button class="chico-btn" onclick="toggleChicoMinimize()" title="Minimize">&#8722;</button>
+                <button class="chico-btn" onclick="hideChico()" title="Close">&#215;</button>
+            </div>
+        </div>
+        <div id="chico-body" class="chico-body">
+            <div id="chico-messages" class="chico-messages">
+                <div class="chico-welcome">
+                    <p>Hi! I'm <strong id="chico-name-display">Chico</strong>, your AI writing assistant.</p>
+                    <p>I know everything about your series - characters, plot, world, and timeline. Ask me anything!</p>
+                </div>
+            </div>
+            <div class="chico-input-area">
+                <textarea id="chico-input" placeholder="Ask about your story..." rows="2" onkeydown="handleChicoKeydown(event)"></textarea>
+                <button id="chico-send" class="btn btn-primary btn-small" onclick="sendChicoMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chico Toggle Button (bottom-right corner) -->
+    <button id="chico-toggle" class="chico-toggle" onclick="toggleChico()" style="display: none;" title="Chat with your AI assistant">
+        <span id="chico-toggle-icon">&#128172;</span>
+    </button>
+
+    <!-- Chico Settings Modal -->
+    <div id="chico-settings-modal" class="modal-overlay" style="display: none;" onclick="hideChicoSettings()">
+        <div class="modal-content modal-small" onclick="event.stopPropagation()">
+            <h3>Assistant Settings</h3>
+            <div class="form-group">
+                <label>Assistant Name</label>
+                <input type="text" id="chico-name-input" value="Chico" placeholder="e.g., Chico, Max, Aria">
+            </div>
+            <div class="form-group">
+                <label>Personality</label>
+                <select id="chico-personality">
+                    <option value="helpful">Helpful (supportive, encouraging)</option>
+                    <option value="direct">Direct (honest, straightforward)</option>
+                    <option value="enthusiastic">Enthusiastic (excited, creative)</option>
+                </select>
+            </div>
+            <div class="action-bar">
+                <button class="btn btn-primary" onclick="saveChicoSettings()">Save</button>
+                <button class="btn btn-secondary" onclick="hideChicoSettings()">Cancel</button>
+                <button class="btn btn-danger" onclick="clearChicoHistory()">Clear History</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Diff library for revision comparison -->
     <script src="https://cdn.jsdelivr.net/npm/diff@5.1.0/dist/diff.min.js"></script>
     <script src="js/app.js"></script>
