@@ -8798,72 +8798,47 @@ function setupQueueReviewDrag() {
 
 // Set up editor annotation tracking for critique box
 function setupCritiqueEditorTracking(critiqueBox) {
-    // Remove any existing listeners by cloning
-    const newBox = critiqueBox.cloneNode(true);
-    critiqueBox.parentNode.replaceChild(newBox, critiqueBox);
+    // Simple approach: track if critique has been modified
+    // Editor notes will be extracted by comparing to original on submit
 
-    // Handle typed input - wrap in editor-note spans
-    newBox.addEventListener('beforeinput', (e) => {
-        if (e.inputType === 'insertText' || e.inputType === 'insertParagraph') {
-            e.preventDefault();
-            const text = e.inputType === 'insertParagraph' ? '\n' : (e.data || '');
-            if (text) {
-                // Insert text wrapped in editor-note span
-                const span = document.createElement('span');
-                span.className = 'editor-note';
-                span.textContent = text;
-
-                const selection = window.getSelection();
-                if (selection.rangeCount > 0) {
-                    const range = selection.getRangeAt(0);
-                    range.deleteContents();
-                    range.insertNode(span);
-                    // Move cursor after inserted span
-                    range.setStartAfter(span);
-                    range.setEndAfter(span);
-                    selection.removeAllRanges();
-                    selection.addRange(range);
-                }
-            }
+    critiqueBox.addEventListener('input', () => {
+        // Mark as modified with visual indicator
+        if (!critiqueBox.classList.contains('critique-modified')) {
+            critiqueBox.classList.add('critique-modified');
         }
     });
 
-    // Handle paste - wrap pasted content in editor-note span
-    newBox.addEventListener('paste', (e) => {
-        e.preventDefault();
-        const text = e.clipboardData.getData('text/plain');
-        if (text) {
-            const span = document.createElement('span');
-            span.className = 'editor-note';
-            span.textContent = text;
-
-            const selection = window.getSelection();
-            if (selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                range.deleteContents();
-                range.insertNode(span);
-                range.setStartAfter(span);
-                range.setEndAfter(span);
-                selection.removeAllRanges();
-                selection.addRange(range);
-            }
-        }
+    // Handle paste - just allow it naturally
+    critiqueBox.addEventListener('paste', (e) => {
+        // Let default paste happen, just mark as modified
+        setTimeout(() => {
+            critiqueBox.classList.add('critique-modified');
+        }, 0);
     });
 }
 
-// Get editor notes (text from .editor-note spans) for revision instructions
+// Get editor notes - if critique was modified, return additions as instructions
 function getEditorNotes() {
     const critiqueBox = document.getElementById('queue-review-critique');
     if (!critiqueBox) return '';
 
-    const noteSpans = critiqueBox.querySelectorAll('.editor-note');
-    if (noteSpans.length === 0) return '';
+    // If not modified, no notes to add
+    if (!critiqueBox.classList.contains('critique-modified')) return '';
 
-    // Collect all editor notes
-    const notes = Array.from(noteSpans).map(span => span.textContent.trim()).filter(t => t);
-    if (notes.length === 0) return '';
+    const currentText = critiqueBox.innerText || '';
 
-    return notes.join('\n');
+    // If text is different from original, include the full edited critique as guidance
+    if (currentText.trim() !== originalQueueCritique.trim()) {
+        // Find what was added by comparing to original
+        // Simple approach: if it's longer, assume additions were made
+        if (currentText.length > originalQueueCritique.length) {
+            return "EDITOR'S ADDITIONAL NOTES (incorporate these in revision):\n" + currentText;
+        }
+        // If modified but not longer, still pass the full edited version
+        return "EDITOR'S REVISED CRITIQUE (use this instead):\n" + currentText;
+    }
+
+    return '';
 }
 
 function toggleQueueCritiqueExpand() {

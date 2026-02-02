@@ -983,6 +983,16 @@ nav {
     font-style: italic;
 }
 
+/* Modified critique indicator */
+.prose-box.editable-critique {
+    position: relative;
+}
+
+.prose-box.editable-critique.critique-modified {
+    border-color: var(--editor-note-color);
+    box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.2);
+}
+
 /* Two Column Layout */
 .two-col {
     display: grid;
