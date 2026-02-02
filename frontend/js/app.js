@@ -8870,22 +8870,30 @@ function toggleQueueCritiqueExpand() {
     const columns = document.getElementById('queue-review-columns');
     if (!columns) return;
 
-    // If prose is collapsed, restore it first
-    columns.classList.remove('queue-prose-collapsed');
+    // If critique is already expanded (prose hidden), restore both
+    if (columns.classList.contains('queue-prose-collapsed')) {
+        columns.classList.remove('queue-prose-collapsed');
+        return;
+    }
 
-    // Toggle critique collapse
-    columns.classList.toggle('queue-critique-collapsed');
+    // Hide prose to make critique full-width
+    columns.classList.remove('queue-critique-collapsed');
+    columns.classList.add('queue-prose-collapsed');
 }
 
 function toggleQueueProseExpand() {
     const columns = document.getElementById('queue-review-columns');
     if (!columns) return;
 
-    // If critique is collapsed, restore it first
-    columns.classList.remove('queue-critique-collapsed');
+    // If prose is already expanded (critique hidden), restore both
+    if (columns.classList.contains('queue-critique-collapsed')) {
+        columns.classList.remove('queue-critique-collapsed');
+        return;
+    }
 
-    // Toggle prose collapse (hides prose, expands critique)
-    columns.classList.toggle('queue-prose-collapsed');
+    // Hide critique to make prose full-width
+    columns.classList.remove('queue-prose-collapsed');
+    columns.classList.add('queue-critique-collapsed');
 }
 
 function queuePrev() {
