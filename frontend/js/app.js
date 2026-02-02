@@ -8704,15 +8704,26 @@ async function queueProseSave() {
     const newProse = proseBox.innerText;
 
     try {
-        const response = await fetch(`/api/projects/${gen.project_id}/generations/${genId}/prose`, {
+        const url = `/api/projects/${gen.project_id}/generations/${genId}/prose`;
+        console.log('Saving prose to:', url);
+        console.log('Generation ID:', genId, 'Project ID:', gen.project_id);
+
+        const response = await fetch(url, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prose: newProse })
         });
 
+        console.log('Response status:', response.status);
+
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
-            throw new Error(err.detail || 'Failed to save');
+            console.error('Save error:', err);
+            // Check for status-related error
+            if (err.detail && err.detail.includes('not awaiting approval')) {
+                throw new Error('Can only save when status is "Awaiting Approval"');
+            }
+            throw new Error(err.detail || `HTTP ${response.status}`);
         }
 
         originalQueueProse = newProse;
