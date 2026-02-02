@@ -33,6 +33,7 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **Word Count Goals**: Track progress toward writing targets with visual progress bar
 - **Credit Alerts**: Notifications when OpenRouter balance drops below threshold
 - **Generation Queue**: Batch process multiple scenes with sequential generation and queue management
+- **Queue Review Panel**: Floating, draggable editor for reviewing queued generations with inline prose editing, undo/redo, and save draft
 - **Evaluate-Only Mode**: Get AI critique without entering the revision loop
 - **Floating AI Bubble**: Select text for inline AI-powered revisions with quick actions
 - **Polish Mode**: Choose between full structural revision or light line-edits only
@@ -395,8 +396,8 @@ All configuration is managed through environment variables (see `.env.example`):
 |----------|---------|-------------|
 | `ANTHROPIC_API_KEY` | (required) | Your Claude API key |
 | `MAX_ITERATIONS` | 5 | Maximum revision iterations |
-| `GENERATION_MODEL` | claude-opus-4-5-20251101 | Model for prose generation |
-| `CRITIQUE_MODEL` | claude-sonnet-4-5-20250929 | Model for critique |
+| `GENERATION_MODEL` | deepseek/deepseek-chat-v3.1 | Model for prose generation (OpenRouter) |
+| `CRITIQUE_MODEL` | deepseek/deepseek-chat-v3.1 | Model for critique (OpenRouter) |
 | `GENERATION_TEMPERATURE` | 0.7 | Temperature for generation |
 | `CRITIQUE_TEMPERATURE` | 0.3 | Temperature for critique |
 | `GENERATION_MAX_TOKENS` | 4000 | Max tokens for generation |

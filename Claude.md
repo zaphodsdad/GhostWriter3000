@@ -549,8 +549,8 @@ Environment variables (`.env`):
 | `OPENROUTER_API_KEY` | (optional) | OpenRouter API key |
 | `LLM_PROVIDER` | anthropic | Provider: anthropic or openrouter |
 | `MAX_ITERATIONS` | 5 | Max revision loops |
-| `GENERATION_MODEL` | claude-opus-4-5-20251101 | Prose model |
-| `CRITIQUE_MODEL` | claude-sonnet-4-5-20250929 | Critique model |
+| `GENERATION_MODEL` | deepseek/deepseek-chat-v3.1 | Prose model (via OpenRouter, cost-optimized) |
+| `CRITIQUE_MODEL` | deepseek/deepseek-chat-v3.1 | Critique model (via OpenRouter, cost-optimized) |
 | `GENERATION_TEMPERATURE` | 0.7 | Generation creativity |
 | `CRITIQUE_TEMPERATURE` | 0.3 | Critique precision |
 | `GENERATION_MAX_TOKENS` | 4000 | Max tokens for prose |
@@ -726,6 +726,51 @@ Single adaptive workspace replaces separate Generate tab and Reading View:
 4. Floating AI bubble available for inline revisions
 
 See TODO.md for remaining features and roadmap.
+
+### 26. Queue Review Floating Editor (2026-02-02)
+
+Enhanced queue review experience with a floating, draggable editor panel:
+
+**Floating Panel Features:**
+- **Draggable window**: Click and drag the header to reposition
+- **Position persistence**: Location saved to localStorage across sessions
+- **Navigation buttons**: Previous/Next arrows to move through queued items
+- **Chapter/Scene labels**: Shows "Ch X, Sc Y" for each generation
+- **Sorted by book order**: Queue displays in story sequence
+
+**Inline Editing:**
+- **Editable prose**: Click into prose panel to edit directly
+- **Undo/Redo**: Full history tracking with Ctrl+Z/Ctrl+Y support
+- **Save Draft**: Persist edits without marking as canon
+- **Editor annotations**: AI critique text styled distinctly (teal color for differentiation)
+
+**Queue Actions:**
+- **Expand buttons**: Toggle prose/critique columns for focused reading
+- **Start Over**: Reject current generation, re-queue for regeneration
+- **Process Queued**: Bulk button to start processing all queued items
+- **Approve & Revise**: Continue revision loop
+- **Accept as Canon**: Mark final and move to next
+- **Reject**: Discard generation entirely
+
+**API Update:**
+- `PUT /api/projects/{project_id}/generations/{id}/prose` - Save prose during review
+
+### 27. Default Model Change (2026-02-02)
+
+Switched default models from Claude to DeepSeek V3 for cost optimization:
+
+**Previous defaults:**
+- Generation: `claude-opus-4-5-20251101` (~$15-75 per 1M tokens)
+- Critique: `claude-sonnet-4-5-20250929` (~$3-15 per 1M tokens)
+
+**New defaults:**
+- Generation: `deepseek/deepseek-chat-v3.1` (~$0.55-2.19 per 1M tokens)
+- Critique: `deepseek/deepseek-chat-v3.1` (~$0.55-2.19 per 1M tokens)
+
+**Notes:**
+- 90%+ cost reduction for typical usage
+- Models can still be changed per-generation or in settings
+- Quality remains high for prose generation tasks
 
 ### 21. Bug Fixes (2026-01-16)
 
