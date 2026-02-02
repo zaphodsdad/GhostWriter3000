@@ -8733,6 +8733,50 @@ async function queueReject() {
     }
 }
 
+async function queueStartOver() {
+    const panel = document.getElementById('queue-review-panel');
+    const genId = panel.dataset.genId;
+    if (!genId) return;
+
+    // Find the generation to get scene_id
+    const gen = queueData.find(g => g.generation_id === genId);
+    if (!gen) {
+        alert('Generation not found');
+        return;
+    }
+
+    if (!confirm('Reject this generation and start fresh?')) return;
+
+    try {
+        // 1. Reject current generation
+        await fetch(apiUrl(`/generations/${genId}/reject`), {
+            method: 'POST'
+        });
+
+        // 2. Queue fresh generation for same scene (using system defaults)
+        const response = await fetch(apiUrl('/generations/queue'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                scene_id: gen.scene_id,
+                max_iterations: 5
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to queue new generation');
+        }
+
+        showToast('Starting Over', 'Rejected and queued fresh generation', 'info');
+        closeQueueReview();
+        await loadQueue();
+
+    } catch (e) {
+        console.error('Error in start over:', e);
+        alert('Error: ' + e.message);
+    }
+}
+
 // ============================================
 // Batch Generation
 // ============================================

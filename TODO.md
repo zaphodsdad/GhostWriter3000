@@ -397,10 +397,9 @@ For new works that continue existing series/world:
   - [ ] "Edit chapters 1-5 overnight" → needs testing
 - [ ] User ID restriction (only owner can command)
 
-### Cost Optimization (TODO)
-Current defaults are expensive (Claude Opus/Sonnet). Consider:
-- [ ] Change default generation model to DeepSeek V3 or Llama 3.1 70B
-- [ ] Change default critique model to Haiku or DeepSeek
+### Cost Optimization
+- [x] Change default generation model to DeepSeek V3 (deepseek/deepseek-chat-v3.1)
+- [x] Change default critique model to DeepSeek V3 (deepseek/deepseek-chat-v3.1)
 - [ ] Update TOOLS.md to use cheaper models by default
 - [ ] Add model cost estimates to documentation
 

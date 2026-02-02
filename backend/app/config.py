@@ -31,8 +31,8 @@ class Settings(BaseSettings):
 
     # Generation Settings
     max_iterations: int = 5
-    generation_model: str = "anthropic/claude-sonnet-4"  # OpenRouter format
-    critique_model: str = "anthropic/claude-sonnet-4"  # OpenRouter format
+    generation_model: str = "deepseek/deepseek-chat-v3.1"  # OpenRouter format
+    critique_model: str = "deepseek/deepseek-chat-v3.1"  # OpenRouter format
     generation_temperature: float = 0.7
     critique_temperature: float = 0.3
     generation_max_tokens: int = 4000
