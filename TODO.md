@@ -193,6 +193,16 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
   - Manuscript: "I have written prose to import"
   - Outline: "I have a structure/outline to generate from"
 - [ ] **Import type tooltips** - Explain when to use each
+- [ ] **Customizable critique criteria** - Let user control what critique focuses on:
+  - Preset modes: Structural, Line Edit, Polish, Full
+  - Category checkboxes: pacing, dialogue, prose style, continuity, etc.
+  - Custom prompt option for specific instructions
+  - Per-project defaults (different genres need different criteria)
+  - Word count targets: flag under/over without encouraging fluff ("add substance, not padding")
+- [ ] **Generation queue labels** - Show "Chapter 1 Scene 1" not just "Iteration 1" in queue review
+- [ ] **Word count on revision screen** - Show current word count while reviewing/revising
+- [ ] **Critique interaction** - Comment on AI critique, agree/reject specific points to guide revision
+- [x] **Maximize/minimize buttons missing** - BUG: prose/critique panel toggle buttons disappeared
 
 **Priority 9: Outline Import Overhaul** - FUTURE
 - [ ] **File upload support** - Import .md, .txt, .docx outlines (not just paste)
