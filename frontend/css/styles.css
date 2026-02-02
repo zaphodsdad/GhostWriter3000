@@ -4464,3 +4464,25 @@ nav {
     color: var(--danger);
     font-weight: 500;
 }
+
+/* Target word count input */
+.target-edit {
+    margin-left: 20px;
+    color: var(--text-muted);
+}
+
+.target-edit input {
+    width: 70px;
+    padding: 2px 6px;
+    background: var(--bg-input);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    font-size: 0.9rem;
+    text-align: center;
+}
+
+.target-edit input:focus {
+    border-color: var(--primary);
+    outline: none;
+}

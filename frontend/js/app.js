@@ -8635,6 +8635,8 @@ function showQueueReviewPanel(gen) {
 
     // Set target word count from scene
     currentEditorTargetWords = scene ? parseTargetWords(scene.target_length) : null;
+    const targetInput = document.getElementById('queue-target-words');
+    if (targetInput) targetInput.value = currentEditorTargetWords || '';
 
     // Set up prose with Quill editor
     const proseText = gen.current_prose || '';
@@ -8780,6 +8782,8 @@ function showFloatingEditorForScene(scene) {
 
     // Set target word count from scene
     currentEditorTargetWords = parseTargetWords(scene.target_length);
+    const targetInput = document.getElementById('queue-target-words');
+    if (targetInput) targetInput.value = currentEditorTargetWords || '';
 
     // Set up prose with Quill
     const proseText = scene.prose || scene.original_prose || '';
@@ -8888,6 +8892,51 @@ function parseTargetWords(targetLength) {
         return parseInt(numMatch[1].replace(/,/g, ''));
     }
     return null;
+}
+
+// Update scene's target word count
+async function updateSceneTarget(value) {
+    const target = parseInt(value);
+    if (!target || target < 100) return;
+
+    // Get the current scene ID
+    const panel = document.getElementById('queue-review-panel');
+    let sceneId = floatingEditorSceneMode;
+
+    if (!sceneId) {
+        // Try to get from generation
+        const genId = panel?.dataset.genId;
+        const gen = queueData.find(g => g.generation_id === genId);
+        if (gen) sceneId = gen.scene_id;
+    }
+
+    if (!sceneId) {
+        showToast('Error', 'Cannot determine scene', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(apiUrl(`/scenes/${sceneId}`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_length: `${target} words` })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update target');
+        }
+
+        // Update local state
+        currentEditorTargetWords = target;
+        const scene = scenes.find(s => s.id === sceneId);
+        if (scene) scene.target_length = `${target} words`;
+
+        updateQueueProseWordCount();
+        showToast('Saved', `Target set to ${target} words`, 'success');
+
+    } catch (e) {
+        showToast('Error', e.message, 'error');
+    }
 }
 
 function updateProseUnsavedIndicator(unsaved) {

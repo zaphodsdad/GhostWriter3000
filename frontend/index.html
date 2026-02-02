@@ -2036,6 +2036,9 @@ This will be included in the AI prompt during generation."></textarea>
                     <div id="queue-review-prose-editor"></div>
                     <div class="prose-stats mt-20">
                         <span id="queue-review-word-count">0 words</span>
+                        <span class="target-edit">
+                            Target: <input type="number" id="queue-target-words" placeholder="1200" min="100" max="10000" step="100" onchange="updateSceneTarget(this.value)"> words
+                        </span>
                     </div>
                 </div>
                 <div id="queue-critique-column">
