@@ -8693,18 +8693,26 @@ async function queueProseSave() {
     const genId = panel?.dataset.genId;
     if (!genId) return;
 
+    // Get generation to find project_id
+    const gen = queueData.find(g => g.generation_id === genId);
+    if (!gen || !gen.project_id) {
+        showToast('Error', 'Cannot find project for this generation', 'error');
+        return;
+    }
+
     const proseBox = document.getElementById('queue-review-prose');
     const newProse = proseBox.innerText;
 
     try {
-        const response = await fetch(apiUrl(`/generations/${genId}/prose`), {
+        const response = await fetch(`/api/projects/${gen.project_id}/generations/${genId}/prose`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ prose: newProse })
         });
 
         if (!response.ok) {
-            throw new Error('Failed to save');
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.detail || 'Failed to save');
         }
 
         originalQueueProse = newProse;
@@ -8712,8 +8720,7 @@ async function queueProseSave() {
         showToast('Saved', 'Draft saved', 'success');
 
         // Update queueData so it persists
-        const gen = queueData.find(g => g.generation_id === genId);
-        if (gen) gen.current_prose = newProse;
+        gen.current_prose = newProse;
 
     } catch (e) {
         showToast('Error', 'Failed to save: ' + e.message, 'error');
