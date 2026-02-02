@@ -3546,11 +3546,20 @@ function renderStructureChapter(chapter) {
                         ? `<button class="btn btn-small btn-success" onclick="event.stopPropagation(); startEditModeGeneration('${s.id}')" title="Start critique and revision">Revise</button>`
                         : '';
 
+                    // Show floating editor button for scenes with prose or active generations
+                    const hasProse = s.prose || s.original_prose;
+                    const hasActiveGen = queueData.some(g => g.scene_id === s.id &&
+                        (g.status === 'awaiting_approval' || g.status === 'generating' || g.status === 'revising'));
+                    const floatEditBtn = (hasProse || hasActiveGen)
+                        ? `<button class="btn btn-small" onclick="event.stopPropagation(); openFloatingEditorForScene('${s.id}')" title="Open in floating editor">✎ Edit</button>`
+                        : '';
+
                     return `
                         <div class="structure-scene ${s.is_canon ? 'canon' : ''} ${isEditMode ? 'edit-mode' : ''}" onclick="openSceneWorkspace('${s.id}')">
                             <span>${escapeHtml(s.title)}</span>
                             <div class="item-actions">
                                 ${badges.join('')}
+                                ${floatEditBtn}
                                 ${importBtn}
                                 ${editGenBtn}
                                 <button class="btn btn-small btn-danger" onclick="event.stopPropagation(); deleteScene('${s.id}')">Delete</button>
@@ -8608,6 +8617,23 @@ function showQueueReviewPanel(gen) {
 
     // Store current gen id for actions
     panel.dataset.genId = gen.generation_id;
+    panel.dataset.sceneId = gen.scene_id;
+
+    // Clear scene mode (we're now in generation mode)
+    floatingEditorSceneMode = null;
+
+    // Reset action buttons for generation mode
+    const reviseBtn = document.getElementById('queue-revise-btn');
+    const acceptBtn = document.getElementById('queue-accept-btn');
+    const rejectBtn = document.getElementById('queue-reject-btn');
+    const startOverBtn = document.getElementById('queue-startover-btn');
+    const recritiqueBtn = document.getElementById('queue-recritique-btn');
+
+    if (reviseBtn) reviseBtn.style.display = 'inline-block';
+    if (acceptBtn) acceptBtn.style.display = 'inline-block';
+    if (rejectBtn) rejectBtn.style.display = 'inline-block';
+    if (startOverBtn) startOverBtn.style.display = 'inline-block';
+    if (recritiqueBtn) recritiqueBtn.style.display = 'inline-block';
 }
 
 function closeQueueReview() {
@@ -8622,6 +8648,107 @@ function closeQueueReview() {
     originalQueueProse = '';
     queueProseHistory = [];
     queueProseHistoryIndex = 0;
+    // Clear scene mode
+    floatingEditorSceneMode = null;
+}
+
+// Track if we're in scene mode (no active generation)
+let floatingEditorSceneMode = null;
+
+// Open floating editor for a scene (from scene list)
+async function openFloatingEditorForScene(sceneId) {
+    // Check if there's an active generation for this scene
+    const gen = queueData.find(g => g.scene_id === sceneId &&
+        (g.status === 'awaiting_approval' || g.status === 'generating' || g.status === 'revising'));
+
+    if (gen) {
+        // Open the queue review panel for this generation
+        openQueueReview(gen.generation_id);
+        return;
+    }
+
+    // No active generation - check if scene has prose
+    const scene = scenes.find(s => s.id === sceneId);
+    if (!scene) {
+        showToast('Error', 'Scene not found', 'error');
+        return;
+    }
+
+    const prose = scene.prose || scene.original_prose;
+    if (!prose) {
+        showToast('Info', 'This scene has no prose yet. Click to open in workspace.', 'warning');
+        return;
+    }
+
+    // Open in scene mode (direct scene editing)
+    floatingEditorSceneMode = sceneId;
+    showFloatingEditorForScene(scene);
+}
+
+function showFloatingEditorForScene(scene) {
+    const panel = document.getElementById('queue-review-panel');
+    if (!panel) {
+        console.error('queue-review-panel not found!');
+        return;
+    }
+    panel.style.display = 'flex';
+
+    // Find chapter for display
+    const chapter = chapters.find(c => c.id === scene.chapter_id);
+    const locationStr = chapter ? `Ch ${chapter.chapter_number}, Sc ${scene.scene_number || ''}` : '';
+
+    document.getElementById('queue-review-title').textContent = scene.title;
+    document.getElementById('queue-review-iteration').textContent = locationStr;
+
+    // Set up prose
+    const proseBox = document.getElementById('queue-review-prose');
+    const proseText = scene.prose || scene.original_prose || '';
+    proseBox.innerText = proseText;
+    originalQueueProse = proseText;
+    queueProseHistory = [proseText];
+    queueProseHistoryIndex = 0;
+    setupProseEditorTracking(proseBox);
+    updateProseUnsavedIndicator(false);
+
+    // No critique in scene mode - show placeholder
+    const critiqueBox = document.getElementById('queue-review-critique');
+    critiqueBox.innerHTML = '<div class="text-muted" style="text-align: center; padding: 20px;">Click "Re-Critique" to get AI feedback on this prose.</div>';
+    originalQueueCritique = '';
+
+    // Word count
+    updateQueueProseWordCount();
+
+    // Position - show scene mode indicator
+    const posEl = document.getElementById('queue-review-position');
+    if (posEl) posEl.textContent = 'Scene Edit';
+    const posHeaderEl = document.getElementById('queue-review-position-header');
+    if (posHeaderEl) posHeaderEl.textContent = scene.is_canon ? '(Canon)' : '(Draft)';
+
+    // Disable nav buttons in scene mode
+    document.getElementById('queue-prev-btn').disabled = true;
+    document.getElementById('queue-next-btn').disabled = true;
+
+    // Store scene id for actions
+    panel.dataset.genId = '';
+    panel.dataset.sceneId = scene.id;
+
+    // Adjust action buttons for scene mode
+    // Hide generation-specific buttons, show scene-appropriate ones
+    const reviseBtn = document.getElementById('queue-revise-btn');
+    const acceptBtn = document.getElementById('queue-accept-btn');
+    const rejectBtn = document.getElementById('queue-reject-btn');
+    const startOverBtn = document.getElementById('queue-startover-btn');
+    const recritiqueBtn = document.getElementById('queue-recritique-btn');
+
+    if (reviseBtn) reviseBtn.style.display = 'none';  // No revision loop in scene mode
+    if (rejectBtn) rejectBtn.style.display = 'none';  // No rejection in scene mode
+    if (startOverBtn) startOverBtn.style.display = 'none';  // No start over in scene mode
+    if (recritiqueBtn) recritiqueBtn.style.display = 'inline-block';
+
+    // Accept as Canon only for non-canon scenes
+    if (acceptBtn) {
+        acceptBtn.style.display = scene.is_canon ? 'none' : 'inline-block';
+    }
 }
 
 // Prose editor tracking for undo/redo
@@ -8690,8 +8817,47 @@ function queueProseRedo() {
 
 async function queueProseSave() {
     const panel = document.getElementById('queue-review-panel');
+    const proseBox = document.getElementById('queue-review-prose');
+    const newProse = proseBox.innerText;
+
+    // Check if we're in scene mode (direct scene editing)
+    if (floatingEditorSceneMode) {
+        try {
+            const response = await fetch(apiUrl(`/scenes/${floatingEditorSceneMode}`), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prose: newProse })
+            });
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.detail || `HTTP ${response.status}`);
+            }
+
+            originalQueueProse = newProse;
+            updateProseUnsavedIndicator(false);
+            showToast('Saved', 'Prose saved to scene', 'success');
+
+            // Update local scene data
+            const scene = scenes.find(s => s.id === floatingEditorSceneMode);
+            if (scene) {
+                scene.prose = newProse;
+            }
+            // Refresh stats if visible
+            updateStats();
+
+        } catch (e) {
+            showToast('Error', 'Failed to save: ' + e.message, 'error');
+        }
+        return;
+    }
+
+    // Generation mode
     const genId = panel?.dataset.genId;
-    if (!genId) return;
+    if (!genId) {
+        showToast('Error', 'No generation to save', 'error');
+        return;
+    }
 
     // Get generation to find project_id
     const gen = queueData.find(g => g.generation_id === genId);
@@ -8699,9 +8865,6 @@ async function queueProseSave() {
         showToast('Error', 'Cannot find project for this generation', 'error');
         return;
     }
-
-    const proseBox = document.getElementById('queue-review-prose');
-    const newProse = proseBox.innerText;
 
     try {
         const url = `/api/projects/${gen.project_id}/generations/${genId}/prose`;
@@ -8719,10 +8882,6 @@ async function queueProseSave() {
         if (!response.ok) {
             const err = await response.json().catch(() => ({}));
             console.error('Save error:', err);
-            // Check for status-related error
-            if (err.detail && err.detail.includes('not awaiting approval')) {
-                throw new Error('Can only save when status is "Awaiting Approval"');
-            }
             throw new Error(err.detail || `HTTP ${response.status}`);
         }
 
@@ -8859,6 +9018,81 @@ function getEditorNotes() {
     return '';
 }
 
+// Re-critique the current prose
+async function queueReCritique() {
+    const panel = document.getElementById('queue-review-panel');
+    const proseBox = document.getElementById('queue-review-prose');
+    const critiqueBox = document.getElementById('queue-review-critique');
+    const recritiqueBtn = document.getElementById('queue-recritique-btn');
+
+    if (!proseBox || !critiqueBox) return;
+
+    const prose = proseBox.innerText.trim();
+    if (!prose) {
+        showToast('Error', 'No prose to critique', 'error');
+        return;
+    }
+
+    // Determine the scene ID
+    let sceneId = null;
+    if (floatingEditorSceneMode) {
+        sceneId = floatingEditorSceneMode;
+    } else {
+        const genId = panel?.dataset.genId;
+        const gen = queueData.find(g => g.generation_id === genId);
+        if (gen) {
+            sceneId = gen.scene_id;
+        }
+    }
+
+    if (!sceneId) {
+        showToast('Error', 'Cannot determine scene', 'error');
+        return;
+    }
+
+    // Show loading state
+    const originalText = recritiqueBtn.innerHTML;
+    recritiqueBtn.innerHTML = '⏳ Critiquing...';
+    recritiqueBtn.disabled = true;
+    critiqueBox.innerHTML = '<div class="text-muted" style="text-align: center; padding: 20px;">Getting AI critique...</div>';
+
+    try {
+        // Call the evaluate endpoint
+        const response = await fetch(apiUrl(`/scenes/${sceneId}/evaluate`), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prose: prose,
+                model: null  // Use default critique model
+            })
+        });
+
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({}));
+            throw new Error(err.detail || `HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        const critique = result.critique || 'No critique received.';
+
+        // Update the critique box
+        originalQueueCritique = critique;
+        critiqueBox.innerHTML = escapeHtml(critique);
+        critiqueBox.classList.remove('critique-modified');
+        setupCritiqueEditorTracking(critiqueBox);
+
+        showToast('Done', 'Critique updated', 'success');
+
+    } catch (e) {
+        console.error('Re-critique error:', e);
+        critiqueBox.innerHTML = `<div class="text-muted" style="color: var(--danger);">Error: ${escapeHtml(e.message)}</div>`;
+        showToast('Error', 'Failed to get critique: ' + e.message, 'error');
+    } finally {
+        recritiqueBtn.innerHTML = originalText;
+        recritiqueBtn.disabled = false;
+    }
+}
+
 function toggleQueueCritiqueExpand() {
     const columns = document.getElementById('queue-review-columns');
     if (!columns) return;
@@ -8938,6 +9172,39 @@ async function queueApproveAndRevise() {
 
 async function queueAcceptFinal() {
     const panel = document.getElementById('queue-review-panel');
+
+    // Handle scene mode (direct scene editing)
+    if (floatingEditorSceneMode) {
+        const proseBox = document.getElementById('queue-review-prose');
+        const prose = proseBox.innerText;
+
+        try {
+            // Save prose and mark as canon
+            const response = await fetch(apiUrl(`/scenes/${floatingEditorSceneMode}`), {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    prose: prose,
+                    is_canon: true
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to save');
+            }
+
+            showToast('Accepted', 'Scene saved as canon!', 'success');
+            closeQueueReview();
+            await loadAllData();
+
+        } catch (e) {
+            showToast('Error', 'Failed to save: ' + e.message, 'error');
+        }
+        return;
+    }
+
+    // Generation mode
     const genId = panel.dataset.genId;
     if (!genId) return;
 

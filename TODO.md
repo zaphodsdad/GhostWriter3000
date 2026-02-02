@@ -192,6 +192,11 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
   - Can answer "how do I do X?" questions about the interface
   - Replaces static help text and tooltips with conversational help
   - Example: "How do I process these queued items?" → Chico explains
+  - **Scene awareness when floating editor open** - Chico knows current scene/prose being edited:
+    - Provide scene-specific continuity help
+    - Answer questions about characters in this scene
+    - Suggest prose improvements based on current text
+    - Help with style consistency for the scene
 
 **Priority 8: UX Improvements** - FUTURE
 - [ ] **Clarify import types** - Better labels for Manuscript vs Outline import:

@@ -2049,16 +2049,19 @@ This will be included in the AI prompt during generation."></textarea>
             </div>
 
             <div class="action-bar">
+                <button class="btn btn-outline" id="queue-recritique-btn" onclick="queueReCritique()" title="Get fresh AI critique">
+                    🔄 Re-Critique
+                </button>
                 <button class="btn btn-primary" id="queue-revise-btn" onclick="queueApproveAndRevise()">
                     Approve & Revise
                 </button>
-                <button class="btn btn-success" onclick="queueAcceptFinal()">
+                <button class="btn btn-success" id="queue-accept-btn" onclick="queueAcceptFinal()">
                     Accept as Canon
                 </button>
-                <button class="btn btn-danger" onclick="queueReject()">
+                <button class="btn btn-danger" id="queue-reject-btn" onclick="queueReject()">
                     Reject
                 </button>
-                <button class="btn btn-outline" onclick="queueStartOver()" title="Reject and start fresh generation">
+                <button class="btn btn-outline" id="queue-startover-btn" onclick="queueStartOver()" title="Reject and start fresh generation">
                     Start Over
                 </button>
             </div>

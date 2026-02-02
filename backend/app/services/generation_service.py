@@ -561,7 +561,7 @@ class GenerationService:
         """
         Update the current prose in a generation.
 
-        Used for applying selective changes from diff view.
+        Used for applying selective changes from diff view or inline editing.
 
         Args:
             project_id: Project ID
@@ -572,12 +572,14 @@ class GenerationService:
             Updated generation state
 
         Raises:
-            ValueError: If generation not awaiting approval
+            ValueError: If generation has no prose to update
         """
         state = await self.state_manager.load_state(project_id, generation_id)
 
-        if state.status != GenerationStatus.AWAITING_APPROVAL:
-            raise ValueError(f"Generation not awaiting approval (status: {state.status})")
+        # Allow saving for any status that has prose (AWAITING_APPROVAL or COMPLETED)
+        allowed_statuses = [GenerationStatus.AWAITING_APPROVAL, GenerationStatus.COMPLETED]
+        if state.status not in allowed_statuses:
+            raise ValueError(f"Cannot update prose in status: {state.status}")
 
         # Update the current iteration's prose
         if state.iterations:
