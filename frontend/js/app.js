@@ -8423,6 +8423,69 @@ async function refreshQueue() {
     await loadQueue(filter || null);
 }
 
+async function processQueuedItems() {
+    // Find all items with 'queued' status
+    const queuedItems = queueData.filter(g => g.status === 'queued');
+
+    if (queuedItems.length === 0) {
+        showToast('Nothing to Process', 'No queued items to start', 'info');
+        return;
+    }
+
+    // Disable button while processing
+    const btn = document.getElementById('process-queue-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '⏳ Processing...';
+    }
+
+    showToast('Starting', `Processing ${queuedItems.length} queued item(s)...`, 'info');
+
+    let completed = 0;
+    let failed = 0;
+
+    for (let i = 0; i < queuedItems.length; i++) {
+        const gen = queuedItems[i];
+        const scene = scenes.find(s => s.id === gen.scene_id);
+        const sceneTitle = scene ? scene.title : gen.scene_id;
+
+        try {
+            showToast('Generating', `${sceneTitle} (${i + 1}/${queuedItems.length})`, 'info');
+
+            // Start this queued generation
+            const response = await fetch(apiUrl(`/generations/${gen.generation_id}/start-queued`), {
+                method: 'POST'
+            });
+
+            if (response.ok) {
+                // Poll until this generation reaches awaiting_approval, completed, or error
+                await waitForGeneration(gen.generation_id);
+                completed++;
+            } else {
+                const errorData = await response.json();
+                console.error('Start failed:', errorData);
+                failed++;
+                showToast('Failed', `${sceneTitle}: ${errorData.detail || 'Unknown error'}`, 'error');
+            }
+        } catch (e) {
+            failed++;
+            console.error('Error processing', sceneTitle, e);
+            showToast('Error', `${sceneTitle}: ${e.message}`, 'error');
+        }
+
+        // Update queue view after each
+        await loadQueue();
+    }
+
+    // Re-enable button
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = '▶ Process Queued';
+    }
+
+    showToast('Queue Complete', `${completed} ready for review, ${failed} failed.`, completed > 0 ? 'success' : 'error');
+}
+
 function startQueuePolling() {
     if (queuePollingInterval) return;
     queuePollingInterval = setInterval(async () => {
