@@ -204,6 +204,10 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [x] **Critique interaction** - Editor can add inline annotations to AI critique (styled distinctly), passed to revision as guidance
 - [x] **Maximize/minimize buttons missing** - BUG: fixed, added expand buttons to queue review panel
 - [ ] **Theme support** - Dark/light/system theme switching (CSS variables ready: `--editor-note-color`, `--editor-note-bg`)
+- [ ] **Grammar/spelling check** - Options to consider:
+  - Browser plugins (Grammarly, ProWritingAid) work in contenteditable - no code needed
+  - LanguageTool API exists but requires maintenance, ~200MB download
+  - Recommendation: rely on browser plugins, document that prose boxes support them
 
 **Priority 9: Outline Import Overhaul** - FUTURE
 - [ ] **File upload support** - Import .md, .txt, .docx outlines (not just paste)
