@@ -579,6 +579,16 @@ def build_generation_prompt(scene_outline: Dict[str, Any]) -> str:
             "Avoid all banned vocabulary and AI patterns. Write with the confidence of a published novelist.",
         ])
 
+    # Add word count instruction if target is specified
+    if scene_outline.get('target_length'):
+        parts.extend([
+            "",
+            f"IMPORTANT: Your prose MUST be approximately {scene_outline['target_length']}.",
+            "This is a firm target - hitting the word count is essential for the book's pacing and structure.",
+            "If the target seems long, expand scenes with sensory details, character interiority, and dialogue.",
+            "If short, be concise but complete. Do not pad with filler or cut essential content.",
+        ])
+
     parts.extend([
         "",
         "CRITICAL: Output ONLY the prose itself. Do not include:",
