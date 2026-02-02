@@ -1647,62 +1647,6 @@ This will be included in the AI prompt during generation."></textarea>
                                 </div>
                             </div>
 
-                            <!-- Queue Review Panel (shown when reviewing from queue) -->
-                            <div id="queue-review-panel" class="card" style="display: none;">
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                                    <div>
-                                        <h3 id="queue-review-title">Reviewing Scene</h3>
-                                        <p class="text-muted">
-                                            <span id="queue-review-position">1 of 5</span> awaiting review
-                                        </p>
-                                    </div>
-                                    <div class="queue-nav-buttons">
-                                        <button class="btn btn-secondary" id="queue-prev-btn" onclick="queuePrev()" disabled>Previous</button>
-                                        <button class="btn btn-secondary" id="queue-next-btn" onclick="queueNext()">Next</button>
-                                        <button class="btn btn-outline" onclick="closeQueueReview()">Back to Queue</button>
-                                    </div>
-                                </div>
-
-                                <p class="text-muted mb-20">Revision <span id="queue-review-iteration">1</span></p>
-
-                                <div class="two-col" id="queue-review-columns">
-                                    <button class="critique-expand-btn" id="queue-prose-expand-restore" onclick="toggleQueueProseExpand()" title="Show prose">◀</button>
-                                    <div id="queue-prose-column">
-                                        <div class="prose-header">
-                                            <h4>Generated Prose <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="queue-review-gen-model"></span></h4>
-                                            <button class="btn btn-small btn-outline" onclick="toggleQueueProseExpand()" id="queue-prose-expand-btn" title="Expand prose">⬌</button>
-                                        </div>
-                                        <div class="prose-box" id="queue-review-prose"></div>
-                                        <div class="prose-stats mt-20">
-                                            <span id="queue-review-word-count">0 words</span>
-                                        </div>
-                                    </div>
-                                    <div id="queue-critique-column">
-                                        <div class="critique-header">
-                                            <h4>AI Critique <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="queue-review-critique-model"></span></h4>
-                                            <button class="btn btn-small btn-outline" onclick="toggleQueueCritiqueExpand()" id="queue-critique-expand-btn" title="Expand critique">⬌</button>
-                                        </div>
-                                        <div class="prose-box editable-critique" id="queue-review-critique" contenteditable="true"></div>
-                                        <p class="editable-critique-hint">Click to add your notes — they'll appear highlighted and be included in the revision.</p>
-                                    </div>
-                                    <button class="critique-expand-btn" id="queue-expand-btn" onclick="toggleQueueCritiqueExpand()" style="display: none;" title="Show critique">▶</button>
-                                </div>
-
-                                <div class="action-bar">
-                                    <button class="btn btn-primary" id="queue-revise-btn" onclick="queueApproveAndRevise()">
-                                        Approve & Revise
-                                    </button>
-                                    <button class="btn btn-success" onclick="queueAcceptFinal()">
-                                        Accept as Canon
-                                    </button>
-                                    <button class="btn btn-danger" onclick="queueReject()">
-                                        Reject
-                                    </button>
-                                    <button class="btn btn-outline" onclick="queueStartOver()" title="Reject and start fresh generation">
-                                        Start Over
-                                    </button>
-                                </div>
-                            </div>
                         </section>
 
                         <!-- Backups View -->
@@ -2056,6 +2000,68 @@ This will be included in the AI prompt during generation."></textarea>
                     <button type="button" class="btn btn-secondary" onclick="hideEditSeriesModal()">Cancel</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Queue Review Floating Panel -->
+    <div id="queue-review-panel" class="queue-review-floating" style="display: none;">
+        <div id="queue-review-header" class="queue-review-drag-header">
+            <div class="queue-review-header-info">
+                <span id="queue-review-title">Reviewing Scene</span>
+                <span class="text-muted" id="queue-review-position-header">1 of 5</span>
+            </div>
+            <div class="queue-review-header-actions">
+                <button class="queue-review-btn" id="queue-prev-btn" onclick="queuePrev()" disabled title="Previous">◀</button>
+                <button class="queue-review-btn" id="queue-next-btn" onclick="queueNext()" title="Next">▶</button>
+                <button class="queue-review-btn" onclick="closeQueueReview()" title="Close">✕</button>
+            </div>
+        </div>
+        <div class="queue-review-body">
+            <p class="text-muted mb-20">Revision <span id="queue-review-iteration">1</span></p>
+
+            <div class="two-col" id="queue-review-columns">
+                <button class="critique-expand-btn" id="queue-prose-expand-restore" onclick="toggleQueueProseExpand()" title="Show prose">◀</button>
+                <div id="queue-prose-column">
+                    <div class="prose-header">
+                        <h4>Generated Prose <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="queue-review-gen-model"></span></h4>
+                        <button class="btn btn-small btn-outline" onclick="toggleQueueProseExpand()" id="queue-prose-expand-btn" title="Expand prose">⬌</button>
+                    </div>
+                    <div class="prose-toolbar">
+                        <button class="btn btn-xs btn-outline" onclick="queueProseUndo()" title="Undo">↶ Undo</button>
+                        <button class="btn btn-xs btn-outline" onclick="queueProseRedo()" title="Redo">↷ Redo</button>
+                        <button class="btn btn-xs btn-primary" onclick="queueProseSave()" id="queue-prose-save-btn" title="Save draft">Save Draft</button>
+                        <span id="queue-prose-unsaved" class="unsaved-indicator" style="display: none;">● unsaved</span>
+                    </div>
+                    <div class="prose-box editable-prose" id="queue-review-prose" contenteditable="true"></div>
+                    <div class="prose-stats mt-20">
+                        <span id="queue-review-word-count">0 words</span>
+                    </div>
+                </div>
+                <div id="queue-critique-column">
+                    <div class="critique-header">
+                        <h4>AI Critique <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="queue-review-critique-model"></span></h4>
+                        <button class="btn btn-small btn-outline" onclick="toggleQueueCritiqueExpand()" id="queue-critique-expand-btn" title="Expand critique">⬌</button>
+                    </div>
+                    <div class="prose-box editable-critique" id="queue-review-critique" contenteditable="true"></div>
+                    <p class="editable-critique-hint">Click to add your notes — they'll appear highlighted and be included in the revision.</p>
+                </div>
+                <button class="critique-expand-btn" id="queue-expand-btn" onclick="toggleQueueCritiqueExpand()" style="display: none;" title="Show critique">▶</button>
+            </div>
+
+            <div class="action-bar">
+                <button class="btn btn-primary" id="queue-revise-btn" onclick="queueApproveAndRevise()">
+                    Approve & Revise
+                </button>
+                <button class="btn btn-success" onclick="queueAcceptFinal()">
+                    Accept as Canon
+                </button>
+                <button class="btn btn-danger" onclick="queueReject()">
+                    Reject
+                </button>
+                <button class="btn btn-outline" onclick="queueStartOver()" title="Reject and start fresh generation">
+                    Start Over
+                </button>
+            </div>
         </div>
     </div>
 

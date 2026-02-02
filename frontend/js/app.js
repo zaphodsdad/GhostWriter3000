@@ -42,6 +42,9 @@ let queueData = [];
 let queuePollingInterval = null;
 let currentQueueReviewIndex = 0;
 let originalQueueCritique = ''; // Store original AI critique for editor annotation tracking
+let originalQueueProse = ''; // Store original prose for tracking changes
+let queueProseHistory = []; // Undo/redo history for prose
+let queueProseHistoryIndex = 0; // Current position in history
 let selectedScenes = new Set();
 let previousQueueCount = 0;
 
@@ -649,6 +652,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Check for recovery data from previous session
     checkForRecovery();
+
+    // Set up dragging for queue review panel
+    setupQueueReviewDrag();
 });
 
 // Scroll to top function
@@ -8558,8 +8564,7 @@ function showQueueReviewPanel(gen) {
         console.error('queue-review-panel not found!');
         return;
     }
-    panel.style.display = 'block';
-    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    panel.style.display = 'flex';
     console.log('Panel should now be visible');
 
     const scene = scenes.find(s => s.id === gen.scene_id);
@@ -8567,7 +8572,16 @@ function showQueueReviewPanel(gen) {
 
     document.getElementById('queue-review-title').textContent = sceneTitle;
     document.getElementById('queue-review-iteration').textContent = gen.current_iteration;
-    document.getElementById('queue-review-prose').textContent = gen.current_prose || '';
+
+    // Set up prose with editing support
+    const proseBox = document.getElementById('queue-review-prose');
+    const proseText = gen.current_prose || '';
+    proseBox.innerText = proseText;
+    originalQueueProse = proseText;
+    queueProseHistory = [proseText];
+    queueProseHistoryIndex = 0;
+    setupProseEditorTracking(proseBox);
+    updateProseUnsavedIndicator(false);
 
     // Set up critique with editor annotation support
     const critiqueBox = document.getElementById('queue-review-critique');
@@ -8577,14 +8591,16 @@ function showQueueReviewPanel(gen) {
     setupCritiqueEditorTracking(critiqueBox);
 
     // Word count
-    const prose = gen.current_prose || '';
-    const wordCount = prose.trim() ? prose.trim().split(/\s+/).length : 0;
-    document.getElementById('queue-review-word-count').textContent = `${wordCount.toLocaleString()} words`;
+    updateQueueProseWordCount();
 
     // Position in queue
     const awaitingList = queueData.filter(g => g.status === 'awaiting_approval');
     const pos = currentQueueReviewIndex + 1;
-    document.getElementById('queue-review-position').textContent = `${pos} of ${awaitingList.length}`;
+    const posText = `${pos} of ${awaitingList.length}`;
+    const posEl = document.getElementById('queue-review-position');
+    if (posEl) posEl.textContent = posText;
+    const posHeaderEl = document.getElementById('queue-review-position-header');
+    if (posHeaderEl) posHeaderEl.textContent = posText;
 
     // Update nav buttons
     document.getElementById('queue-prev-btn').disabled = currentQueueReviewIndex === 0;
@@ -8601,8 +8617,183 @@ function closeQueueReview() {
     if (columns) {
         columns.classList.remove('queue-critique-collapsed', 'queue-prose-collapsed');
     }
-    // Reset critique tracking
+    // Reset tracking
     originalQueueCritique = '';
+    originalQueueProse = '';
+    queueProseHistory = [];
+    queueProseHistoryIndex = 0;
+}
+
+// Prose editor tracking for undo/redo
+function setupProseEditorTracking(proseBox) {
+    // Debounce for history tracking
+    let historyTimeout = null;
+
+    proseBox.addEventListener('input', () => {
+        updateProseUnsavedIndicator(true);
+        updateQueueProseWordCount();
+
+        // Debounced history save
+        clearTimeout(historyTimeout);
+        historyTimeout = setTimeout(() => {
+            const currentText = proseBox.innerText;
+            // Only add to history if different from last entry
+            if (queueProseHistory[queueProseHistoryIndex] !== currentText) {
+                // Truncate any forward history
+                queueProseHistory = queueProseHistory.slice(0, queueProseHistoryIndex + 1);
+                queueProseHistory.push(currentText);
+                queueProseHistoryIndex = queueProseHistory.length - 1;
+                // Limit history size
+                if (queueProseHistory.length > 50) {
+                    queueProseHistory.shift();
+                    queueProseHistoryIndex--;
+                }
+            }
+        }, 500);
+    });
+}
+
+function updateQueueProseWordCount() {
+    const proseBox = document.getElementById('queue-review-prose');
+    const prose = proseBox ? proseBox.innerText : '';
+    const wordCount = prose.trim() ? prose.trim().split(/\s+/).length : 0;
+    const wcEl = document.getElementById('queue-review-word-count');
+    if (wcEl) wcEl.textContent = `${wordCount.toLocaleString()} words`;
+}
+
+function updateProseUnsavedIndicator(unsaved) {
+    const indicator = document.getElementById('queue-prose-unsaved');
+    if (indicator) {
+        indicator.style.display = unsaved ? 'inline' : 'none';
+    }
+}
+
+function queueProseUndo() {
+    if (queueProseHistoryIndex > 0) {
+        queueProseHistoryIndex--;
+        const proseBox = document.getElementById('queue-review-prose');
+        proseBox.innerText = queueProseHistory[queueProseHistoryIndex];
+        updateProseUnsavedIndicator(proseBox.innerText !== originalQueueProse);
+        updateQueueProseWordCount();
+    }
+}
+
+function queueProseRedo() {
+    if (queueProseHistoryIndex < queueProseHistory.length - 1) {
+        queueProseHistoryIndex++;
+        const proseBox = document.getElementById('queue-review-prose');
+        proseBox.innerText = queueProseHistory[queueProseHistoryIndex];
+        updateProseUnsavedIndicator(proseBox.innerText !== originalQueueProse);
+        updateQueueProseWordCount();
+    }
+}
+
+async function queueProseSave() {
+    const panel = document.getElementById('queue-review-panel');
+    const genId = panel?.dataset.genId;
+    if (!genId) return;
+
+    const proseBox = document.getElementById('queue-review-prose');
+    const newProse = proseBox.innerText;
+
+    try {
+        const response = await fetch(apiUrl(`/generations/${genId}/prose`), {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ prose: newProse })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to save');
+        }
+
+        originalQueueProse = newProse;
+        updateProseUnsavedIndicator(false);
+        showToast('Saved', 'Draft saved', 'success');
+
+        // Update queueData so it persists
+        const gen = queueData.find(g => g.generation_id === genId);
+        if (gen) gen.current_prose = newProse;
+
+    } catch (e) {
+        showToast('Error', 'Failed to save: ' + e.message, 'error');
+    }
+}
+
+// Make queue review panel draggable by its header
+function setupQueueReviewDrag() {
+    const panel = document.getElementById('queue-review-panel');
+    const header = document.getElementById('queue-review-header');
+
+    if (!panel || !header) return;
+
+    let isDragging = false;
+    let startX, startY, startLeft, startTop;
+
+    header.addEventListener('mousedown', (e) => {
+        // Don't drag if clicking buttons
+        if (e.target.closest('.queue-review-btn')) return;
+
+        isDragging = true;
+
+        // Get current position
+        const rect = panel.getBoundingClientRect();
+        startX = e.clientX;
+        startY = e.clientY;
+        startLeft = rect.left;
+        startTop = rect.top;
+
+        // Switch from centered positioning to top/left for dragging
+        panel.style.left = rect.left + 'px';
+        panel.style.top = rect.top + 'px';
+        panel.style.transform = 'none';
+
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+
+        let newLeft = startLeft + deltaX;
+        let newTop = startTop + deltaY;
+
+        // Keep within viewport
+        const maxLeft = window.innerWidth - panel.offsetWidth;
+        const maxTop = window.innerHeight - panel.offsetHeight;
+
+        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+
+        panel.style.left = newLeft + 'px';
+        panel.style.top = newTop + 'px';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            // Save position to localStorage
+            localStorage.setItem('queueReviewPosition', JSON.stringify({
+                left: panel.style.left,
+                top: panel.style.top
+            }));
+        }
+    });
+
+    // Restore saved position
+    const savedPos = localStorage.getItem('queueReviewPosition');
+    if (savedPos) {
+        try {
+            const pos = JSON.parse(savedPos);
+            panel.style.left = pos.left;
+            panel.style.top = pos.top;
+            panel.style.transform = 'none';
+        } catch (e) {
+            // Ignore invalid saved position
+        }
+    }
 }
 
 // Set up editor annotation tracking for critique box

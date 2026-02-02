@@ -4190,3 +4190,131 @@ nav {
     color: var(--success);
     font-style: italic;
 }
+
+/* ==============================================
+   Queue Review Floating Panel
+   ============================================== */
+
+.queue-review-floating {
+    position: fixed;
+    top: 50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90vw;
+    max-width: 1200px;
+    max-height: 90vh;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.queue-review-drag-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-input);
+    border-bottom: 1px solid var(--border);
+    cursor: move;
+    user-select: none;
+}
+
+.queue-review-header-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.queue-review-header-info span:first-child {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.queue-review-header-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.queue-review-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    padding: 6px 10px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.queue-review-btn:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.1);
+}
+
+.queue-review-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.queue-review-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+/* Prose toolbar */
+.prose-toolbar {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: var(--bg-input);
+    border-radius: 6px;
+}
+
+.prose-toolbar .btn-xs {
+    padding: 4px 8px;
+    font-size: 0.8rem;
+}
+
+.unsaved-indicator {
+    color: var(--warning);
+    font-size: 0.85rem;
+    font-weight: 500;
+}
+
+/* Editable prose box */
+.prose-box.editable-prose {
+    cursor: text;
+    outline: none;
+    min-height: 200px;
+}
+
+.prose-box.editable-prose:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .queue-review-floating {
+        width: 98vw;
+        max-height: 95vh;
+        top: 10px;
+    }
+
+    .queue-review-body {
+        padding: 12px;
+    }
+
+    .queue-review-body .two-col {
+        grid-template-columns: 1fr;
+    }
+}
