@@ -2154,7 +2154,7 @@ function renderOutlineChapter(chapter) {
             </div>
             <div class="outline-scenes">
                 ${chapterScenes.map(s => `
-                    <div class="outline-scene ${s.is_canon ? 'canon' : ''}" onclick="openSceneWorkspace('${s.id}')">
+                    <div class="outline-scene ${s.is_canon ? 'canon' : ''}" onclick="openSceneEditor('${s.id}')">
                         ${!s.is_canon ? `<input type="checkbox" class="batch-checkbox" ${selectedScenes.has(s.id) ? 'checked' : ''} onclick="toggleSceneSelection('${s.id}', event)">` : ''}
                         ${escapeHtml(s.title)}
                     </div>
@@ -3556,7 +3556,7 @@ function renderStructureChapter(chapter) {
                         : '';
 
                     return `
-                        <div class="structure-scene ${s.is_canon ? 'canon' : ''} ${isEditMode ? 'edit-mode' : ''}" onclick="openSceneWorkspace('${s.id}')">
+                        <div class="structure-scene ${s.is_canon ? 'canon' : ''} ${isEditMode ? 'edit-mode' : ''}" onclick="openSceneEditor('${s.id}')">
                             <span>${escapeHtml(s.title)}</span>
                             <div class="item-actions">
                                 ${badges.join('')}
@@ -8691,6 +8691,36 @@ function closeQueueReview() {
 
 // Track if we're in scene mode (no active generation)
 let floatingEditorSceneMode = null;
+
+// Smart scene opener - floating editor for scenes with prose, workspace for empty scenes
+async function openSceneEditor(sceneId) {
+    // Check if there's an active generation for this scene
+    const gen = queueData.find(g => g.scene_id === sceneId &&
+        (g.status === 'awaiting_approval' || g.status === 'generating' || g.status === 'revising'));
+
+    if (gen) {
+        // Open the floating editor for this generation
+        openQueueReview(gen.generation_id);
+        return;
+    }
+
+    // Check if scene has prose
+    const scene = scenes.find(s => s.id === sceneId);
+    if (!scene) {
+        showToast('Error', 'Scene not found', 'error');
+        return;
+    }
+
+    const prose = scene.prose || scene.original_prose;
+    if (prose) {
+        // Scene has prose - open floating editor
+        floatingEditorSceneMode = sceneId;
+        showFloatingEditorForScene(scene);
+    } else {
+        // No prose yet - open workspace for generation/import
+        openSceneWorkspace(sceneId);
+    }
+}
 
 // Open floating editor for a scene (from scene list)
 async function openFloatingEditorForScene(sceneId) {
