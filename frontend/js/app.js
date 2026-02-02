@@ -48,6 +48,7 @@ let queueProseHistoryIndex = 0; // Current position in history
 let selectedScenes = new Set();
 let previousQueueCount = 0;
 let queueProseQuill = null; // Quill editor instance for floating prose editor
+let currentEditorTargetWords = null; // Target word count for current scene
 
 // Settings state
 let settingsModalOpen = false;
@@ -8575,7 +8576,14 @@ function initQueueProseQuill(initialContent = '') {
     if (queueProseQuill) {
         queueProseQuill = null;
     }
+
+    // Remove any existing Quill toolbars (they're siblings, not children)
+    const parent = container.parentElement;
+    if (parent) {
+        parent.querySelectorAll('.ql-toolbar').forEach(tb => tb.remove());
+    }
     container.innerHTML = '';
+    container.className = ''; // Reset Quill's added classes
 
     // Initialize Quill with prose-friendly toolbar
     queueProseQuill = new Quill(container, {
@@ -8625,6 +8633,9 @@ function showQueueReviewPanel(gen) {
     document.getElementById('queue-review-title').textContent = sceneTitle;
     document.getElementById('queue-review-iteration').textContent = gen.current_iteration;
 
+    // Set target word count from scene
+    currentEditorTargetWords = scene ? parseTargetWords(scene.target_length) : null;
+
     // Set up prose with Quill editor
     const proseText = gen.current_prose || '';
     initQueueProseQuill(proseText);
@@ -8636,7 +8647,7 @@ function showQueueReviewPanel(gen) {
     critiqueBox.innerHTML = escapeHtml(critiqueText);
     setupCritiqueEditorTracking(critiqueBox);
 
-    // Word count
+    // Word count (with target)
     updateQueueProseWordCount();
 
     // Position in queue
@@ -8767,6 +8778,9 @@ function showFloatingEditorForScene(scene) {
     document.getElementById('queue-review-title').textContent = scene.title;
     document.getElementById('queue-review-iteration').textContent = locationStr;
 
+    // Set target word count from scene
+    currentEditorTargetWords = parseTargetWords(scene.target_length);
+
     // Set up prose with Quill
     const proseText = scene.prose || scene.original_prose || '';
     initQueueProseQuill(proseText);
@@ -8776,7 +8790,7 @@ function showFloatingEditorForScene(scene) {
     critiqueBox.innerHTML = '<div class="text-muted" style="text-align: center; padding: 20px;">Click "Re-Critique" to get AI feedback on this prose.</div>';
     originalQueueCritique = '';
 
-    // Word count
+    // Word count (with target)
     updateQueueProseWordCount();
 
     // Position - show scene mode indicator
@@ -8846,7 +8860,34 @@ function updateQueueProseWordCount() {
     const prose = queueProseQuill.getText().trim();
     const wordCount = prose ? prose.split(/\s+/).length : 0;
     const wcEl = document.getElementById('queue-review-word-count');
-    if (wcEl) wcEl.textContent = `${wordCount.toLocaleString()} words`;
+    if (!wcEl) return;
+
+    if (currentEditorTargetWords) {
+        const pct = Math.round((wordCount / currentEditorTargetWords) * 100);
+        const status = pct >= 90 ? '✓' : pct >= 50 ? '⚠' : '✗';
+        wcEl.innerHTML = `${wordCount.toLocaleString()} / <strong>${currentEditorTargetWords.toLocaleString()}</strong> words <span class="wc-status-${pct >= 90 ? 'good' : pct >= 50 ? 'warn' : 'low'}">(${pct}% ${status})</span>`;
+    } else {
+        wcEl.textContent = `${wordCount.toLocaleString()} words`;
+    }
+}
+
+// Parse target_length string like "1200 words" or "1500-2000 words" into a number
+function parseTargetWords(targetLength) {
+    if (!targetLength) return null;
+    // Match patterns like "1200", "1,200", "1200 words", "1500-2000 words"
+    const match = targetLength.match(/(\d[\d,]*)\s*(?:-\s*(\d[\d,]*))?\s*words?/i);
+    if (match) {
+        // If range, take the higher number as target
+        const num1 = parseInt(match[1].replace(/,/g, ''));
+        const num2 = match[2] ? parseInt(match[2].replace(/,/g, '')) : null;
+        return num2 ? Math.max(num1, num2) : num1;
+    }
+    // Try just a number
+    const numMatch = targetLength.match(/(\d[\d,]*)/);
+    if (numMatch) {
+        return parseInt(numMatch[1].replace(/,/g, ''));
+    }
+    return null;
 }
 
 function updateProseUnsavedIndicator(unsaved) {

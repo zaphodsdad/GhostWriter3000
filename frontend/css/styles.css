@@ -4448,3 +4448,19 @@ nav {
     border-color: var(--primary);
     box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
+
+/* Word count status indicators */
+.wc-status-good {
+    color: var(--success);
+    font-weight: 500;
+}
+
+.wc-status-warn {
+    color: var(--warning);
+    font-weight: 500;
+}
+
+.wc-status-low {
+    color: var(--danger);
+    font-weight: 500;
+}
