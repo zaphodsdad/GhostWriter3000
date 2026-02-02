@@ -14,6 +14,9 @@
     --danger: #ef4444;
     --danger-hover: #dc2626;
     --warning: #f59e0b;
+    /* Editor annotation colors (theme-ready) */
+    --editor-note-color: #2dd4bf;
+    --editor-note-bg: rgba(45, 212, 191, 0.15);
 }
 
 * {
@@ -953,6 +956,33 @@ nav {
     font-size: 0.95rem;
 }
 
+/* Editable critique box */
+.prose-box.editable-critique {
+    cursor: text;
+    outline: none;
+}
+
+.prose-box.editable-critique:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+/* Editor annotations in critique */
+.editor-note {
+    color: var(--editor-note-color);
+    font-weight: 600;
+    background: var(--editor-note-bg);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
+.editable-critique-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-style: italic;
+}
+
 /* Two Column Layout */
 .two-col {
     display: grid;
@@ -977,6 +1007,46 @@ nav {
 
 .two-col.critique-collapsed #ws-critique-expand {
     display: flex !important;
+}
+
+/* Queue Review Collapsible Panels */
+.two-col.queue-critique-collapsed #queue-critique-column {
+    display: none;
+}
+
+.two-col.queue-critique-collapsed #queue-expand-btn {
+    display: flex !important;
+}
+
+.two-col.queue-prose-collapsed #queue-prose-column {
+    display: none;
+}
+
+.two-col.queue-prose-collapsed #queue-prose-expand-restore {
+    display: flex !important;
+}
+
+.two-col.queue-prose-collapsed {
+    grid-template-columns: auto 1fr;
+}
+
+.two-col.queue-critique-collapsed {
+    grid-template-columns: 1fr auto;
+}
+
+#queue-prose-expand-restore {
+    display: none;
+}
+
+.prose-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.prose-header h4 {
+    margin: 0;
 }
 
 .critique-header {
@@ -2504,7 +2574,7 @@ nav {
 /* Floating Back to Top Button */
 .back-to-top-btn {
     position: fixed;
-    bottom: 30px;
+    bottom: 90px;  /* Stacked above Chico toggle (at 24px) */
     right: 30px;
     width: 50px;
     height: 50px;

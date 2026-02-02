@@ -41,6 +41,7 @@ let lastCreditAlertShown = 0; // Prevent spam
 let queueData = [];
 let queuePollingInterval = null;
 let currentQueueReviewIndex = 0;
+let originalQueueCritique = ''; // Store original AI critique for editor annotation tracking
 let selectedScenes = new Set();
 let previousQueueCount = 0;
 
@@ -8327,9 +8328,27 @@ function renderQueue() {
         return;
     }
 
+    // Sort by book order: chapter_number, then scene_number (earliest first)
+    filtered.sort((a, b) => {
+        const sceneA = scenes.find(s => s.id === a.scene_id);
+        const sceneB = scenes.find(s => s.id === b.scene_id);
+        const chapterA = sceneA ? chapters.find(c => c.id === sceneA.chapter_id) : null;
+        const chapterB = sceneB ? chapters.find(c => c.id === sceneB.chapter_id) : null;
+        const chNumA = chapterA?.chapter_number ?? 999;
+        const chNumB = chapterB?.chapter_number ?? 999;
+        if (chNumA !== chNumB) return chNumA - chNumB;
+        const scNumA = sceneA?.scene_number ?? 999;
+        const scNumB = sceneB?.scene_number ?? 999;
+        return scNumA - scNumB;
+    });
+
     list.innerHTML = filtered.map(gen => {
         const scene = scenes.find(s => s.id === gen.scene_id);
         const sceneTitle = scene ? scene.title : gen.scene_id;
+        const chapter = scene ? chapters.find(c => c.id === scene.chapter_id) : null;
+        const locationStr = chapter && scene?.scene_number
+            ? `Ch ${chapter.chapter_number}, Sc ${scene.scene_number}`
+            : (chapter ? `Ch ${chapter.chapter_number}` : '');
         const statusLabel = getStatusMessage(gen.status);
         const canDelete = ['completed', 'rejected', 'error'].includes(gen.status);
 
@@ -8338,7 +8357,7 @@ function renderQueue() {
                 <div class="queue-item-info" onclick="openQueueReview('${gen.generation_id}')">
                     <div class="queue-item-title">${escapeHtml(sceneTitle)}</div>
                     <div class="queue-item-meta">
-                        <span>Iteration ${gen.current_iteration}</span>
+                        <span>${locationStr ? locationStr + ' · ' : ''}Iteration ${gen.current_iteration}</span>
                         <span>${formatRelativeTime(gen.updated_at)}</span>
                     </div>
                 </div>
@@ -8486,7 +8505,13 @@ function showQueueReviewPanel(gen) {
     document.getElementById('queue-review-title').textContent = sceneTitle;
     document.getElementById('queue-review-iteration').textContent = gen.current_iteration;
     document.getElementById('queue-review-prose').textContent = gen.current_prose || '';
-    document.getElementById('queue-review-critique').textContent = gen.current_critique || '';
+
+    // Set up critique with editor annotation support
+    const critiqueBox = document.getElementById('queue-review-critique');
+    const critiqueText = gen.current_critique || '';
+    originalQueueCritique = critiqueText;
+    critiqueBox.innerHTML = escapeHtml(critiqueText);
+    setupCritiqueEditorTracking(critiqueBox);
 
     // Word count
     const prose = gen.current_prose || '';
@@ -8508,6 +8533,105 @@ function showQueueReviewPanel(gen) {
 
 function closeQueueReview() {
     document.getElementById('queue-review-panel').style.display = 'none';
+    // Reset column states when closing
+    const columns = document.getElementById('queue-review-columns');
+    if (columns) {
+        columns.classList.remove('queue-critique-collapsed', 'queue-prose-collapsed');
+    }
+    // Reset critique tracking
+    originalQueueCritique = '';
+}
+
+// Set up editor annotation tracking for critique box
+function setupCritiqueEditorTracking(critiqueBox) {
+    // Remove any existing listeners by cloning
+    const newBox = critiqueBox.cloneNode(true);
+    critiqueBox.parentNode.replaceChild(newBox, critiqueBox);
+
+    // Handle typed input - wrap in editor-note spans
+    newBox.addEventListener('beforeinput', (e) => {
+        if (e.inputType === 'insertText' || e.inputType === 'insertParagraph') {
+            e.preventDefault();
+            const text = e.inputType === 'insertParagraph' ? '\n' : (e.data || '');
+            if (text) {
+                // Insert text wrapped in editor-note span
+                const span = document.createElement('span');
+                span.className = 'editor-note';
+                span.textContent = text;
+
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    range.deleteContents();
+                    range.insertNode(span);
+                    // Move cursor after inserted span
+                    range.setStartAfter(span);
+                    range.setEndAfter(span);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            }
+        }
+    });
+
+    // Handle paste - wrap pasted content in editor-note span
+    newBox.addEventListener('paste', (e) => {
+        e.preventDefault();
+        const text = e.clipboardData.getData('text/plain');
+        if (text) {
+            const span = document.createElement('span');
+            span.className = 'editor-note';
+            span.textContent = text;
+
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                range.deleteContents();
+                range.insertNode(span);
+                range.setStartAfter(span);
+                range.setEndAfter(span);
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+        }
+    });
+}
+
+// Get editor notes (text from .editor-note spans) for revision instructions
+function getEditorNotes() {
+    const critiqueBox = document.getElementById('queue-review-critique');
+    if (!critiqueBox) return '';
+
+    const noteSpans = critiqueBox.querySelectorAll('.editor-note');
+    if (noteSpans.length === 0) return '';
+
+    // Collect all editor notes
+    const notes = Array.from(noteSpans).map(span => span.textContent.trim()).filter(t => t);
+    if (notes.length === 0) return '';
+
+    return notes.join('\n');
+}
+
+function toggleQueueCritiqueExpand() {
+    const columns = document.getElementById('queue-review-columns');
+    if (!columns) return;
+
+    // If prose is collapsed, restore it first
+    columns.classList.remove('queue-prose-collapsed');
+
+    // Toggle critique collapse
+    columns.classList.toggle('queue-critique-collapsed');
+}
+
+function toggleQueueProseExpand() {
+    const columns = document.getElementById('queue-review-columns');
+    if (!columns) return;
+
+    // If critique is collapsed, restore it first
+    columns.classList.remove('queue-critique-collapsed');
+
+    // Toggle prose collapse (hides prose, expands critique)
+    columns.classList.toggle('queue-prose-collapsed');
 }
 
 function queuePrev() {
@@ -8532,8 +8656,14 @@ async function queueApproveAndRevise() {
     if (!genId) return;
 
     try {
+        // Get editor notes if any
+        const editorNotes = getEditorNotes();
+        const requestBody = editorNotes ? { instructions: editorNotes } : null;
+
         const response = await fetch(apiUrl(`/generations/${genId}/approve`), {
-            method: 'POST'
+            method: 'POST',
+            headers: requestBody ? { 'Content-Type': 'application/json' } : {},
+            body: requestBody ? JSON.stringify(requestBody) : undefined
         });
 
         if (!response.ok) {
@@ -8541,7 +8671,8 @@ async function queueApproveAndRevise() {
             throw new Error(error.detail || 'Failed to approve');
         }
 
-        showToast('Revision Started', 'Revising based on critique...', 'info');
+        const hasNotes = editorNotes ? ' (with your notes)' : '';
+        showToast('Revision Started', `Revising based on critique${hasNotes}...`, 'info');
         closeQueueReview();
         await loadQueue();
 

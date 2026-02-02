@@ -1,6 +1,6 @@
 # Prose Pipeline - TODO
 
-**Last Updated:** 2026-02-01
+**Last Updated:** 2026-02-02
 
 ---
 
@@ -199,10 +199,11 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
   - Custom prompt option for specific instructions
   - Per-project defaults (different genres need different criteria)
   - Word count targets: flag under/over without encouraging fluff ("add substance, not padding")
-- [ ] **Generation queue labels** - Show "Chapter 1 Scene 1" not just "Iteration 1" in queue review
+- [x] **Generation queue labels** - Show "Chapter X, Scene Y" in queue items (sorted by book order)
 - [ ] **Word count on revision screen** - Show current word count while reviewing/revising
-- [ ] **Critique interaction** - Comment on AI critique, agree/reject specific points to guide revision
-- [x] **Maximize/minimize buttons missing** - BUG: prose/critique panel toggle buttons disappeared
+- [x] **Critique interaction** - Editor can add inline annotations to AI critique (styled distinctly), passed to revision as guidance
+- [x] **Maximize/minimize buttons missing** - BUG: fixed, added expand buttons to queue review panel
+- [ ] **Theme support** - Dark/light/system theme switching (CSS variables ready: `--editor-note-color`, `--editor-note-bg`)
 
 **Priority 9: Outline Import Overhaul** - FUTURE
 - [ ] **File upload support** - Import .md, .txt, .docx outlines (not just paste)

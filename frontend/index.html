@@ -1664,18 +1664,27 @@ This will be included in the AI prompt during generation."></textarea>
 
                                 <p class="text-muted mb-20">Revision <span id="queue-review-iteration">1</span></p>
 
-                                <div class="two-col">
-                                    <div>
-                                        <h4>Generated Prose <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="queue-review-gen-model"></span></h4>
+                                <div class="two-col" id="queue-review-columns">
+                                    <button class="critique-expand-btn" id="queue-prose-expand-restore" onclick="toggleQueueProseExpand()" title="Show prose">◀</button>
+                                    <div id="queue-prose-column">
+                                        <div class="prose-header">
+                                            <h4>Generated Prose <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="queue-review-gen-model"></span></h4>
+                                            <button class="btn btn-small btn-outline" onclick="toggleQueueProseExpand()" id="queue-prose-expand-btn" title="Expand prose">⬌</button>
+                                        </div>
                                         <div class="prose-box" id="queue-review-prose"></div>
                                         <div class="prose-stats mt-20">
                                             <span id="queue-review-word-count">0 words</span>
                                         </div>
                                     </div>
-                                    <div>
-                                        <h4>AI Critique <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="queue-review-critique-model"></span></h4>
-                                        <div class="prose-box" id="queue-review-critique"></div>
+                                    <div id="queue-critique-column">
+                                        <div class="critique-header">
+                                            <h4>AI Critique <span class="text-muted" style="font-weight: normal; font-size: 0.9rem;" id="queue-review-critique-model"></span></h4>
+                                            <button class="btn btn-small btn-outline" onclick="toggleQueueCritiqueExpand()" id="queue-critique-expand-btn" title="Expand critique">⬌</button>
+                                        </div>
+                                        <div class="prose-box editable-critique" id="queue-review-critique" contenteditable="true"></div>
+                                        <p class="editable-critique-hint">Click to add your notes — they'll appear highlighted and be included in the revision.</p>
                                     </div>
+                                    <button class="critique-expand-btn" id="queue-expand-btn" onclick="toggleQueueCritiqueExpand()" style="display: none;" title="Show critique">▶</button>
                                 </div>
 
                                 <div class="action-bar">
