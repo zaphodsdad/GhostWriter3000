@@ -6202,8 +6202,8 @@ function setupSelectionTracking() {
 
     // Track selection changes
     document.addEventListener('selectionchange', () => {
-        // Skip if focus is in a form input
-        if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT')) {
+        // Skip if focus is in a form input or contenteditable
+        if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT' || document.activeElement.isContentEditable || document.activeElement.closest('[contenteditable="true"]'))) {
             return;
         }
         // Only track if we're in the review step
@@ -6388,8 +6388,8 @@ function getActiveProseContainer() {
 
 // Handle text selection and show bubble
 function handleTextSelection(e) {
-    // Skip if we're inside a modal or form (don't interfere with inputs)
-    if (e && e.target && (e.target.closest('.modal') || e.target.closest('form') || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
+    // Skip if we're inside a modal, form, or contenteditable (don't interfere with inputs)
+    if (e && e.target && (e.target.closest('.modal') || e.target.closest('form') || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable || e.target.closest('[contenteditable="true"]'))) {
         return;
     }
 
@@ -6450,8 +6450,8 @@ function handleTextSelection(e) {
 
 // Handle selection changes (for when selection is cleared)
 function handleSelectionChange() {
-    // Skip if focus is inside a modal or form input (don't interfere with inputs)
-    if (document.activeElement && (document.activeElement.closest('.modal') || document.activeElement.closest('form') || document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT')) {
+    // Skip if focus is inside a modal, form input, or contenteditable (don't interfere with editing)
+    if (document.activeElement && (document.activeElement.closest('.modal') || document.activeElement.closest('form') || document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA' || document.activeElement.tagName === 'SELECT' || document.activeElement.isContentEditable || document.activeElement.closest('[contenteditable="true"]'))) {
         return;
     }
 
@@ -6479,8 +6479,8 @@ function setupReadingSelectionTracking() {
 
     // Selection start: hide bubble when starting a new selection
     document.addEventListener('selectstart', (e) => {
-        // Skip if we're inside a modal or form input (don't interfere with inputs)
-        if (e.target && (e.target.closest('.modal') || e.target.closest('form') || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) {
+        // Skip if we're inside a modal, form input, or contenteditable (don't interfere with editing)
+        if (e.target && (e.target.closest('.modal') || e.target.closest('form') || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT' || e.target.isContentEditable || e.target.closest('[contenteditable="true"]'))) {
             return;
         }
 
