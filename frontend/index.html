@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Prose Pipeline</title>
     <link rel="stylesheet" href="css/styles.css">
+    <!-- Quill Editor -->
+    <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
 </head>
 <body>
     <div class="app">
@@ -2027,12 +2030,10 @@ This will be included in the AI prompt during generation."></textarea>
                         <button class="btn btn-small btn-outline" onclick="toggleQueueProseExpand()" id="queue-prose-expand-btn" title="Expand prose">⬌</button>
                     </div>
                     <div class="prose-toolbar">
-                        <button class="btn btn-xs btn-outline" onclick="queueProseUndo()" title="Undo">↶ Undo</button>
-                        <button class="btn btn-xs btn-outline" onclick="queueProseRedo()" title="Redo">↷ Redo</button>
                         <button class="btn btn-xs btn-primary" onclick="queueProseSave()" id="queue-prose-save-btn" title="Save draft">Save Draft</button>
                         <span id="queue-prose-unsaved" class="unsaved-indicator" style="display: none;">● unsaved</span>
                     </div>
-                    <div class="prose-box editable-prose" id="queue-review-prose" contenteditable="true"></div>
+                    <div id="queue-review-prose-editor"></div>
                     <div class="prose-stats mt-20">
                         <span id="queue-review-word-count">0 words</span>
                     </div>

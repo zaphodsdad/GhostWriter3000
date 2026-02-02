@@ -47,6 +47,7 @@ let queueProseHistory = []; // Undo/redo history for prose
 let queueProseHistoryIndex = 0; // Current position in history
 let selectedScenes = new Set();
 let previousQueueCount = 0;
+let queueProseQuill = null; // Quill editor instance for floating prose editor
 
 // Settings state
 let settingsModalOpen = false;
@@ -6363,18 +6364,18 @@ function getActiveProseContainer() {
         }
     }
 
-    // Check queue review panel
+    // Check queue review panel (now using Quill editor)
     const queueView = document.getElementById('queue-view');
     const queueReviewPanel = document.getElementById('queue-review-panel');
-    const queueReviewProse = document.getElementById('queue-review-prose');
+    const queueReviewProseEditor = document.getElementById('queue-review-prose-editor');
 
     if (queueView && queueView.classList.contains('active') &&
-        queueReviewPanel && isElementVisible(queueReviewPanel) && queueReviewProse) {
+        queueReviewPanel && isElementVisible(queueReviewPanel) && queueReviewProseEditor) {
 
-        // Queue review is for generations awaiting approval
+        // Queue review uses Quill - return the editor container
         const genId = queueReviewPanel.dataset.genId;
         if (genId) {
-            return { element: queueReviewProse, isWorkspace: false, isQueueReview: true, genId: genId };
+            return { element: queueReviewProseEditor, isWorkspace: false, isQueueReview: true, genId: genId, isQuill: true };
         }
     }
 
@@ -6698,17 +6699,13 @@ async function applyBubbleRevision(quickAction = null) {
         const wordCount = result.word_count || (mergedProse ? mergedProse.split(/\s+/).filter(w => w).length : 0);
 
         if (isQueueReview) {
-            // Queue review - update the queue review prose element
-            const proseElement = document.getElementById('queue-review-prose');
-            if (proseElement) {
-                proseElement.textContent = mergedProse;
+            // Queue review - update the Quill editor
+            if (queueProseQuill) {
+                queueProseQuill.setText(mergedProse);
             }
 
             // Update word count in queue review
-            const queueWordCount = document.getElementById('queue-review-word-count');
-            if (queueWordCount) {
-                queueWordCount.textContent = `${wordCount.toLocaleString()} words`;
-            }
+            updateQueueProseWordCount();
 
             // Update the generation in queueData so it persists
             const gen = queueData.find(g => g.generation_id === generationId);
@@ -8566,6 +8563,52 @@ function openQueueReview(generationId) {
     showQueueReviewPanel(gen);
 }
 
+// Initialize or reinitialize the Quill prose editor
+function initQueueProseQuill(initialContent = '') {
+    const container = document.getElementById('queue-review-prose-editor');
+    if (!container) {
+        console.error('Quill container not found');
+        return;
+    }
+
+    // Destroy existing instance if any
+    if (queueProseQuill) {
+        queueProseQuill = null;
+    }
+    container.innerHTML = '';
+
+    // Initialize Quill with prose-friendly toolbar
+    queueProseQuill = new Quill(container, {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                ['bold', 'italic', 'underline'],
+                [{ 'header': [1, 2, 3, false] }],
+                ['clean']
+            ],
+            history: {
+                delay: 1000,
+                maxStack: 100,
+                userOnly: true
+            }
+        },
+        placeholder: 'Prose content...'
+    });
+
+    // Set initial content
+    queueProseQuill.setText(initialContent);
+    originalQueueProse = initialContent;
+
+    // Track changes for unsaved indicator
+    queueProseQuill.on('text-change', () => {
+        updateProseUnsavedIndicator(true);
+        updateQueueProseWordCount();
+    });
+
+    updateProseUnsavedIndicator(false);
+    updateQueueProseWordCount();
+}
+
 function showQueueReviewPanel(gen) {
     console.log('showQueueReviewPanel called for:', gen.generation_id);
     const panel = document.getElementById('queue-review-panel');
@@ -8582,15 +8625,9 @@ function showQueueReviewPanel(gen) {
     document.getElementById('queue-review-title').textContent = sceneTitle;
     document.getElementById('queue-review-iteration').textContent = gen.current_iteration;
 
-    // Set up prose with editing support
-    const proseBox = document.getElementById('queue-review-prose');
+    // Set up prose with Quill editor
     const proseText = gen.current_prose || '';
-    proseBox.innerText = proseText;
-    originalQueueProse = proseText;
-    queueProseHistory = [proseText];
-    queueProseHistoryIndex = 0;
-    setupProseEditorTracking(proseBox);
-    updateProseUnsavedIndicator(false);
+    initQueueProseQuill(proseText);
 
     // Set up critique with editor annotation support
     const critiqueBox = document.getElementById('queue-review-critique');
@@ -8700,15 +8737,9 @@ function showFloatingEditorForScene(scene) {
     document.getElementById('queue-review-title').textContent = scene.title;
     document.getElementById('queue-review-iteration').textContent = locationStr;
 
-    // Set up prose
-    const proseBox = document.getElementById('queue-review-prose');
+    // Set up prose with Quill
     const proseText = scene.prose || scene.original_prose || '';
-    proseBox.innerText = proseText;
-    originalQueueProse = proseText;
-    queueProseHistory = [proseText];
-    queueProseHistoryIndex = 0;
-    setupProseEditorTracking(proseBox);
-    updateProseUnsavedIndicator(false);
+    initQueueProseQuill(proseText);
 
     // No critique in scene mode - show placeholder
     const critiqueBox = document.getElementById('queue-review-critique');
@@ -8781,9 +8812,9 @@ function setupProseEditorTracking(proseBox) {
 }
 
 function updateQueueProseWordCount() {
-    const proseBox = document.getElementById('queue-review-prose');
-    const prose = proseBox ? proseBox.innerText : '';
-    const wordCount = prose.trim() ? prose.trim().split(/\s+/).length : 0;
+    if (!queueProseQuill) return;
+    const prose = queueProseQuill.getText().trim();
+    const wordCount = prose ? prose.split(/\s+/).length : 0;
     const wcEl = document.getElementById('queue-review-word-count');
     if (wcEl) wcEl.textContent = `${wordCount.toLocaleString()} words`;
 }
@@ -8795,30 +8826,15 @@ function updateProseUnsavedIndicator(unsaved) {
     }
 }
 
-function queueProseUndo() {
-    if (queueProseHistoryIndex > 0) {
-        queueProseHistoryIndex--;
-        const proseBox = document.getElementById('queue-review-prose');
-        proseBox.innerText = queueProseHistory[queueProseHistoryIndex];
-        updateProseUnsavedIndicator(proseBox.innerText !== originalQueueProse);
-        updateQueueProseWordCount();
-    }
-}
-
-function queueProseRedo() {
-    if (queueProseHistoryIndex < queueProseHistory.length - 1) {
-        queueProseHistoryIndex++;
-        const proseBox = document.getElementById('queue-review-prose');
-        proseBox.innerText = queueProseHistory[queueProseHistoryIndex];
-        updateProseUnsavedIndicator(proseBox.innerText !== originalQueueProse);
-        updateQueueProseWordCount();
-    }
+// Get current prose text from Quill editor
+function getQueueProseText() {
+    if (!queueProseQuill) return '';
+    return queueProseQuill.getText().trim();
 }
 
 async function queueProseSave() {
     const panel = document.getElementById('queue-review-panel');
-    const proseBox = document.getElementById('queue-review-prose');
-    const newProse = proseBox.innerText;
+    const newProse = getQueueProseText();
 
     // Check if we're in scene mode (direct scene editing)
     if (floatingEditorSceneMode) {
@@ -9021,13 +9037,12 @@ function getEditorNotes() {
 // Re-critique the current prose
 async function queueReCritique() {
     const panel = document.getElementById('queue-review-panel');
-    const proseBox = document.getElementById('queue-review-prose');
     const critiqueBox = document.getElementById('queue-review-critique');
     const recritiqueBtn = document.getElementById('queue-recritique-btn');
 
-    if (!proseBox || !critiqueBox) return;
+    if (!critiqueBox) return;
 
-    const prose = proseBox.innerText.trim();
+    const prose = getQueueProseText();
     if (!prose) {
         showToast('Error', 'No prose to critique', 'error');
         return;
@@ -9175,8 +9190,7 @@ async function queueAcceptFinal() {
 
     // Handle scene mode (direct scene editing)
     if (floatingEditorSceneMode) {
-        const proseBox = document.getElementById('queue-review-prose');
-        const prose = proseBox.innerText;
+        const prose = getQueueProseText();
 
         try {
             // Save prose and mark as canon
@@ -9569,27 +9583,49 @@ function showToast(title, message, type = 'info') {
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `
-        <div class="toast-content">
-            <div class="toast-title">${escapeHtml(title)}</div>
-            <div class="toast-message">${escapeHtml(message)}</div>
-        </div>
-    `;
 
-    toast.onclick = () => {
-        toast.style.animation = 'slideOut 0.3s ease';
-        setTimeout(() => toast.remove(), 300);
-    };
+    // Errors get a close button and longer display
+    const isError = type === 'error';
+
+    if (isError) {
+        // Error toast: close button only, text is selectable
+        toast.innerHTML = `
+            <div class="toast-content">
+                <div class="toast-title">${escapeHtml(title)}<button class="toast-close">✕</button></div>
+                <div class="toast-message toast-message-selectable">${escapeHtml(message)}</div>
+            </div>
+        `;
+        // Only the close button dismisses
+        toast.querySelector('.toast-close').onclick = (e) => {
+            e.stopPropagation();
+            toast.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        };
+    } else {
+        // Regular toast: click anywhere to dismiss
+        toast.innerHTML = `
+            <div class="toast-content">
+                <div class="toast-title">${escapeHtml(title)}</div>
+                <div class="toast-message">${escapeHtml(message)}</div>
+            </div>
+        `;
+        toast.style.cursor = 'pointer';
+        toast.onclick = () => {
+            toast.style.animation = 'slideOut 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        };
+    }
 
     container.appendChild(toast);
 
-    // Auto-remove after 5 seconds
+    // Auto-remove: 5s for info/success, 30s for errors (gives time to read/copy)
+    const duration = isError ? 30000 : 5000;
     setTimeout(() => {
         if (toast.parentNode) {
             toast.style.animation = 'slideOut 0.3s ease';
             setTimeout(() => toast.remove(), 300);
         }
-    }, 5000);
+    }, duration);
 }
 
 function formatRelativeTime(dateString) {

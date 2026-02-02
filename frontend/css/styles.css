@@ -2323,6 +2323,30 @@ nav {
     border-left: 4px solid var(--warning);
 }
 
+.toast.error {
+    border-left: 4px solid var(--danger);
+}
+
+.toast-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1rem;
+    padding: 0;
+    margin-left: 10px;
+    line-height: 1;
+}
+
+.toast-close:hover {
+    color: var(--text);
+}
+
+.toast-message-selectable {
+    user-select: text;
+    cursor: text;
+}
+
 .toast-icon {
     font-size: 1.2rem;
 }
@@ -2334,6 +2358,9 @@ nav {
 .toast-title {
     font-weight: 600;
     margin-bottom: 2px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 .toast-message {
@@ -4327,4 +4354,97 @@ nav {
     .queue-review-body .two-col {
         grid-template-columns: 1fr;
     }
+}
+
+/* ============================================
+   Quill Editor Theme Customization
+   ============================================ */
+
+#queue-review-prose-editor {
+    height: 400px;
+    max-height: 50vh;
+}
+
+/* Dark theme for Quill */
+#queue-review-prose-editor .ql-toolbar {
+    background: var(--bg-input);
+    border-color: var(--border);
+    border-radius: 8px 8px 0 0;
+}
+
+#queue-review-prose-editor .ql-container {
+    background: var(--bg-card);
+    border-color: var(--border);
+    border-radius: 0 0 8px 8px;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 1.1rem;
+    line-height: 1.8;
+    color: var(--text);
+}
+
+#queue-review-prose-editor .ql-editor {
+    min-height: 300px;
+    padding: 16px 20px;
+}
+
+#queue-review-prose-editor .ql-editor.ql-blank::before {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Toolbar buttons */
+#queue-review-prose-editor .ql-toolbar button {
+    color: var(--text-muted);
+}
+
+#queue-review-prose-editor .ql-toolbar button:hover {
+    color: var(--text);
+}
+
+#queue-review-prose-editor .ql-toolbar button.ql-active {
+    color: var(--primary);
+}
+
+#queue-review-prose-editor .ql-toolbar .ql-stroke {
+    stroke: var(--text-muted);
+}
+
+#queue-review-prose-editor .ql-toolbar button:hover .ql-stroke {
+    stroke: var(--text);
+}
+
+#queue-review-prose-editor .ql-toolbar button.ql-active .ql-stroke {
+    stroke: var(--primary);
+}
+
+#queue-review-prose-editor .ql-toolbar .ql-fill {
+    fill: var(--text-muted);
+}
+
+#queue-review-prose-editor .ql-toolbar button:hover .ql-fill {
+    fill: var(--text);
+}
+
+#queue-review-prose-editor .ql-toolbar button.ql-active .ql-fill {
+    fill: var(--primary);
+}
+
+/* Dropdown pickers */
+#queue-review-prose-editor .ql-toolbar .ql-picker {
+    color: var(--text-muted);
+}
+
+#queue-review-prose-editor .ql-toolbar .ql-picker-options {
+    background: var(--bg-card);
+    border-color: var(--border);
+}
+
+#queue-review-prose-editor .ql-toolbar .ql-picker-item:hover {
+    color: var(--primary);
+}
+
+/* Focus state */
+#queue-review-prose-editor .ql-container:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
