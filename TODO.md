@@ -187,6 +187,11 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [ ] **Auto-compress** - Summarize older messages in long conversations
 - [ ] **Session indicator** - Show conversation age/length
 - [ ] **Chico everywhere** - Show Chico for ALL projects, not just series (project-level context for standalones)
+- [ ] **Chico as contextual help** - Chico aware of current UI state:
+  - Knows what tab/view user is on
+  - Can answer "how do I do X?" questions about the interface
+  - Replaces static help text and tooltips with conversational help
+  - Example: "How do I process these queued items?" → Chico explains
 
 **Priority 8: UX Improvements** - FUTURE
 - [ ] **Clarify import types** - Better labels for Manuscript vs Outline import:
