@@ -582,9 +582,9 @@ class GenerationService:
             raise ValueError(f"Cannot update prose in status: {state.status}")
 
         # Update the current iteration's prose
+        # (current_prose is a computed property that returns iterations[-1].prose)
         if state.iterations:
             state.iterations[-1].prose = prose
-            state.current_prose = prose
             state.updated_at = datetime.utcnow()
             await self.state_manager.save_state(state)
 
