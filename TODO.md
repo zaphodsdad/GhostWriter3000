@@ -1,4 +1,4 @@
-# Prose Pipeline - TODO
+# Prometheus - TODO
 
 **Last Updated:** 2026-02-02
 
@@ -96,9 +96,9 @@ data/series/{series-id}/
 
 ---
 
-## PRIORITY: Series-Aware Generation (Book 2 Ready)
+## PRIORITY: Series-Aware Generation
 
-**Goal:** Write book 2 of a series with full continuity from books 0 (novella) and 1 (novel).
+**Goal:** Write sequels with full continuity from previous books in a series.
 
 ### Critical Bugs (Context Loss in Revisions) - FIXED 2026-01-30
 
@@ -177,7 +177,7 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
 - [ ] **Task queue with status** - Background jobs with progress tracking
 - [ ] **Notification system** - Alert when tasks complete:
   - Browser notifications (simple, requires tab open)
-  - Discord webhook (leverage existing Clawdbot infrastructure)
+  - Discord webhook (optional integration)
   - Email (optional)
 - [ ] **Batch operations** - "Generate chapters 1-5 overnight"
 - [ ] **Proactive suggestions** - Notice gaps, suggest fixes
@@ -254,7 +254,7 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
   - **Application to prose-pipeline:**
     - Memory that decays: prequel facts have lower weight by Book 3
     - Learn from corrections: user edits prose → extract style preferences
-    - Causal chains: not just "Elias is broken" but trace WHY through plot events
+    - Causal chains: trace WHY through plot events, not just current state
 
 ### Competitive Feature Gaps (from Sudowrite/Novelcrafter research)
 
@@ -316,202 +316,15 @@ Our approach: prompt caching + smart filtering.
     - System prompt = memory layer + character sheets + personality
     - Auto-appears when opening any book in a series
   - **Capabilities:**
-    - Answer questions: "Who is Elias's dragon?"
+    - Answer questions: "Who is Marcus's mentor?"
     - Suggest next steps: "What should happen in Chapter 3?"
     - Brainstorm: "Give me 3 ways the betrayal could be revealed"
     - Continuity check: "Does this contradict anything established?"
-    - Character voice: "How would Elena say this?"
+    - Character voice: "How would Sarah say this?"
   - **Personality options:** helpful, direct, enthusiastic
   - **Customizable name** in settings (default: "Chico")
 
 ---
-
-## DEPRIORITIZED: Clawdbot/Discord Integration
-
-*Leaving API for future use, but not actively developing Discord integration. Just another layer of token usage.*
-
-**Goal:** Control prose-pipeline through Discord via Clawdbot (Moltbot), enabling autonomous editing workflows and conversational interaction with the pipeline.
-
-### Architecture
-```
-Discord (Clawdbot) ──API──► prose-pipeline backend
-       │                          │
-       │                          ▼
-       │                   Analyze / Extract / Generate
-       │                          │
-       ◄──────────────────────────┘
-       Reports back, discusses changes
-```
-
-### Phase 1: Manuscript Analysis & Extraction (COMPLETE)
-When given an existing manuscript, AI should:
-- [x] **Evaluate manuscript** - Overall quality assessment, pacing, structure
-- [x] **Extract characters** → Auto-populate character cards
-  - Names, roles, physical descriptions, personality traits
-  - Relationships between characters
-  - Voice/dialogue patterns
-- [x] **Extract world/lore** → Auto-populate world context
-  - Locations, magic systems, technology
-  - Historical events, political structures
-  - Rules and constraints of the world
-- [x] **Generate style guide** from author's voice
-  - Sentence rhythm patterns (short/long variance)
-  - Vocabulary tendencies (formal/casual, period-specific)
-  - POV habits (deep/shallow, tense preferences)
-  - Dialogue style (tags, beats, dialect handling)
-  - Descriptive preferences (sparse vs lush)
-
-**Implemented Endpoints:**
-- `POST /api/extract/characters` - Extract character data from prose
-- `POST /api/extract/world` - Extract world/lore elements
-- `POST /api/extract/style` - Generate style guide from prose
-- `POST /api/extract/analyze` - Full analysis (all three combined)
-- `POST /api/extract/evaluate` - Quality evaluation with scores
-
-### Phase 2: Editing Workflow via Discord (IN PROGRESS)
-- [x] **LanguageTool integration** - Grammar, punctuation, passive voice detection
-  - Endpoints: `/api/tools/languagetool`, `/api/tools/languagetool/correct`
-  - CLI: `grammar-check`, `grammar-check-scene`, `grammar-correct`
-  - Local server (no rate limits), requires Java
-- [x] **CLI commands for full workflow** - Create characters/world from extractions, save style, import manuscripts, generation controls
-- [x] **One-shot manuscript import** - Upload .docx → auto-detect chapters → create all
-- [x] **Evaluation endpoint** - Get critique/scores without starting revision
-- [ ] **One critique pass** (conservative until comfortable with models)
-- [ ] **One revision pass**
-- [ ] **Report to Discord** - Summary of changes made, areas of concern
-
-**New Endpoints (2026-01-29):**
-- `POST /api/projects/{id}/manuscript/import-full` - One-shot: upload file → detect chapters → import all
-- Improved chapter detection: "Chapter X", "Part X", standalone numbers (One, Two), digits, roman numerals
-
-**TOOLS.md on Clawdbot updated with:**
-- Series creation (create BEFORE projects that reference them)
-- One-shot import workflow
-- Evaluation/critique workflow
-- Overnight batch processing pattern
-
-### Phase 3: Creation Workflow via Discord
-For new works that continue existing series/world:
-- [ ] Load existing style guide, characters, world
-- [ ] Match author's voice from style guide
-- [ ] Maintain continuity with previous work
-- [ ] Generate new scenes matching established patterns
-
-### Phase 4: Discord Bot Integration
-- [x] Identify Clawdbot code location (192.168.2.197, /home/john/clawd)
-- [x] Add prose-pipeline API client functions (prose_api.py)
-- [x] Create Clawdbot skill (~/.clawdbot/skills/prose-pipeline/)
-- [x] Update TOOLS.md with prose-pipeline connection info
-- [x] Test API connectivity from Clawdbot VM
-- [x] **First successful import!** - "Flesh Worn Stone" imported with 10 chapters, 11 characters, 1 world entry
-- [x] Conversation flows working:
-  - [x] "Here's my manuscript, analyze it" → extracts characters, world, style
-  - [x] "Import this as book 1 in The Game series" → creates series + project + imports
-  - [x] "Evaluate chapter 1" → CLI commands: evaluate-scene, evaluate-chapter, evaluate-act, evaluate-book
-  - [ ] "Edit chapters 1-5 overnight" → needs testing
-- [ ] User ID restriction (only owner can command)
-
-### Cost Optimization
-- [x] Change default generation model to DeepSeek V3 (deepseek/deepseek-chat-v3.1)
-- [x] Change default critique model to DeepSeek V3 (deepseek/deepseek-chat-v3.1)
-- [ ] Update TOOLS.md to use cheaper models by default
-- [ ] Add model cost estimates to documentation
-
-**Model cost comparison:**
-| Model | Input/Output per M tokens | Use case |
-|-------|---------------------------|----------|
-| Claude Opus 4 | $15/$75 | Final polish only |
-| Claude Sonnet 4 | $3/$15 | Quality critique |
-| Claude Haiku 3.5 | $0.25/$1.25 | Extraction, orchestration |
-| DeepSeek V3 | $0.27/$1.10 | Great for generation/critique |
-| Llama 3.1 70B | $0.50/$0.75 | Good all-rounder |
-
-### Security Notes (2026-01-29)
-- prose-pipeline has **no shell execution** - safe from RCE attacks
-- Discord bot in private server (single user) - minimal prompt injection risk
-- Network secured via OPNsense + AdGuard
-- Consider adding user ID check to Discord bot for defense-in-depth
-
-### API Endpoints (Implemented)
-- [x] `POST /api/extract/analyze` - Full manuscript analysis (characters + world + style)
-- [x] `POST /api/extract/characters` - Extract characters from text
-- [x] `POST /api/extract/world` - Extract world/lore from text
-- [x] `POST /api/extract/style` - Generate style guide from text
-- [x] `POST /api/extract/evaluate` - Quality evaluation with scores
-- [x] `POST /api/tools/languagetool` - Run LanguageTool checks (grammar, spelling, style)
-- [x] `POST /api/tools/languagetool/correct` - Auto-correct text
-
----
-
-## NEW: Backlist Revival Project (Playwright Integration)
-
-**Context:** Owner has 10-15 published novels on Kindle from a "past life" before corporate America and military service. These are sitting assets that could be refreshed and relaunched.
-
-### The Vision: Automated Backlist Management
-
-**Pipeline:**
-```
-KDP Dashboard ──Playwright──► Pull manuscripts
-                                    │
-                                    ▼
-                            prose-pipeline
-                            (Edit Mode)
-                                    │
-                                    ▼
-                        Critique → Revise → Polish
-                                    │
-                                    ▼
-KDP Dashboard ◄──Playwright──── Republish updated versions
-```
-
-### Phase 1: KDP Integration (Future)
-- [ ] Build `scrapers/kdp.py` - Kindle Direct Publishing automation
-  - [ ] Login with session persistence
-  - [ ] List all published books
-  - [ ] Download manuscript files (.doc, .docx)
-  - [ ] Pull sales data and reviews
-  - [ ] Pull current metadata (description, keywords, categories)
-- [ ] Import into prose-pipeline projects automatically
-- [ ] Track KDP-linked projects (store ASIN, KDP book ID)
-
-### Phase 2: Revision Workflow
-- [ ] Import existing novel to prose-pipeline
-- [ ] Run through chapter-by-chapter critique
-- [ ] Tighten prose, fix pacing issues
-- [ ] Update anything dated
-- [ ] Use original as style reference for consistency
-
-### Phase 3: Republish Automation
-- [ ] Push updated manuscript back to KDP via Playwright
-- [ ] Update metadata (new keywords, refreshed description)
-- [ ] Trigger "relaunch" workflow
-- [ ] Update pricing if desired
-
-### Phase 4: Monitoring
-- [ ] Scrape sales rank and reviews
-- [ ] Alert on new reviews (respond quickly to negative)
-- [ ] Track performance before/after refresh
-- [ ] Competitor monitoring in same categories
-
-### Business Angle
-- Refreshed backlist with tightened prose can spike sales
-- Authors do "relaunches" all the time - this automates 80%
-- Could become **BacklistBot** product for other authors
-
----
-
-## Related Project: HIWC-assistant
-
-See `/root/HIWC-assistant/` for e-commerce automation work.
-Same Playwright-first philosophy being applied there for:
-- Etsy/Shopify order scraping
-- Google Ads automation
-- Competitor monitoring
-
-Shared infrastructure potential:
-- Common Playwright utilities
-- Session management patterns
-- Notification system (Discord)
 
 ---
 
@@ -645,7 +458,7 @@ The full creative workflow: **OUTLINE → GENERATE → EDIT**
 - **Backup on prose edit** - auto-backup before manual prose changes
 
 **GUI Gap:**
-- [ ] Add manuscript upload with chapter preview to GUI (currently API-only via Clawdbot)
+- [ ] Add manuscript upload with chapter preview to GUI (currently API-only)
 - **Polish mode** - choose between full structural revision or light line edits
 - **Unified workspace** - click any scene to open adaptive workspace
 
@@ -751,89 +564,7 @@ Summary:
 
 ---
 
-## Project Notes
-
-- **The Jade Vow** - Book 1, published on KDP
-- **The Crimson Rites** - Book 2, 160+ scenes imported, ready for generation
-- **On Storms and Tides** - Series name
-- **Magnet novella** - needs to be uploaded to reference materials
-
----
-
-## Session Notes (2026-01-21)
-
-**Cross-Project Planning Session:**
-
-Discussed business product opportunities combining prose-pipeline and HIWC-assistant:
-
-1. **ProseForge** - SaaS version of prose-pipeline for writers ($19-149/month)
-2. **BacklistBot** - Automated backlist management for authors (KDP integration)
-3. **ContentEngine** - Combine prose generation with Playwright publishing
-
-**Key Insight:** Owner has 10-15 published novels sitting on KDP. Playwright can:
-- Pull manuscripts from KDP dashboard
-- Feed into prose-pipeline edit mode
-- Push refreshed versions back to KDP
-- Monitor sales and reviews
-
-**Priority:** E-commerce (HIWC) is bread and butter right now. Backlist revival is future project but documented here for continuity.
-
-**Shared Playwright Philosophy:** If you can log in and see it, Playwright can automate it. APIs optional.
-
----
-
-## Session Notes (2026-01-30)
-
-**Features Added:**
-
-1. **Optional beats toggle** - Checkbox to include/exclude scene beats in generation prompts
-2. **Delete buttons in series view** - Can now delete individual books from series list (hover to show ×)
-3. **UI refresh fix** - Manuscript import now properly refreshes sidebar/structure view
-4. **Evaluation CLI commands** - Clawdbot can now evaluate prose at multiple levels:
-   - `evaluate-scene <project> <scene-id>` - Single scene
-   - `evaluate-chapter <project> <chapter-id>` - All scenes in chapter
-   - `evaluate-act <project> <act-id>` - All scenes in act
-   - `evaluate-book <project>` - Entire book
-5. **Configurable word count warning** - `eval_word_count_warning` setting (default 6000)
-
-**Clawdbot Integration:**
-- Evaluation commands use prose-pipeline's OpenRouter connection (not Clawdbot's AI)
-- Returns structured scores: pacing, structure, character development, dialogue, prose quality
-- Fetches prose from `prose` field (canon) or `original_prose` (imports/drafts)
-- SKILL.md updated with new evaluation commands
-
-**Books Imported:**
-- "The Game" series: Books 1, 2, 3 imported via manuscript import
-- Chapter detection working well on all three
-
-**LanguageTool Integration:**
-- Backend: `/api/tools/languagetool` and `/api/tools/languagetool/correct` endpoints
-- CLI: `grammar-check`, `grammar-check-scene`, `grammar-correct` commands
-- Uses local LanguageTool server (no rate limits, requires Java)
-- Categories: TYPOS, GRAMMAR, PUNCTUATION, STYLE
-- Returns offsets, suggestions, and context for each issue
-
----
-
-## Session Notes (2026-01-30 continued)
-
-**Data Management Features:**
-
-1. **Data directory migration** - When changing data directory, option to migrate existing data:
-   - Checkbox: "Migrate existing data to new location"
-   - Copies projects, series, settings.json to new location
-   - Won't overwrite existing files (merges instead)
-   - `PUT /api/settings/data-dir` with `migrate_data: true`
-
-2. **Full backup download** - Download all data as ZIP:
-   - Button: "Download Backup" in settings
-   - Downloads timestamped ZIP (e.g., `prose-pipeline-backup-20260130_143022.zip`)
-   - Includes: all projects, all series, settings.json
-   - `GET /api/settings/backup` endpoint
-
----
-
-## Competitive Research (2026-01-30)
+## Competitive Research
 
 **Major Players Analyzed:**
 - [Sudowrite](https://sudowrite.com/) - $19-59/mo, proprietary "Muse" model, Story Bible, series support

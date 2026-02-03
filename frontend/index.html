@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Prose Pipeline</title>
+    <title>Prometheus</title>
+    <link rel="icon" type="image/png" href="img/logo.png">
     <link rel="stylesheet" href="css/styles.css">
     <!-- Quill Editor -->
     <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
@@ -14,8 +15,9 @@
         <header>
             <div class="header-content">
                 <div class="header-left">
+                    <img src="img/logo.png" alt="Prometheus" class="header-logo">
                     <div class="header-title">
-                        <h1>Prose Pipeline</h1>
+                        <h1>Prometheus</h1>
                         <p>AI-powered prose generation with critique and revision</p>
                     </div>
                 </div>
@@ -46,12 +48,12 @@
                         <div class="settings-column">
                             <h3>API Keys</h3>
                             <div class="form-group">
-                                <label>OpenRouter API Key</label>
+                                <label>OpenRouter API Key <span class="badge" style="font-size: 10px; padding: 2px 6px;">Recommended</span></label>
                                 <div class="api-key-input">
                                     <input type="password" id="start-openrouter-key" placeholder="sk-or-v1-...">
                                     <button class="btn btn-small" onclick="togglePasswordVisibility('start-openrouter-key')">Show</button>
                                 </div>
-                                <small class="text-muted">Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></small>
+                                <small class="text-muted">Access 300+ models from OpenAI, Anthropic, Google, Meta, Mistral, DeepSeek, and more. Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></small>
                                 <div id="start-openrouter-key-status" class="key-status"></div>
                             </div>
                             <div class="form-group">
@@ -60,13 +62,14 @@
                                     <input type="password" id="start-anthropic-key" placeholder="sk-ant-...">
                                     <button class="btn btn-small" onclick="togglePasswordVisibility('start-anthropic-key')">Show</button>
                                 </div>
-                                <small class="text-muted">Optional. Only for direct Anthropic API.</small>
+                                <small class="text-muted">Optional. Use if you prefer direct Anthropic billing.</small>
                                 <div id="start-anthropic-key-status" class="key-status"></div>
                             </div>
                         </div>
                         <!-- Default Models Column -->
                         <div class="settings-column">
                             <h3>Default Models</h3>
+                            <small class="text-muted" style="display: block; margin-bottom: 12px;">Choose any model - prices vary widely. DeepSeek offers great quality at low cost. Claude excels at nuanced prose. You can override per-generation.</small>
                             <div class="form-group">
                                 <label>Generation Model</label>
                                 <select id="start-default-gen-model">
@@ -78,6 +81,17 @@
                                 <select id="start-default-critique-model">
                                     <option value="">Loading models...</option>
                                 </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Chat Model <span class="text-muted" style="font-size: 11px;">(AI Assistant)</span></label>
+                                <select id="start-default-chat-model">
+                                    <option value="">Loading models...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Assistant Name</label>
+                                <input type="text" id="start-assistant-name" placeholder="Chico" maxlength="20">
+                                <small class="text-muted">Name for the AI writing assistant. Can be overridden per-series.</small>
                             </div>
                             <div class="form-group">
                                 <label>Credit Alerts</label>
@@ -122,6 +136,28 @@
                                     <button class="btn btn-small btn-secondary" onclick="backupData()">Download Backup</button>
                                 </div>
                                 <small class="text-muted">Download all projects and settings as ZIP.</small>
+                            </div>
+                        </div>
+                        <!-- Appearance Column -->
+                        <div class="settings-column">
+                            <h3>Appearance</h3>
+                            <div class="form-group">
+                                <label>Theme</label>
+                                <div class="theme-selector">
+                                    <button type="button" class="theme-btn" data-theme="system" onclick="setTheme('system')" title="Match system preference">
+                                        <span class="theme-icon">&#128187;</span>
+                                        <span>System</span>
+                                    </button>
+                                    <button type="button" class="theme-btn" data-theme="light" onclick="setTheme('light')" title="Light theme">
+                                        <span class="theme-icon">&#9728;</span>
+                                        <span>Light</span>
+                                    </button>
+                                    <button type="button" class="theme-btn" data-theme="dark" onclick="setTheme('dark')" title="Dark theme">
+                                        <span class="theme-icon">&#9790;</span>
+                                        <span>Dark</span>
+                                    </button>
+                                </div>
+                                <small class="text-muted">System mode automatically matches your OS preference.</small>
                             </div>
                         </div>
                     </div>
@@ -390,6 +426,7 @@ Outline paragraph...
                             <span class="credits-label">credits</span>
                         </div>
                         <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-outline" onclick="exportProject()" title="Export as Markdown">Export</button>
                             <button class="btn btn-outline" onclick="showMoveToSeriesModal()">Series</button>
                             <button class="btn btn-outline btn-danger-outline" onclick="confirmClearStructure()">Clear</button>
                             <button class="btn btn-secondary" onclick="toggleSidebar()" id="sidebar-toggle">Outline</button>

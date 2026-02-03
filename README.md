@@ -1,6 +1,8 @@
-# Prose Generation Pipeline
+# Prometheus
 
-An automated prose generation pipeline with critique-revision loop powered by Claude AI. Features a clean web interface for managing characters, world context, and scene generation.
+<img src="frontend/img/logo.png" alt="Prometheus" width="80" align="right">
+
+An AI-powered prose generation tool with critique-revision loop. Features a clean web interface for managing characters, world context, and scene generation with support for 300+ LLM models via OpenRouter.
 
 **Core Philosophy**: Output prose that is indistinguishable from work by skilled human authors. No AI tells. No banned vocabulary. Authentic voice.
 
@@ -17,7 +19,7 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **Memory Decay**: Older facts automatically deprioritized based on book distance, with configurable decay rates
 - **Style Learning**: System learns from user edits to extract writing preferences (vocabulary, sentence structure, dialogue patterns)
 - **Causal Chains**: Plot events linked by cause and consequence for narrative coherence
-- **Chico AI Assistant**: Series-level conversational AI that knows all characters, world, and plot for continuity checking
+- **AI Writing Assistant**: Customizable series-level conversational AI (default name: "Chico") that knows all characters, world, plot, and current prose for continuity checking and brainstorming
 - **Token Optimization**: Scene-relevant entity filtering and tiered book summaries to reduce context size
 - **Continuity Warnings**: LLM-based detection of contradictions with established canon
 - **Series Dashboard**: Overview of all books, memory status, and quick actions when series is selected
@@ -29,7 +31,8 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **Backup System**: Auto-backup before destructive operations, scene version history, project snapshots, manual checkpoints, and full data export
 - **Data Directory Management**: Configurable storage location with migration support to move existing projects/settings to new location
 - **Dynamic Model Selection**: Choose from available OpenRouter models with live pricing
-- **Default Model Settings**: Configure preferred generation and critique models
+- **Default Model Settings**: Configure preferred models for generation, critique, and AI assistant chat
+- **Customizable AI Assistant**: Set default name and personality for the writing assistant (can override per-series)
 - **Word Count Goals**: Track progress toward writing targets with visual progress bar
 - **Credit Alerts**: Notifications when OpenRouter balance drops below threshold
 - **Generation Queue**: Batch process multiple scenes with sequential generation and queue management
@@ -39,6 +42,8 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 - **Polish Mode**: Choose between full structural revision or light line-edits only
 - **Failed Generation Recovery**: Error handling with retry/dismiss options
 - **Docker Support**: Easy deployment with Docker and docker-compose
+- **Theme Support**: Light/dark themes with system preference detection
+- **Markdown Export**: Export entire projects as formatted markdown files
 
 ## Technology Stack
 
@@ -50,7 +55,7 @@ An automated prose generation pipeline with critique-revision loop powered by Cl
 ## Project Structure
 
 ```
-prose-pipeline/
+prometheus/
 ├── backend/              # FastAPI application
 │   ├── app/
 │   │   ├── models/       # Pydantic data models
@@ -82,7 +87,7 @@ prose-pipeline/
 
 1. **Clone and navigate to the project**:
    ```bash
-   cd prose-pipeline
+   cd prometheus
    ```
 
 2. **Set up Python environment**:
@@ -446,9 +451,56 @@ The codebase follows a clean layered architecture:
 - Verify internet connectivity to Claude API
 - Consider reducing `MAX_ITERATIONS` or token limits
 
+## Theming
+
+The frontend uses CSS custom properties (variables) for theming, making it easy to customize colors or add new themes.
+
+### Theme Options
+
+- **System** (default): Automatically matches your OS light/dark preference
+- **Light**: Clean light theme for daytime use
+- **Dark**: Navy/slate dark theme (the original design)
+
+Theme preference is saved to localStorage and persists across sessions.
+
+### CSS Architecture
+
+All colors are defined as CSS variables in `:root` (dark theme) and `[data-theme="light"]`:
+
+```css
+:root {
+    --bg-dark: #0f172a;      /* Main background */
+    --bg-card: #1e293b;      /* Card/panel backgrounds */
+    --bg-input: #334155;     /* Input field backgrounds */
+    --border: #475569;       /* Borders */
+    --text: #f1f5f9;         /* Primary text */
+    --text-muted: #94a3b8;   /* Secondary text */
+    --primary: #3b82f6;      /* Primary accent (blue) */
+    --success: #10b981;      /* Success states (green) */
+    --danger: #ef4444;       /* Danger states (red) */
+    --warning: #f59e0b;      /* Warning states (amber) */
+}
+```
+
+### Adding Custom Themes
+
+To add a new theme (e.g., "sepia" for writers):
+
+1. Add CSS variables in `frontend/css/styles.css`:
+   ```css
+   [data-theme="sepia"] {
+       --bg-dark: #f5f0e6;
+       --bg-card: #ebe5d9;
+       /* ... */
+   }
+   ```
+
+2. Add the option to the theme selector in `frontend/index.html`
+3. The JavaScript handles the rest automatically
+
 ## License
 
-This project is provided as-is for personal use.
+MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 

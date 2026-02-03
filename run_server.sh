@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Prose Pipeline - Development Server Startup Script
+# Prometheus - Development Server Startup Script
 
 echo "========================================="
-echo "  Prose Generation Pipeline"
-echo "  Starting Development Server"
+echo "  Prometheus"
+echo "  AI-Powered Prose Generation"
 echo "========================================="
 echo ""
 

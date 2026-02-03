@@ -36,6 +36,33 @@ from app.utils.file_utils import read_json_file, write_json_file
 from app.utils.logging import get_logger
 from app.config import settings
 
+# Settings file for user preferences (including default chat model)
+SETTINGS_FILE = settings.data_dir / "settings.json"
+
+
+def _get_default_chat_model() -> Optional[str]:
+    """Get default chat model from user settings."""
+    if SETTINGS_FILE.exists():
+        try:
+            user_settings = json.loads(SETTINGS_FILE.read_text())
+            return user_settings.get("default_chat_model")
+        except (json.JSONDecodeError, IOError):
+            pass
+    return None
+
+
+def _get_default_assistant_name() -> str:
+    """Get default assistant name from user settings."""
+    if SETTINGS_FILE.exists():
+        try:
+            user_settings = json.loads(SETTINGS_FILE.read_text())
+            name = user_settings.get("default_assistant_name")
+            if name:
+                return name
+        except (json.JSONDecodeError, IOError):
+            pass
+    return "Chico"  # Fallback default
+
 logger = get_logger(__name__)
 
 
@@ -67,8 +94,17 @@ class ChicoService:
         settings_path = self._settings_path(series_id)
         if settings_path.exists():
             data = await read_json_file(settings_path)
-            return ChicoSettings(**data)
-        return ChicoSettings()
+            chico_settings = ChicoSettings(**data)
+        else:
+            chico_settings = ChicoSettings()
+
+        # If using default name "Chico", check for global default
+        if chico_settings.assistant_name == "Chico":
+            global_name = _get_default_assistant_name()
+            if global_name != "Chico":
+                chico_settings.assistant_name = global_name
+
+        return chico_settings
 
     async def save_settings(self, series_id: str, chico_settings: ChicoSettings) -> None:
         """Save Chico settings."""
@@ -136,6 +172,13 @@ class ChicoService:
             conversation.current_book_id,
             conversation.current_scene_id
         )
+
+        # If prose was provided directly (e.g., from queue review), inject it
+        if request.current_prose:
+            if "current_scene" not in context or not context["current_scene"]:
+                context["current_scene"] = {}
+            context["current_scene"]["prose"] = request.current_prose
+
         system_prompt = self._build_chico_prompt(
             chico_settings.assistant_name,
             chico_settings.personality,
@@ -145,8 +188,8 @@ class ChicoService:
         # Build LLM messages (include conversation history)
         llm_messages = self._build_llm_messages(conversation.messages)
 
-        # Call LLM
-        model = chico_settings.model
+        # Call LLM - use per-series model if set, otherwise fall back to global default
+        model = chico_settings.model or _get_default_chat_model()
         response_text = await self._call_llm(system_prompt, llm_messages, model)
 
         # Create assistant message
@@ -400,7 +443,10 @@ When you spot continuity issues, you frame them as exciting opportunities to str
             if current_scene.get("outline"):
                 parts.append(f"Outline: {current_scene['outline'][:500]}")
             if current_scene.get("prose"):
-                parts.append(f"Current prose: {current_scene['prose'][:1000]}...")
+                prose_preview = current_scene['prose'][:3000]
+                if len(current_scene['prose']) > 3000:
+                    prose_preview += "...(truncated)"
+                parts.append(f"Current prose:\n{prose_preview}")
             parts.append("")
 
         # Instructions

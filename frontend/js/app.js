@@ -1,4 +1,4 @@
-// Prose Pipeline - Frontend Application
+// Prometheus - Frontend Application
 
 // ============================================
 // State
@@ -41,6 +41,7 @@ let lastCreditAlertShown = 0; // Prevent spam
 let queueData = [];
 let queuePollingInterval = null;
 let currentQueueReviewIndex = 0;
+let currentQueueReviewGen = null; // Currently reviewed generation (for Chico context)
 let originalQueueCritique = ''; // Store original AI critique for editor annotation tracking
 let originalQueueProse = ''; // Store original prose for tracking changes
 let queueProseHistory = []; // Undo/redo history for prose
@@ -66,6 +67,54 @@ let readingDirty = false;           // Has unsaved changes
 let readingOriginalProse = null;    // Original prose before edits
 let readingCurrentProse = null;     // Current edited prose
 let pendingNavigation = null;       // Navigation to perform after save/discard
+
+// ============================================
+// Theme Management
+// ============================================
+
+// Initialize theme on page load (runs immediately, before DOMContentLoaded)
+(function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'system';
+    applyTheme(savedTheme);
+})();
+
+function applyTheme(themeSetting) {
+    let actualTheme = themeSetting;
+
+    if (themeSetting === 'system') {
+        // Check system preference
+        actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+
+    // Apply theme to document
+    if (actualTheme === 'light') {
+        document.documentElement.setAttribute('data-theme', 'light');
+    } else {
+        document.documentElement.removeAttribute('data-theme');
+    }
+
+    // Update active state on theme buttons (if they exist)
+    updateThemeButtons(themeSetting);
+}
+
+function setTheme(theme) {
+    localStorage.setItem('theme', theme);
+    applyTheme(theme);
+}
+
+function updateThemeButtons(activeTheme) {
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === activeTheme);
+    });
+}
+
+// Listen for system theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+    const savedTheme = localStorage.getItem('theme') || 'system';
+    if (savedTheme === 'system') {
+        applyTheme('system');
+    }
+});
 
 // ============================================
 // Settings Modal
@@ -340,6 +389,7 @@ async function loadStartSettings() {
         // Store system defaults for display in dropdowns
         systemGenModel = data.system_generation_model || '';
         systemCritiqueModel = data.system_critique_model || '';
+        systemChatModel = data.system_chat_model || '';
 
         // Update status indicators
         updateStartKeyStatus('openrouter', data.openrouter_api_key_set);
@@ -356,7 +406,14 @@ async function loadStartSettings() {
         }
 
         // Populate default model dropdowns (pass system defaults for display)
-        populateStartModelDropdowns(data.default_generation_model, data.default_critique_model);
+        populateStartModelDropdowns(data.default_generation_model, data.default_critique_model, data.default_chat_model);
+
+        // Load assistant name
+        const assistantNameInput = document.getElementById('start-assistant-name');
+        if (assistantNameInput) {
+            assistantNameInput.value = data.default_assistant_name || '';
+            assistantNameInput.placeholder = data.default_assistant_name || 'Chico';
+        }
 
         // Load credit alert settings
         const thresholdInput = document.getElementById('start-credit-threshold');
@@ -371,6 +428,10 @@ async function loadStartSettings() {
 
         // Re-populate workspace dropdowns if they exist (uses stored system defaults)
         populateModelDropdowns();
+
+        // Update theme buttons to reflect current setting
+        const savedTheme = localStorage.getItem('theme') || 'system';
+        updateThemeButtons(savedTheme);
 
     } catch (e) {
         console.error('Failed to load start settings:', e);
@@ -390,9 +451,10 @@ function updateStartKeyStatus(provider, isSet) {
     }
 }
 
-function populateStartModelDropdowns(currentGenModel, currentCritiqueModel) {
+function populateStartModelDropdowns(currentGenModel, currentCritiqueModel, currentChatModel) {
     const genSelect = document.getElementById('start-default-gen-model');
     const critiqueSelect = document.getElementById('start-default-critique-model');
+    const chatSelect = document.getElementById('start-default-chat-model');
 
     if (!genSelect || !critiqueSelect) return;
 
@@ -400,6 +462,7 @@ function populateStartModelDropdowns(currentGenModel, currentCritiqueModel) {
     if (availableModels.length === 0) {
         genSelect.innerHTML = '<option value="">Models not loaded</option>';
         critiqueSelect.innerHTML = '<option value="">Models not loaded</option>';
+        if (chatSelect) chatSelect.innerHTML = '<option value="">Models not loaded</option>';
         return;
     }
 
@@ -442,6 +505,9 @@ function populateStartModelDropdowns(currentGenModel, currentCritiqueModel) {
     const critiqueDefaultName = systemCritiqueModel ? getModelName(systemCritiqueModel) : 'Not Set';
     let critiqueOptionsHtml = `<option value="">Default Model - ${critiqueDefaultName}</option>`;
 
+    const chatDefaultName = systemChatModel ? getModelName(systemChatModel) : 'Not Set';
+    let chatOptionsHtml = `<option value="">Default Model - ${chatDefaultName}</option>`;
+
     for (const [provider, models] of Object.entries(modelsByProvider)) {
         const providerLabel = providerNames[provider] || provider;
         const optgroup = `<optgroup label="${providerLabel}">`;
@@ -453,14 +519,17 @@ function populateStartModelDropdowns(currentGenModel, currentCritiqueModel) {
 
         genOptionsHtml += optgroup + modelOptions + closeOptgroup;
         critiqueOptionsHtml += optgroup + modelOptions + closeOptgroup;
+        chatOptionsHtml += optgroup + modelOptions + closeOptgroup;
     }
 
     genSelect.innerHTML = genOptionsHtml;
     critiqueSelect.innerHTML = critiqueOptionsHtml;
+    if (chatSelect) chatSelect.innerHTML = chatOptionsHtml;
 
     // Set current values
     if (currentGenModel) genSelect.value = currentGenModel;
     if (currentCritiqueModel) critiqueSelect.value = currentCritiqueModel;
+    if (currentChatModel && chatSelect) chatSelect.value = currentChatModel;
 }
 
 async function saveStartSettings() {
@@ -468,6 +537,7 @@ async function saveStartSettings() {
     const anthropicKey = document.getElementById('start-anthropic-key').value.trim();
     const defaultGenModel = document.getElementById('start-default-gen-model').value;
     const defaultCritiqueModel = document.getElementById('start-default-critique-model').value;
+    const defaultChatModel = document.getElementById('start-default-chat-model')?.value || '';
     const creditThreshold = parseFloat(document.getElementById('start-credit-threshold').value) || 5;
     const creditAlertsEnabled = document.getElementById('start-credit-alerts-enabled').checked;
 
@@ -479,6 +549,11 @@ async function saveStartSettings() {
     // Always include model settings (empty string means use system default)
     update.default_generation_model = defaultGenModel || null;
     update.default_critique_model = defaultCritiqueModel || null;
+    update.default_chat_model = defaultChatModel || null;
+
+    // Assistant name (empty means use default "Chico")
+    const assistantName = document.getElementById('start-assistant-name')?.value.trim() || '';
+    update.default_assistant_name = assistantName || null;
 
     // Always include credit alert settings
     update.credit_alert_threshold = creditThreshold;
@@ -565,7 +640,7 @@ async function backupData() {
 
             // Get filename from header or use default
             const contentDisposition = response.headers.get('Content-Disposition');
-            let filename = 'prose-pipeline-backup.zip';
+            let filename = 'prometheus-backup.zip';
             if (contentDisposition) {
                 const match = contentDisposition.match(/filename="?([^"]+)"?/);
                 if (match) filename = match[1];
@@ -695,6 +770,7 @@ async function loadAvailableModels() {
 // Store system defaults for display
 let systemGenModel = '';
 let systemCritiqueModel = '';
+let systemChatModel = '';
 
 function populateModelDropdowns() {
     const genModelSelect = document.getElementById('gen-model');
@@ -1254,6 +1330,29 @@ async function confirmClearStructure() {
 
     } catch (e) {
         alert('Error clearing structure: ' + e.message);
+    }
+}
+
+// ============================================
+// Export Project to Markdown
+// ============================================
+async function exportProject() {
+    if (!currentProject) {
+        alert('No project selected');
+        return;
+    }
+
+    try {
+        showToast('Exporting', 'Generating markdown file...', 'info');
+
+        // Trigger download via direct navigation
+        const url = `/api/projects/${currentProject.id}/export`;
+        window.location.href = url;
+
+        showToast('Success', 'Export started - check your downloads', 'success');
+
+    } catch (e) {
+        alert('Error exporting project: ' + e.message);
     }
 }
 
@@ -8627,6 +8726,9 @@ function showQueueReviewPanel(gen) {
     panel.style.display = 'flex';
     console.log('Panel should now be visible');
 
+    // Track current queue review for Chico context
+    currentQueueReviewGen = gen;
+
     const scene = scenes.find(s => s.id === gen.scene_id);
     const sceneTitle = scene ? scene.title : gen.scene_id;
 
@@ -8688,6 +8790,8 @@ function showQueueReviewPanel(gen) {
 
 function closeQueueReview() {
     document.getElementById('queue-review-panel').style.display = 'none';
+    // Clear queue review context for Chico
+    currentQueueReviewGen = null;
     // Reset column states when closing
     const columns = document.getElementById('queue-review-columns');
     if (columns) {
@@ -10265,13 +10369,25 @@ async function sendChicoMessage() {
     input.value = '';
 
     try {
+        // Determine current scene - prefer queue review if open, then workspace
+        const currentSceneId = currentQueueReviewGen?.scene_id || currentWorkspaceScene?.id || null;
+
+        // Get current prose - from queue review editor if open, otherwise from workspace scene
+        let currentProse = null;
+        if (currentQueueReviewGen && queueProseQuill) {
+            currentProse = queueProseQuill.getText().trim();
+        } else if (currentWorkspaceScene?.prose || currentWorkspaceScene?.original_prose) {
+            currentProse = currentWorkspaceScene.prose || currentWorkspaceScene.original_prose;
+        }
+
         const response = await fetch(`/api/series/${currentSeries.id}/chat`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 message: message,
                 current_book_id: currentProject?.id || null,
-                current_scene_id: currentWorkspaceScene?.id || null
+                current_scene_id: currentSceneId,
+                current_prose: currentProse
             })
         });
 

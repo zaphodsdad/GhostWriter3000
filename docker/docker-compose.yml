@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  prose-pipeline:
+  prometheus:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: prose-pipeline
+    container_name: prometheus
     ports:
       - "${PORT:-8000}:8000"
     environment:
@@ -21,7 +21,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - DATA_DIR=/app/data
     volumes:
-      - prose-data:/app/data
+      - prometheus-data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
@@ -31,5 +31,5 @@ services:
       start_period: 10s
 
 volumes:
-  prose-data:
+  prometheus-data:
     driver: local

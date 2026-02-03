@@ -1,8 +1,8 @@
-# Prose Pipeline Project - Claude Context
+# Prometheus - Claude Context
 
 ## Project Overview
 
-The **Prose Pipeline** is an automated prose generation system built with Claude AI that implements a critique-revision loop for high-quality creative writing. It features a clean web interface for managing characters, world-building, and scene generation with automatic continuity tracking.
+**Prometheus** is an AI-powered prose generation tool that implements a critique-revision loop for high-quality creative writing. It features a clean web interface for managing characters, world-building, and scene generation with automatic continuity tracking, supporting 300+ LLM models via OpenRouter.
 
 **Core Concept**: Generate prose from scene outlines, automatically critique it, and iteratively revise based on feedback until the user accepts the final version.
 
@@ -63,7 +63,7 @@ The style guide remains authoritative for project-specific rules, but the anti-A
 ## Architecture
 
 ```
-prose-pipeline/
+prometheus/
 ├── backend/
 │   ├── app/
 │   │   ├── models/          # Pydantic data models
@@ -395,62 +395,6 @@ Total context:                 ~19,000 tokens
 Remaining for output:         ~181,000 tokens ✅
 ```
 
-## Clawdbot/Discord Integration
-
-Control prose-pipeline through Discord via Clawdbot. The integration uses a CLI tool on the Clawdbot machine.
-
-### CLI Location
-```
-/home/john/.clawdbot/skills/prose-pipeline/scripts/prose_api.py
-```
-
-### Evaluation Commands
-Evaluate prose quality at multiple levels:
-```bash
-prose_api.py evaluate-scene <project> <scene-id>    # Single scene
-prose_api.py evaluate-chapter <project> <chapter-id> # All scenes in chapter
-prose_api.py evaluate-act <project> <act-id>        # All scenes in act
-prose_api.py evaluate-book <project>                # Entire book
-```
-
-**Options:**
-- `-m <model>` - Specify model (default: anthropic/claude-sonnet-4)
-
-**Output includes:**
-- Word count and token estimate
-- Warning if >6K words (configurable via `eval_word_count_warning` setting)
-- Structured scores: pacing, structure, character development, dialogue, prose quality
-- Specific feedback and recommendations
-
-**Prose sources (in priority order):**
-1. `prose` field - canon/accepted prose
-2. `original_prose` field - imported drafts in edit mode
-
-### Other CLI Commands
-```bash
-# Projects
-prose_api.py projects                    # List all
-prose_api.py create-project "Title"      # Create
-prose_api.py delete-project <id>         # Delete
-
-# Import & Extract
-prose_api.py import-manuscript <project> -f <file>
-prose_api.py extract-characters -f <file>
-prose_api.py extract-world -f <file>
-prose_api.py extract-style -f <file> --author "Name"
-
-# Generation workflow
-prose_api.py start-generation <project> <scene-id>
-prose_api.py approve-revision <project> <gen-id>
-prose_api.py accept-canon <project> <gen-id>
-
-# Grammar checking (LanguageTool)
-prose_api.py grammar-check -t "He dont have money."    # Check text
-prose_api.py grammar-check -f manuscript.txt           # Check file
-prose_api.py grammar-check-scene <project> <scene-id>  # Check scene prose
-prose_api.py grammar-correct -t "Its a beatiful day."  # Auto-correct
-```
-
 ## API Endpoints
 
 ### Health
@@ -605,7 +549,7 @@ Environment variables (`.env`):
 
 ### Local Development
 ```bash
-cd prose-pipeline
+cd prometheus
 source venv/bin/activate
 cd backend
 DATA_DIR=../data uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -694,7 +638,7 @@ The project is fully functional with:
 - **Evaluate-only mode** - Get AI critique without entering revision loop, with option to start revision using existing critique
 - Docker deployment support
 
-Ready for production use for personal prose generation projects.
+Ready for production use.
 
 ### 19. Global Settings Panel
 Settings now accessible from the start page (before opening any project):
@@ -885,38 +829,3 @@ Generate a complete story structure from a seed premise using AI.
 - `loadGenerationForReview` now sets both `currentGenId` and `workspaceGenId`
 - Fixes Accept as Canon button in workspace header after loading from queue
 
-### 25. Clawdbot/Discord Integration (2026-01-29)
-
-Control prose-pipeline through Discord via Clawdbot (Moltbot).
-
-**Architecture:**
-```
-Discord (Clawdbot) ──API──► prose-pipeline (192.168.2.187:8000)
-       │                          │
-       │                          ▼
-       │                   Analyze / Extract / Generate
-       │                          │
-       ◄──────────────────────────┘
-       Reports back, discusses changes
-```
-
-**Clawdbot Skill Created:**
-- Location: `~/.clawdbot/skills/prose-pipeline/` on Clawdbot VM (192.168.2.197)
-- `SKILL.md` - Skill definition with triggers for writing-related requests
-- `references/api.md` - Full API endpoint documentation
-- `scripts/prose_api.py` - Python CLI for common operations
-
-**TOOLS.md Updated:**
-- Prose-pipeline connection info added to Clawdbot's workspace
-- API base URL, key endpoints, workflow commands documented
-
-**Workflow Capabilities:**
-1. "Analyze my manuscript" → Import, extract characters/world/style
-2. "Edit chapters X-Y" → Run critique-revision loop
-3. "Generate next scene" → Use style guide + characters
-4. "Show my projects" → List projects via API
-
-**Security:**
-- Private Discord server (single user)
-- No shell execution in prose-pipeline
-- Network secured via OPNsense + AdGuard

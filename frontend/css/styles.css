@@ -1,5 +1,6 @@
-/* Prose Pipeline - Clean Frontend Styles */
+/* Prometheus - Clean Frontend Styles */
 
+/* Dark theme (default) */
 :root {
     --bg-dark: #0f172a;
     --bg-card: #1e293b;
@@ -17,6 +18,46 @@
     /* Editor annotation colors (theme-ready) */
     --editor-note-color: #2dd4bf;
     --editor-note-bg: rgba(45, 212, 191, 0.15);
+    /* Shadows */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Light theme */
+[data-theme="light"] {
+    --bg-dark: #f8fafc;
+    --bg-card: #ffffff;
+    --bg-input: #f1f5f9;
+    --border: #e2e8f0;
+    --text: #1e293b;
+    --text-muted: #64748b;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --success: #059669;
+    --success-hover: #047857;
+    --danger: #dc2626;
+    --danger-hover: #b91c1c;
+    --warning: #d97706;
+    --editor-note-color: #0d9488;
+    --editor-note-bg: rgba(13, 148, 136, 0.1);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Smooth theme transition */
+body,
+.card,
+.btn,
+input,
+select,
+textarea,
+.nav-btn,
+.sidebar,
+.modal-content,
+.toast {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 * {
@@ -66,6 +107,13 @@ header {
 .header-title p {
     color: var(--text-muted);
     font-size: 0.9rem;
+}
+
+.header-logo {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    border-radius: 8px;
 }
 
 /* Hamburger Menu Button */
@@ -234,7 +282,7 @@ nav {
 
 .settings-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(4, 1fr);
     gap: 32px;
     padding-top: 20px;
 }
@@ -259,6 +307,48 @@ nav {
     margin-bottom: 16px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
+}
+
+/* Theme Selector */
+.theme-selector {
+    display: flex;
+    gap: 8px;
+}
+
+.theme-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 8px;
+    background: var(--bg-input);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.theme-btn:hover {
+    border-color: var(--primary);
+    color: var(--text);
+}
+
+.theme-btn.active {
+    border-color: var(--primary);
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--text);
+}
+
+.theme-btn .theme-icon {
+    font-size: 1.5rem;
+    line-height: 1;
+}
+
+.theme-btn span:last-child {
+    font-size: 0.8rem;
+    font-weight: 500;
 }
 
 .settings-card-footer {
@@ -3842,7 +3932,7 @@ nav {
     font-size: 24px;
     cursor: pointer;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    z-index: 999;
+    z-index: 1200;  /* Above queue review panel (1100) */
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -3870,7 +3960,7 @@ nav {
     border: 1px solid var(--border);
     border-radius: 16px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-    z-index: 1000;
+    z-index: 1200;  /* Above queue review panel (1100) */
     display: flex;
     flex-direction: column;
     overflow: hidden;

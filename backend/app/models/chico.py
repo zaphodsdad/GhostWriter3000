@@ -66,6 +66,10 @@ class ChicoChatRequest(BaseModel):
         None,
         description="Currently focused scene for context"
     )
+    current_prose: Optional[str] = Field(
+        None,
+        description="Current prose being reviewed (for queue review context)"
+    )
 
 
 class ChicoChatResponse(BaseModel):

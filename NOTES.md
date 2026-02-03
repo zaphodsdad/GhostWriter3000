@@ -1,4 +1,4 @@
-# Prose Pipeline - Development Notes
+# Prometheus - Development Notes
 
 **Last Updated:** 2026-02-01
 
@@ -51,12 +51,12 @@ See `TODO.md` for:
 
 ---
 
-## Server Locations
+## Deployment
 
-| Environment | Path | Notes |
-|-------------|------|-------|
-| Development | `/root/prose-pipeline` | This machine |
-| Production | TBD | Docker deployment available |
+| Method | Notes |
+|--------|-------|
+| Local | Clone repo, `pip install`, run with uvicorn |
+| Docker | Use `docker/docker-compose.yml` for containerized deployment |
 
 ---
 

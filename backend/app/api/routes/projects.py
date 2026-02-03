@@ -1209,3 +1209,246 @@ async def apply_generated_outline(project_id: str, outline: dict, clear_existing
         "message": "Applied auto-generated outline",
         "created": created
     }
+
+
+# ============================================
+# Export Project to Markdown
+# ============================================
+
+from fastapi.responses import Response
+
+
+@router.get("/{project_id}/export")
+async def export_project_markdown(
+    project_id: str,
+    include_outlines: bool = False,
+    include_empty_scenes: bool = False
+):
+    """
+    Export a project as a single markdown file.
+
+    Compiles all acts, chapters, and scenes into a structured markdown document
+    with the prose content. Scenes are ordered by act → chapter → scene number.
+
+    Args:
+        project_id: Project ID
+        include_outlines: Include scene outlines as comments before prose
+        include_empty_scenes: Include scenes without prose (as placeholders)
+
+    Returns:
+        Markdown file download
+    """
+    project_dir = settings.project_dir(project_id)
+    if not project_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Project not found: {project_id}")
+
+    # Load project metadata
+    project_file = project_dir / "project.json"
+    with open(project_file) as f:
+        project_data = json.load(f)
+
+    title = project_data.get("title", project_id)
+    author = project_data.get("author")
+
+    # Load all acts
+    acts_dir = project_dir / "acts"
+    acts = []
+    if acts_dir.exists():
+        for filepath in acts_dir.glob("*.json"):
+            with open(filepath) as f:
+                acts.append(json.load(f))
+    acts.sort(key=lambda a: a.get("act_number", 0))
+
+    # Load all chapters
+    chapters_dir = project_dir / "chapters"
+    chapters = []
+    if chapters_dir.exists():
+        for filepath in chapters_dir.glob("*.json"):
+            with open(filepath) as f:
+                chapters.append(json.load(f))
+    chapters.sort(key=lambda c: c.get("chapter_number", 0))
+
+    # Load all scenes
+    scenes_dir = settings.scenes_dir(project_id)
+    scenes = []
+    if scenes_dir.exists():
+        for filepath in scenes_dir.glob("*.json"):
+            with open(filepath) as f:
+                scenes.append(json.load(f))
+
+    # Build chapter -> scenes mapping
+    chapter_scenes = {}
+    for scene in scenes:
+        chapter_id = scene.get("chapter_id")
+        if chapter_id:
+            if chapter_id not in chapter_scenes:
+                chapter_scenes[chapter_id] = []
+            chapter_scenes[chapter_id].append(scene)
+
+    # Sort scenes within each chapter
+    for chapter_id in chapter_scenes:
+        chapter_scenes[chapter_id].sort(key=lambda s: s.get("scene_number", 0))
+
+    # Build act -> chapters mapping
+    act_chapters = {}
+    for chapter in chapters:
+        act_id = chapter.get("act_id")
+        if act_id:
+            if act_id not in act_chapters:
+                act_chapters[act_id] = []
+            act_chapters[act_id].append(chapter)
+
+    # Build markdown content
+    lines = []
+
+    # Title page
+    lines.append(f"# {title}")
+    lines.append("")
+    if author:
+        lines.append(f"*by {author}*")
+        lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    word_count = 0
+    scene_count = 0
+
+    # If we have acts, use hierarchical structure
+    if acts:
+        for act in acts:
+            act_id = act.get("id")
+            act_title = act.get("title", "Untitled Act")
+
+            # Check if act has any content
+            act_has_content = False
+            for chapter in act_chapters.get(act_id, []):
+                chapter_id = chapter.get("id")
+                for scene in chapter_scenes.get(chapter_id, []):
+                    prose = scene.get("prose") or scene.get("original_prose")
+                    if prose or include_empty_scenes:
+                        act_has_content = True
+                        break
+                if act_has_content:
+                    break
+
+            if not act_has_content:
+                continue
+
+            lines.append(f"## {act_title}")
+            lines.append("")
+
+            for chapter in act_chapters.get(act_id, []):
+                chapter_id = chapter.get("id")
+                chapter_title = chapter.get("title", "Untitled Chapter")
+                chapter_num = chapter.get("chapter_number", "")
+
+                chapter_scenes_list = chapter_scenes.get(chapter_id, [])
+                if not chapter_scenes_list and not include_empty_scenes:
+                    continue
+
+                # Check if chapter has any prose
+                chapter_has_prose = any(
+                    s.get("prose") or s.get("original_prose")
+                    for s in chapter_scenes_list
+                )
+                if not chapter_has_prose and not include_empty_scenes:
+                    continue
+
+                if chapter_num:
+                    lines.append(f"### Chapter {chapter_num}: {chapter_title}")
+                else:
+                    lines.append(f"### {chapter_title}")
+                lines.append("")
+
+                for scene in chapter_scenes_list:
+                    prose = scene.get("prose") or scene.get("original_prose")
+
+                    if not prose and not include_empty_scenes:
+                        continue
+
+                    scene_count += 1
+
+                    if include_outlines:
+                        outline = scene.get("outline", "")
+                        if outline:
+                            lines.append(f"<!-- Scene: {scene.get('title', 'Untitled')} -->")
+                            lines.append(f"<!-- {outline[:200]}{'...' if len(outline) > 200 else ''} -->")
+                            lines.append("")
+
+                    if prose:
+                        lines.append(prose)
+                        word_count += len(prose.split())
+                    else:
+                        lines.append(f"*[Scene: {scene.get('title', 'Untitled')} - No prose yet]*")
+
+                    lines.append("")
+                    lines.append("---")
+                    lines.append("")
+
+    else:
+        # No acts - just chapters directly
+        for chapter in chapters:
+            chapter_id = chapter.get("id")
+            chapter_title = chapter.get("title", "Untitled Chapter")
+            chapter_num = chapter.get("chapter_number", "")
+
+            chapter_scenes_list = chapter_scenes.get(chapter_id, [])
+            if not chapter_scenes_list and not include_empty_scenes:
+                continue
+
+            chapter_has_prose = any(
+                s.get("prose") or s.get("original_prose")
+                for s in chapter_scenes_list
+            )
+            if not chapter_has_prose and not include_empty_scenes:
+                continue
+
+            if chapter_num:
+                lines.append(f"## Chapter {chapter_num}: {chapter_title}")
+            else:
+                lines.append(f"## {chapter_title}")
+            lines.append("")
+
+            for scene in chapter_scenes_list:
+                prose = scene.get("prose") or scene.get("original_prose")
+
+                if not prose and not include_empty_scenes:
+                    continue
+
+                scene_count += 1
+
+                if include_outlines:
+                    outline = scene.get("outline", "")
+                    if outline:
+                        lines.append(f"<!-- Scene: {scene.get('title', 'Untitled')} -->")
+                        lines.append(f"<!-- {outline[:200]}{'...' if len(outline) > 200 else ''} -->")
+                        lines.append("")
+
+                if prose:
+                    lines.append(prose)
+                    word_count += len(prose.split())
+                else:
+                    lines.append(f"*[Scene: {scene.get('title', 'Untitled')} - No prose yet]*")
+
+                lines.append("")
+                lines.append("---")
+                lines.append("")
+
+    # Add footer with stats
+    lines.append("")
+    lines.append(f"*Exported from Prometheus - {scene_count} scenes, {word_count:,} words*")
+
+    # Join and create response
+    markdown_content = "\n".join(lines)
+
+    # Create filename
+    safe_title = re.sub(r'[^\w\s-]', '', title).strip().replace(' ', '-')
+    filename = f"{safe_title}.md"
+
+    return Response(
+        content=markdown_content,
+        media_type="text/markdown",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )

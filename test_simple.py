@@ -34,7 +34,7 @@ def open_browser():
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("  Prose Pipeline - Simple Test Server")
+    print("  Prometheus - Simple Test Server")
     print("=" * 50)
     print()
     print(f"Serving frontend from: {DIRECTORY}")

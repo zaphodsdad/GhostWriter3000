@@ -6,7 +6,7 @@ from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Check for global config override before Settings class is instantiated
-GLOBAL_CONFIG_FILE = Path.home() / ".prose-pipeline-config.json"
+GLOBAL_CONFIG_FILE = Path.home() / ".prometheus-config.json"
 
 
 def _get_data_dir_override() -> Path | None:

@@ -17,7 +17,7 @@ SETTINGS_FILE = settings.data_dir / "settings.json"
 
 # Global config file location (fixed, outside data dir)
 # This allows changing data_dir without losing the setting
-GLOBAL_CONFIG_FILE = Path.home() / ".prose-pipeline-config.json"
+GLOBAL_CONFIG_FILE = Path.home() / ".prometheus-config.json"
 
 
 class UserSettings(BaseModel):
@@ -28,6 +28,8 @@ class UserSettings(BaseModel):
     custom_endpoint_key: Optional[str] = None
     default_generation_model: Optional[str] = None
     default_critique_model: Optional[str] = None
+    default_chat_model: Optional[str] = None
+    default_assistant_name: Optional[str] = None  # Default name for AI assistant (default: Chico)
     credit_alert_threshold: Optional[float] = 5.0
     credit_alerts_enabled: Optional[bool] = True
     eval_word_count_warning: Optional[int] = 6000  # Warn when evaluating more than this many words
@@ -47,8 +49,11 @@ class UserSettingsResponse(BaseModel):
     custom_endpoint_key_set: bool = False
     default_generation_model: Optional[str] = None
     default_critique_model: Optional[str] = None
+    default_chat_model: Optional[str] = None
+    default_assistant_name: Optional[str] = None
     system_generation_model: str = ""  # System default from config
     system_critique_model: str = ""    # System default from config
+    system_chat_model: str = ""        # System default from config
     credit_alert_threshold: float = 5.0
     credit_alerts_enabled: bool = True
     eval_word_count_warning: int = 6000  # Warn when evaluating more than this many words
@@ -139,8 +144,11 @@ async def get_settings():
         custom_endpoint_key_set=bool(user_settings.get("custom_endpoint_key")),
         default_generation_model=user_settings.get("default_generation_model"),
         default_critique_model=user_settings.get("default_critique_model"),
+        default_chat_model=user_settings.get("default_chat_model"),
+        default_assistant_name=user_settings.get("default_assistant_name"),
         system_generation_model=settings.generation_model,
         system_critique_model=settings.critique_model,
+        system_chat_model=settings.critique_model,  # Default chat to critique model
         credit_alert_threshold=user_settings.get("credit_alert_threshold", 5.0),
         credit_alerts_enabled=user_settings.get("credit_alerts_enabled", True),
         eval_word_count_warning=user_settings.get("eval_word_count_warning", 6000),
@@ -340,7 +348,7 @@ async def backup_data():
 
     buffer.seek(0)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"prose-pipeline-backup-{timestamp}.zip"
+    filename = f"prometheus-backup-{timestamp}.zip"
 
     return StreamingResponse(
         buffer,
