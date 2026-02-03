@@ -498,6 +498,14 @@ To add a new theme (e.g., "sepia" for writers):
 2. Add the option to the theme selector in `frontend/index.html`
 3. The JavaScript handles the rest automatically
 
+## What's Next
+
+- **Desktop app** - Standalone executable (no Python setup required)
+- **Smarter AI assistant** - Chico with tool use, batch operations, proactive suggestions
+- **Better imports** - File upload, preview before import, auto-link characters
+
+See [Issues](https://github.com/zaphodsdad/prose-pipeline/issues) for details and discussion.
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
