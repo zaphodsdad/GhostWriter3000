@@ -6,12 +6,12 @@
 
 **Core Concept**: Generate prose from scene outlines, automatically critique it, and iteratively revise based on feedback until the user accepts the final version.
 
-## Core Philosophy: Human-Quality Prose
+## Core Philosophy: Stories Deserve Good Prose
 
-**The output must be indistinguishable from work by skilled human authors.** This is the foundational principle that guides every prompt and feature. Readers should never suspect AI involvement.
+**Great stories shouldn't be trapped by writing mechanics.** Prometheus helps storytellers who have vivid characters, compelling plots, and rich worlds—but struggle to get them onto the page. The goal is natural, engaging prose that serves the story.
 
-### Banned AI Vocabulary
-These words are never allowed - they immediately mark prose as AI-generated:
+### Vocabulary to Avoid
+These overused words and phrases make prose feel stale or generic:
 - delve, delved, delving
 - tapestry (when used metaphorically)
 - myriad
@@ -41,14 +41,14 @@ These words are never allowed - they immediately mark prose as AI-generated:
 - Write with confidence, not cautious hedging
 
 ### Implementation
-This philosophy is embedded in:
+These writing craft principles are embedded in:
 - **System prompts**: Baseline prose standards for all generation
-- **Critique prompts**: AI tells are flagged as top-priority issues
-- **Revision prompts**: Explicit warnings against introducing AI tells
+- **Critique prompts**: Stale language and weak patterns flagged as issues
+- **Revision prompts**: Guidance toward fresh, specific word choices
 - **Quick actions**: Inline revision instructions reinforce natural vocabulary
 - **Style guide**: Project style guides can extend/override the baseline
 
-The style guide remains authoritative for project-specific rules, but the anti-AI-tell baseline applies universally.
+The style guide remains authoritative for project-specific rules, but the prose quality baseline applies universally.
 
 ## Technology Stack
 

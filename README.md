@@ -4,11 +4,11 @@
 
 An AI-powered prose generation tool with critique-revision loop. Features a clean web interface for managing characters, world context, and scene generation with support for 300+ LLM models via OpenRouter.
 
-**Core Philosophy**: Output prose that is indistinguishable from work by skilled human authors. No AI tells. No banned vocabulary. Authentic voice.
+**Core Philosophy**: Great stories shouldn't be trapped by writing mechanics. Prometheus helps storytellers who have vivid characters, compelling plots, and rich worlds—but struggle to get them onto the page.
 
 ## Features
 
-- **Human-Quality Prose**: Built-in safeguards against AI tells - banned vocabulary (delve, tapestry, myriad, etc.), structural patterns, and hedging language are flagged and prevented
+- **Natural-Sounding Prose**: Built-in safeguards for authentic voice - avoids overused phrases, repetitive structures, and stiff language patterns
 - **Web-based Interface**: Clean, modern UI for managing all aspects of prose generation
 - **Character Management**: Store character sheets as markdown files with YAML frontmatter, with portrait support and bulk import
 - **World Building**: Maintain world context files for consistent story elements

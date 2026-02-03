@@ -8,7 +8,7 @@
 
 AI-powered prose generation pipeline for long-form fiction. Features a critique-revision loop, series continuity, and a unified web workspace.
 
-**Core Philosophy:** Output prose indistinguishable from skilled human authors. No AI tells. No banned vocabulary. Authentic voice.
+**Core Philosophy:** Great stories shouldn't be trapped by writing mechanics. Helps idea people get their stories onto the page with natural, engaging prose.
 
 ---
 
