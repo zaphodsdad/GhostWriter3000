@@ -88,6 +88,13 @@ backups/
 *.pem
 *.key
 
+# Database files
+*.db
+*.sqlite3
+
+# Syncthing conflict files
+*.sync-conflict-*
+
 # User uploads
 uploads/
 portraits/
