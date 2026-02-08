@@ -1,35 +1,38 @@
 # FastAPI and server
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-python-multipart==0.0.20
+fastapi>=0.115.6
+uvicorn[standard]>=0.34.0
+python-multipart>=0.0.20
 
 # LLM APIs
-anthropic==0.40.0
-openai==1.58.1  # For OpenRouter support
+anthropic>=0.40.0
+openai>=1.58.1  # For OpenRouter support
 
 # Data validation
-pydantic==2.10.5
-pydantic-settings==2.7.1
+pydantic>=2.11.7,<3
+pydantic-settings>=2.7.1
 
 # Markdown and YAML parsing
-python-frontmatter==1.1.0
-pyyaml==6.0.2
+python-frontmatter>=1.1.0
+pyyaml>=6.0.2
 
 # File operations
-aiofiles==24.1.0
+aiofiles>=24.1.0
 
 # Testing
-pytest==8.3.4
-pytest-asyncio==0.24.0
-httpx==0.28.1
+pytest>=8.3.4
+pytest-asyncio>=0.24.0
+httpx>=0.28.1
 
 # Document conversion
-mammoth==1.8.0
+mammoth>=1.8.0
 
 # Utilities
-python-dotenv==1.0.1
-python-slugify==8.0.4
+python-dotenv>=1.1.0
+python-slugify>=8.0.4
 
 # Grammar checking
-language_tool_python==2.8
+language_tool_python>=2.8
 setuptools>=65.0  # Required for language_tool_python on Python 3.12+
+
+# MCP Server
+fastmcp>=2.14.0

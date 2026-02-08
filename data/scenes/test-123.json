@@ -1,0 +1,19 @@
+{
+  "id": "test-123",
+  "title": "Test Scene",
+  "outline": "Test outline",
+  "scene_number": null,
+  "character_ids": [],
+  "world_context_ids": [],
+  "previous_scene_ids": [],
+  "tags": [],
+  "additional_notes": "",
+  "tone": "",
+  "pov": "",
+  "target_length": "",
+  "is_canon": false,
+  "prose": null,
+  "summary": null,
+  "created_at": "2026-01-13 00:00:00+00:00",
+  "updated_at": "2026-01-13 00:00:00+00:00"
+}

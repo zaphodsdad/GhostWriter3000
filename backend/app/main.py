@@ -85,7 +85,19 @@ project_router.include_router(manuscript_import.router, prefix="/manuscript", ta
 project_router.include_router(backups.router, prefix="/backups", tags=["backups"])
 app.include_router(project_router)
 
-# Serve frontend static files
+# --- MCP Server (optional — degrades gracefully if fastmcp not installed) ---
+try:
+    from prose_mcp.server import mcp as mcp_server, register_all_tools
+    register_all_tools()
+    mcp_app = mcp_server.http_app(path="/", transport="streamable-http")
+    app.mount("/mcp", mcp_app)
+    logger.info("MCP server mounted at /mcp")
+except ImportError:
+    logger.info("FastMCP not installed, MCP endpoint disabled")
+except Exception as e:
+    logger.warning(f"Failed to initialize MCP server: {e}")
+
+# Serve frontend static files (MUST be last — catches all unmatched paths)
 frontend_path = Path(__file__).parent.parent.parent / "frontend"
 if frontend_path.exists():
     app.mount("/", StaticFiles(directory=str(frontend_path), html=True), name="frontend")
