@@ -829,3 +829,107 @@ Generate a complete story structure from a seed premise using AI.
 - `loadGenerationForReview` now sets both `currentGenId` and `workspaceGenId`
 - Fixes Accept as Canon button in workspace header after loading from queue
 
+---
+
+## MCP Wrapper (Planned)
+
+### Why
+
+Prose-pipeline is a full REST API. Claude Desktop (and other MCP consumers) can't call REST endpoints directly — they can only call MCP tools. A thin MCP wrapper makes prose-pipeline's key capabilities accessible from any MCP client (Claude Desktop, CYOABot, etc.) without rewriting the engine.
+
+### Architecture
+
+The MCP wrapper lives in this repo alongside the existing FastAPI app. Both run from the same codebase, same server, same port — using a `CombinedASGI` dispatcher (proven pattern from Persona MCP):
+
+```
+prose-pipeline/
+  backend/app/          # Existing FastAPI app (unchanged)
+  mcp/                  # NEW — thin MCP wrapper
+    __init__.py
+    server.py           # FastMCP instance + tool definitions
+    main.py             # Combined entry point (FastAPI + MCP)
+    client.py           # httpx client that calls the local FastAPI endpoints
+```
+
+```
+Same port, path-based routing:
+  /api/*  → FastAPI app (existing, unchanged)
+  /mcp    → MCP endpoint (new wrapper)
+  /       → Frontend (existing, unchanged)
+```
+
+### MCP Tools (Mapped to Existing Endpoints)
+
+Each tool is ~5-10 lines that proxy to the existing REST API. No new logic.
+
+**Manuscript & Project Management**
+| Tool | Wraps | Purpose |
+|------|-------|---------|
+| `prose_list_projects` | `GET /api/projects` | List all projects with stats |
+| `prose_create_project` | `POST /api/projects` | Create new writing project |
+| `prose_list_series` | `GET /api/series` | List all series |
+| `prose_create_series` | `POST /api/series` | Create new series |
+| `prose_upload_manuscript` | `POST /api/projects/{id}/manuscript/upload` | Upload .docx/.txt/.md |
+| `prose_split_manuscript` | `POST /api/projects/{id}/manuscript/split` | Split into chapters |
+| `prose_import_bulk` | `POST /api/projects/{id}/manuscript/import-bulk` | Import chapters as scenes |
+
+**Content**
+| Tool | Wraps | Purpose |
+|------|-------|---------|
+| `prose_create_character` | `POST /api/projects/{id}/characters` | Add character sheet |
+| `prose_get_characters` | `GET /api/projects/{id}/characters` | List all characters |
+| `prose_create_world_context` | `POST /api/projects/{id}/world` | Add world building doc |
+| `prose_extract_from_prose` | `POST /api/extract/analyze` | AI-extract characters + world + style from text |
+
+**Generation**
+| Tool | Wraps | Purpose |
+|------|-------|---------|
+| `prose_start_generation` | `POST /api/projects/{id}/generations/start` | Generate prose from outline |
+| `prose_get_generation` | `GET /api/projects/{id}/generations/{gid}` | Check generation status |
+| `prose_accept_as_canon` | `POST /api/projects/{id}/generations/{gid}/accept` | Finalize scene |
+
+**Series Memory (Critical for CYOABot)**
+| Tool | Wraps | Purpose |
+|------|-------|---------|
+| `prose_get_memory` | `GET /api/series/{id}/memory` | Full memory state |
+| `prose_get_memory_context` | `GET /api/series/{id}/memory/context` | Compact summaries for prompts |
+| `prose_extract_scene_memory` | `POST /api/series/{id}/memory/extract` | Extract facts from scene |
+| `prose_check_continuity` | `POST /api/series/{id}/memory/check-continuity` | LLM contradiction check |
+| `prose_check_staleness` | `GET /api/series/{id}/memory/staleness` | What needs refresh |
+| `prose_generate_summaries` | `POST /api/series/{id}/memory/generate-summaries` | Rebuild all summaries |
+
+**Style Learning**
+| Tool | Wraps | Purpose |
+|------|-------|---------|
+| `prose_get_style` | `GET /api/projects/{id}/style` | Get style guide |
+| `prose_get_learned_style` | (via memory service) | Learned preferences from edits |
+
+### Consumer: CYOABot
+
+CYOABot's daily cycle uses Prose MCP + Persona MCP together:
+
+1. `persona_get_context` → author voice, story memory, callbacks (Persona MCP)
+2. `prose_get_memory_context` → world facts, character states, timeline (Prose MCP)
+3. `prose_start_generation` → generate scene with full context (Prose MCP)
+4. `prose_accept_as_canon` → finalize scene (Prose MCP)
+5. `prose_extract_scene_memory` → extract new facts (Prose MCP)
+6. `persona_submit_experience` → record in author memory (Persona MCP)
+
+### Deployment
+
+Same as Persona MCP — runs on LXC 304 (192.168.2.210). Prose-pipeline FastAPI + MCP on one port (TBD, likely 8092). Added to Claude Desktop's MCP config alongside persona-mcp.
+
+### Implementation Priority
+
+This is a **thin proxy layer**, not a rewrite. Each tool is:
+```python
+@mcp.tool()
+async def prose_get_memory(series_id: str) -> dict:
+    """Get complete series memory state."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{BASE_URL}/api/series/{series_id}/memory")
+        return resp.json()
+```
+
+Build the ~20 tools, test them, deploy. The existing FastAPI handles all the real work.
+
