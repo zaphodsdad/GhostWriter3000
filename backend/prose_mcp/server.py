@@ -10,13 +10,14 @@ mcp = FastMCP(
     name="Prose Pipeline MCP",
     instructions=(
         "Provides tools to manage AI-powered prose generation projects. "
-        "Supports project and series management, character and world building, "
-        "scene generation with critique-revision loops, and series memory "
-        "for maintaining continuity across books. "
+        "Supports full project lifecycle: story structure (acts, chapters, beats), "
+        "content management (characters, world, scenes), prose generation with "
+        "critique-revision loops, style guides, and series memory for maintaining "
+        "continuity across books. "
         "Generation is asynchronous — use prose_start_generation to kick off, "
         "then prose_get_generation to poll for completion."
     ),
-    version="0.1.0",
+    version="0.2.0",
 )
 
 logger = logging.getLogger("prose_mcp")
@@ -32,16 +33,29 @@ def register_all_tools() -> None:
     _registered = True
 
     from prose_mcp.tools.projects import register_project_tools
-    from prose_mcp.tools.content import register_content_tools
+    from prose_mcp.tools.structure import register_structure_tools
+    from prose_mcp.tools.scenes import register_scene_tools
+    from prose_mcp.tools.characters import register_character_tools
+    from prose_mcp.tools.world import register_world_tools
     from prose_mcp.tools.generation import register_generation_tools
     from prose_mcp.tools.memory import register_memory_tools
     from prose_mcp.tools.extraction import register_extraction_tools
+    from prose_mcp.tools.style import register_style_tools
 
     register_project_tools(mcp)
     logger.info("Project tools registered")
 
-    register_content_tools(mcp)
-    logger.info("Content tools registered")
+    register_structure_tools(mcp)
+    logger.info("Structure tools registered")
+
+    register_scene_tools(mcp)
+    logger.info("Scene tools registered")
+
+    register_character_tools(mcp)
+    logger.info("Character tools registered")
+
+    register_world_tools(mcp)
+    logger.info("World tools registered")
 
     register_generation_tools(mcp)
     logger.info("Generation tools registered")
@@ -51,5 +65,8 @@ def register_all_tools() -> None:
 
     register_extraction_tools(mcp)
     logger.info("Extraction tools registered")
+
+    register_style_tools(mcp)
+    logger.info("Style tools registered")
 
     logger.info("All prose-pipeline MCP tools registered")

@@ -109,3 +109,45 @@ def register_generation_tools(mcp: FastMCP) -> None:
             f"/api/projects/{project_id}/generations/{generation_id}/accept",
             timeout=LONG_TIMEOUT,
         )
+
+    @mcp.tool()
+    async def prose_reject_generation(project_id: str, generation_id: str) -> dict:
+        """Reject a generation and discard the prose. The scene remains unchanged.
+
+        Use this when the generated prose isn't salvageable and you want
+        to start fresh.
+
+        Args:
+            project_id: Project ID
+            generation_id: Generation ID to reject
+        """
+        return await safe_post(
+            f"/api/projects/{project_id}/generations/{generation_id}/reject",
+        )
+
+    @mcp.tool(annotations={"readOnlyHint": True})
+    async def prose_list_generations(project_id: str) -> dict:
+        """List all generation IDs for a project.
+
+        Args:
+            project_id: Project ID
+        """
+        return await safe_get(f"/api/projects/{project_id}/generations")
+
+    @mcp.tool(annotations={"readOnlyHint": True})
+    async def prose_get_generation_queue(
+        project_id: str, status: str | None = None
+    ) -> dict:
+        """List all generations with optional status filter.
+
+        Args:
+            project_id: Project ID
+            status: Optional status filter (e.g. 'awaiting_approval', 'completed')
+        """
+        params = {}
+        if status is not None:
+            params["status"] = status
+        return await safe_get(
+            f"/api/projects/{project_id}/generations/queue",
+            params=params or None,
+        )
