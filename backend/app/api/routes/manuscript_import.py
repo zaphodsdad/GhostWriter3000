@@ -27,6 +27,7 @@ class ManuscriptPreview(BaseModel):
     total_chars: int
     text_preview: str  # First 2000 chars
     full_text: str
+    detected_chapters: Optional[List["ChapterSplit"]] = None  # Pre-detected from heading styles
 
 
 class ChapterSplit(BaseModel):
@@ -275,6 +276,102 @@ def convert_docx_to_text(file_bytes: bytes) -> str:
         raise HTTPException(status_code=400, detail=f"Failed to parse .docx file: {str(e)}")
 
 
+def detect_chapters_from_docx(file_bytes: bytes) -> List[ChapterSplit] | None:
+    """
+    Try to detect chapters from .docx heading styles using python-docx.
+
+    If the docx has Heading 1 and/or Heading 2 styles, uses them to split:
+    - Heading 1 = Act/Part (used as grouping context, not a chapter itself)
+    - Heading 2 = Chapter
+    - If only Heading 1 is present with no Heading 2, treats H1 as chapters.
+
+    Returns None if python-docx isn't installed or no heading styles found,
+    so the caller can fall back to regex-based detection.
+    """
+    try:
+        import docx as docxlib
+    except ImportError:
+        return None
+
+    try:
+        doc = docxlib.Document(io.BytesIO(file_bytes))
+    except Exception:
+        return None
+
+    # Scan for heading styles
+    h1_count = 0
+    h2_count = 0
+    for p in doc.paragraphs:
+        if p.style.name == 'Heading 1' and p.text.strip():
+            h1_count += 1
+        elif p.style.name == 'Heading 2' and p.text.strip():
+            h2_count += 1
+
+    if h1_count == 0 and h2_count == 0:
+        return None  # No heading styles, fall back to regex
+
+    # Determine which heading level marks chapters
+    if h2_count > 0:
+        # Two-level structure: H1 = parts/acts, H2 = chapters
+        chapter_heading = 'Heading 2'
+    else:
+        # Single-level: H1 = chapters
+        chapter_heading = 'Heading 1'
+
+    # Collect chapters by splitting on the chapter heading level
+    chapters = []
+    current_title = None
+    current_lines = []
+    chapter_num = 0
+
+    for p in doc.paragraphs:
+        text = p.text.strip()
+        if not text:
+            continue
+
+        if p.style.name == chapter_heading:
+            # Flush previous chapter
+            if current_title is not None and current_lines:
+                content = '\n\n'.join(current_lines)
+                word_count = len(content.split())
+                if word_count > 0:
+                    chapters.append(ChapterSplit(
+                        chapter_number=chapter_num,
+                        title=current_title,
+                        content=content,
+                        word_count=word_count,
+                    ))
+            chapter_num += 1
+            current_title = text
+            current_lines = []
+        elif p.style.name == 'Heading 1' and chapter_heading == 'Heading 2':
+            # Part/Act heading — skip as structural marker (not a chapter)
+            # but include as context if it has content before first chapter
+            continue
+        else:
+            # Body text — accumulate into current chapter
+            if current_title is not None:
+                current_lines.append(text)
+
+    # Flush last chapter
+    if current_title is not None and current_lines:
+        content = '\n\n'.join(current_lines)
+        word_count = len(content.split())
+        if word_count > 0:
+            chapters.append(ChapterSplit(
+                chapter_number=chapter_num,
+                title=current_title,
+                content=content,
+                word_count=word_count,
+            ))
+
+    if len(chapters) >= 2:
+        logger.info(f"Detected {len(chapters)} chapters from docx heading styles ({chapter_heading})")
+        return chapters
+
+    return None  # Not enough chapters found, fall back to regex
+
+
 WORD_TO_NUM = {
     'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
     'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10,
@@ -435,8 +532,10 @@ async def upload_manuscript(
         # Read file content
         file_bytes = await file.read()
 
-        # Convert based on format
+        # For docx, try heading-style chapter detection first
+        detected_chapters = None
         if ext == 'docx':
+            detected_chapters = detect_chapters_from_docx(file_bytes)
             text = convert_docx_to_text(file_bytes)
             file_format = "docx"
         else:
@@ -455,7 +554,8 @@ async def upload_manuscript(
             total_words=total_words,
             total_chars=total_chars,
             text_preview=preview,
-            full_text=text
+            full_text=text,
+            detected_chapters=detected_chapters,
         )
 
     except HTTPException:
@@ -757,13 +857,18 @@ async def import_full_manuscript(
         # Read and convert file
         file_bytes = await file.read()
 
+        # For docx files, try heading-style detection first
+        chapters = None
         if ext == 'docx':
-            text = convert_docx_to_text(file_bytes)
-        else:
-            text = file_bytes.decode('utf-8')
+            chapters = detect_chapters_from_docx(file_bytes)
 
-        # Detect chapters
-        chapters = detect_chapter_splits(text)
+        if chapters is None:
+            # Fall back to plain text regex detection
+            if ext == 'docx':
+                text = convert_docx_to_text(file_bytes)
+            else:
+                text = file_bytes.decode('utf-8')
+            chapters = detect_chapter_splits(text)
 
         if not chapters:
             raise HTTPException(status_code=400, detail="No content found in file")

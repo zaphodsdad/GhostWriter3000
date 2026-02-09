@@ -658,6 +658,7 @@ Outline paragraph...
                                     <h2>Story Structure</h2>
                                     <div>
                                         <button class="btn btn-outline" onclick="showImportOutlineModal()">Import</button>
+                                        <button class="btn btn-outline" id="extract-chapters-btn" onclick="startChapterExtraction()" style="display:none;" title="Extract characters, world, and memory from imported prose">Extract</button>
                                         <button class="btn btn-secondary" onclick="showActForm()">+ Act</button>
                                         <button class="btn btn-primary" onclick="showChapterForm()">+ Chapter</button>
                                         <button class="btn btn-danger" onclick="confirmClearStructure()">Clear All</button>
@@ -1170,6 +1171,51 @@ Chapter markers like 'Chapter 1', 'Chapter 01', or 'CHAPTER ONE' will be detecte
                                         <span style="opacity: 0.7;">This typically takes 3-6 minutes for detailed outlines.<br>
                                         Please don't close this window.</span>
                                     </div>
+                                </div>
+                            </div>
+
+                            <!-- Chapter Extraction Progress Modal -->
+                            <div id="chapter-extraction-modal" class="modal" style="display: none;">
+                                <div class="modal-backdrop"></div>
+                                <div class="modal-content" style="max-width: 520px; padding: 32px; text-align: center;">
+                                    <h3 style="margin-bottom: 16px;">Extracting from Manuscript</h3>
+
+                                    <!-- Overall progress -->
+                                    <div id="extract-overall-label" style="margin-bottom: 6px; font-weight: 500; color: var(--primary);">
+                                        Preparing...
+                                    </div>
+                                    <div class="progress-bar" style="height: 10px; background: var(--bg-input); border-radius: 5px; overflow: hidden; margin-bottom: 20px;">
+                                        <div id="extract-overall-fill" style="width: 0%; height: 100%; background: var(--primary); border-radius: 5px; transition: width 0.3s;"></div>
+                                    </div>
+
+                                    <!-- Current chapter detail -->
+                                    <div id="extract-chapter-label" style="margin-bottom: 6px; font-size: 0.95rem; color: var(--text-muted);">
+                                        &nbsp;
+                                    </div>
+                                    <div class="progress-bar" style="height: 6px; background: var(--bg-input); border-radius: 3px; overflow: hidden; margin-bottom: 24px;">
+                                        <div id="extract-chapter-fill" style="width: 0%; height: 100%; background: var(--accent, var(--primary)); border-radius: 3px; transition: width 0.3s; opacity: 0.6;"></div>
+                                    </div>
+
+                                    <!-- Running totals -->
+                                    <div style="display: flex; justify-content: space-around; margin-bottom: 24px; font-size: 0.9rem; line-height: 1.8;">
+                                        <div>
+                                            <div style="font-size: 1.4rem; font-weight: 600;" id="extract-chars-count">0</div>
+                                            <div class="text-muted">Characters</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 1.4rem; font-weight: 600;" id="extract-world-count">0</div>
+                                            <div class="text-muted">World Elements</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size: 1.4rem; font-weight: 600;" id="extract-scenes-count">0</div>
+                                            <div class="text-muted">Scenes</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Errors (hidden by default) -->
+                                    <div id="extract-errors" style="display: none; text-align: left; margin-bottom: 16px; padding: 10px; background: var(--bg-input); border-radius: 6px; font-size: 0.85rem; color: var(--danger, #e74c3c); max-height: 100px; overflow-y: auto;"></div>
+
+                                    <button class="btn btn-danger" onclick="cancelChapterExtraction()">Cancel</button>
                                 </div>
                             </div>
 

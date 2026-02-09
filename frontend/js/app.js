@@ -3607,6 +3607,14 @@ function renderStructureTree() {
     }
 
     tree.innerHTML = html;
+
+    // Show/hide Extract button based on series membership and prose existence
+    const extractBtn = document.getElementById('extract-chapters-btn');
+    if (extractBtn) {
+        const hasSeries = currentProject && currentProject.series_id;
+        const hasProse = scenes.some(s => s.original_prose || s.prose);
+        extractBtn.style.display = (hasSeries && chapters.length > 0 && hasProse) ? 'inline-block' : 'none';
+    }
 }
 
 function renderStructureChapter(chapter) {
@@ -7555,6 +7563,7 @@ function hideImportOutlineModal() {
     importPreviewData = null;
     manuscriptPreviewData = null;
     manuscriptOriginalFile = null;
+    manuscriptDetectedChapters = null;
     currentImportType = 'outline';
 }
 
@@ -8013,6 +8022,7 @@ async function confirmCharactersImport() {
 // Store manuscript data between preview and confirm
 let manuscriptPreviewData = null;
 let manuscriptOriginalFile = null;  // Store original file for deep import
+let manuscriptDetectedChapters = null;  // Pre-detected from docx heading styles
 
 async function handleManuscriptFileUpload(event) {
     const file = event.target.files[0];
@@ -8050,6 +8060,8 @@ async function handleManuscriptFileUpload(event) {
             const result = await response.json();
             document.getElementById('manuscript-text').value = result.full_text;
             document.getElementById('manuscript-file-name').textContent = `Loaded: ${file.name} (${result.total_words} words)`;
+            // Store pre-detected chapters from heading styles (if any)
+            manuscriptDetectedChapters = result.detected_chapters || null;
         } catch (e) {
             alert('Error uploading .docx file: ' + e.message);
             document.getElementById('manuscript-file-name').textContent = '';
@@ -8089,21 +8101,33 @@ async function previewManuscriptImport() {
     document.getElementById('import-step-progress').style.display = 'block';
 
     try {
-        // Call the split endpoint
-        const formData = new FormData();
-        formData.append('text', text);
+        let result;
 
-        const response = await fetch(apiUrl('/manuscript/split'), {
-            method: 'POST',
-            body: formData
-        });
+        // Use pre-detected chapters from heading styles if available
+        if (manuscriptDetectedChapters && manuscriptDetectedChapters.length >= 2) {
+            const totalWords = manuscriptDetectedChapters.reduce((sum, ch) => sum + ch.word_count, 0);
+            result = {
+                chapters: manuscriptDetectedChapters,
+                total_chapters: manuscriptDetectedChapters.length,
+                total_words: totalWords
+            };
+        } else {
+            // Fall back to regex-based split endpoint
+            const formData = new FormData();
+            formData.append('text', text);
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || 'Failed to analyze manuscript');
+            const response = await fetch(apiUrl('/manuscript/split'), {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || 'Failed to analyze manuscript');
+            }
+
+            result = await response.json();
         }
-
-        const result = await response.json();
 
         // Store for later
         manuscriptPreviewData = {
@@ -8386,6 +8410,160 @@ function startDeepImportProgressPolling(initialSceneCount) {
             console.error('Error polling deep import status:', e);
         }
     }, 2000);
+}
+
+// ============================================
+// Chapter-by-Chapter Extraction
+// ============================================
+let chapterExtractionPolling = null;
+
+async function startChapterExtraction() {
+    if (!currentProject) return;
+
+    if (!currentProject.series_id) {
+        showToast('Series Required', 'Assign this project to a series before extracting.', 'error');
+        return;
+    }
+
+    if (!confirm('Extract characters, world elements, and memory from all chapters?\n\nThis sends each chapter to the AI for analysis and uses API credits.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(apiUrl('/extract-chapters/extract'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ extract_entities: true, extract_memory: true })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            showToast('Extraction Failed', err.detail || 'Could not start extraction', 'error');
+            return;
+        }
+
+        const result = await response.json();
+
+        // Show progress modal
+        document.getElementById('chapter-extraction-modal').style.display = 'flex';
+        document.getElementById('extract-overall-label').textContent = `Starting extraction of ${result.total_chapters} chapters...`;
+        document.getElementById('extract-overall-fill').style.width = '0%';
+        document.getElementById('extract-chapter-label').textContent = '';
+        document.getElementById('extract-chapter-fill').style.width = '0%';
+        document.getElementById('extract-chars-count').textContent = '0';
+        document.getElementById('extract-world-count').textContent = '0';
+        document.getElementById('extract-scenes-count').textContent = '0';
+        document.getElementById('extract-errors').style.display = 'none';
+
+        // Start polling
+        startExtractionPolling();
+
+    } catch (e) {
+        showToast('Error', 'Failed to start extraction: ' + e.message, 'error');
+    }
+}
+
+function startExtractionPolling() {
+    if (chapterExtractionPolling) clearInterval(chapterExtractionPolling);
+
+    chapterExtractionPolling = setInterval(async () => {
+        try {
+            const response = await fetch(apiUrl('/extract-chapters/extract/status'));
+            if (!response.ok) return;
+
+            const s = await response.json();
+
+            // Overall progress
+            const overallPct = s.total_chapters > 0
+                ? Math.round((s.chapters_extracted / s.total_chapters) * 100)
+                : 0;
+            document.getElementById('extract-overall-fill').style.width = overallPct + '%';
+
+            if (s.status === 'running') {
+                const chNum = s.chapters_extracted + 1;
+                document.getElementById('extract-overall-label').textContent =
+                    `Chapter ${chNum} of ${s.total_chapters}` + (s.current_chapter ? `: ${s.current_chapter}` : '');
+
+                // Chapter-level step detail
+                document.getElementById('extract-chapter-label').textContent = s.current_chapter_step || s.current_phase || '';
+
+                // Estimate chapter sub-progress based on phase
+                let chapterPct = 0;
+                if (s.current_phase === 'entities') {
+                    chapterPct = s.current_chapter_step && s.current_chapter_step.includes('world') ? 60 : 30;
+                } else if (s.current_phase === 'memory') {
+                    chapterPct = 70;
+                } else if (s.current_phase === 'summaries') {
+                    chapterPct = 90;
+                }
+                document.getElementById('extract-chapter-fill').style.width = chapterPct + '%';
+            }
+
+            // Running totals
+            document.getElementById('extract-chars-count').textContent = s.characters_found;
+            document.getElementById('extract-world-count').textContent = s.world_elements_found;
+            document.getElementById('extract-scenes-count').textContent = s.scenes_processed;
+
+            // Errors
+            if (s.errors && s.errors.length > 0) {
+                const errDiv = document.getElementById('extract-errors');
+                errDiv.style.display = 'block';
+                errDiv.textContent = s.errors.slice(-3).join('\n');
+            }
+
+            // Terminal states
+            if (s.status === 'completed') {
+                document.getElementById('extract-overall-fill').style.width = '100%';
+                document.getElementById('extract-overall-label').textContent = 'Extraction complete!';
+                document.getElementById('extract-chapter-label').textContent = '';
+                document.getElementById('extract-chapter-fill').style.width = '100%';
+                clearInterval(chapterExtractionPolling);
+                chapterExtractionPolling = null;
+
+                showToast('Extraction Complete',
+                    `Found ${s.characters_found} characters, ${s.world_elements_found} world elements from ${s.total_chapters} chapters`,
+                    'success');
+
+                // Auto-close modal after a beat
+                setTimeout(() => {
+                    document.getElementById('chapter-extraction-modal').style.display = 'none';
+                    // Refresh data so Characters/World tabs show the new content
+                    if (typeof loadCharacters === 'function') loadCharacters();
+                    if (typeof loadWorlds === 'function') loadWorlds();
+                }, 2000);
+
+            } else if (s.status === 'failed' || s.status === 'cancelled') {
+                document.getElementById('extract-overall-label').textContent =
+                    s.status === 'cancelled' ? 'Extraction cancelled.' : 'Extraction failed.';
+                document.getElementById('extract-chapter-label').textContent = '';
+                clearInterval(chapterExtractionPolling);
+                chapterExtractionPolling = null;
+
+                showToast('Extraction ' + (s.status === 'cancelled' ? 'Cancelled' : 'Failed'),
+                    s.status === 'cancelled'
+                        ? `Stopped after ${s.chapters_extracted} chapters. Data already extracted is kept.`
+                        : 'Check server logs for details.',
+                    s.status === 'cancelled' ? 'warning' : 'error');
+
+                setTimeout(() => {
+                    document.getElementById('chapter-extraction-modal').style.display = 'none';
+                    if (typeof loadCharacters === 'function') loadCharacters();
+                    if (typeof loadWorlds === 'function') loadWorlds();
+                }, 2000);
+            }
+
+        } catch (e) {
+            console.error('Error polling extraction status:', e);
+        }
+    }, 2500);
+}
+
+async function cancelChapterExtraction() {
+    try {
+        await fetch(apiUrl('/extract-chapters/extract/cancel'), { method: 'POST' });
+    } catch (e) {
+        console.error('Error cancelling extraction:', e);
+    }
 }
 
 // ============================================

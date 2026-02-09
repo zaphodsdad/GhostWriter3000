@@ -93,10 +93,27 @@ data/                        # Sample/test data files
 | `CRITIQUE_MODEL` | deepseek/deepseek-chat-v3.1 | Critique model |
 | `MAX_ITERATIONS` | 5 | Max revision iterations |
 
+## Chapter Extraction
+
+The Structure tab has an **Extract** button that analyzes imported prose chapter-by-chapter using AI, extracting:
+- **Characters** — saved as markdown files in `data/series/{series_id}/characters/`
+- **World elements** — locations, creatures, magic, politics, etc. in `data/series/{series_id}/world/`
+- **Memory** — plot events, character state changes, world facts per scene in `data/series/{series_id}/memory/`
+
+Requires the project to be in a series (entities save at series level). Processes one chapter at a time to stay within LLM context limits. Progress popup shows current chapter, running totals, and overall progress. Re-running is safe — entity service merges new data with existing.
+
+**Endpoints:**
+- `POST /api/projects/{id}/extract-chapters/extract` — start background extraction
+- `GET /api/projects/{id}/extract-chapters/extract/status` — poll progress
+- `POST /api/projects/{id}/extract-chapters/extract/cancel` — stop at next chapter
+
+**Code:** `backend/app/api/routes/chapter_extraction.py`
+
 ## Not Exposed via MCP (Yet)
 
 These backend features exist but aren't MCP tools:
 - Chat/Chico AI assistant
+- Chapter extraction (extract characters/world/memory from imported prose)
 - Manuscript import (.docx/.txt/.md upload)
 - Outline import (structured markdown → acts/chapters/scenes)
 - Story templates
