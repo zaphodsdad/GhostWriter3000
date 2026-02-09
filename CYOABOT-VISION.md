@@ -141,6 +141,23 @@ This is genuinely novel:
 
 It's not a tutorial project. It's a product. And it showcases the entire stack: prose-pipeline, Persona MCP, CYOABot, johnaburks.com — all working together.
 
+## Future: AI Characters in Community Spaces
+
+### The Big Picture
+The Persona MCP isn't just for sentiment monitoring — it's the backbone for **AI characters that interact with real people**. This pattern repeats across multiple projects:
+
+- **CYOABot / Discord**: Story characters (Bonan, Meme, Rubi) respond in-character to Discord discussion. Readers argue about what Bonan should do, and Bonan chimes in with his opinion. Meme drops meme references. This drives insane engagement.
+- **CodeCampBot / johnaburks.com**: When comments open up on the blog, the AI student/professor characters (Ada & Babbage) respond to reader comments in-character. Moderation layer needed first, but the character interaction is the hook.
+- **HIWC Shopify bot**: Same pattern applied to commerce — a persona that knows the products, remembers returning customers, has a consistent voice. This is where the actual income-generating version lives. A customer-facing AI persona that builds relationships over time.
+
+### Why This Matters
+Every one of these is the **same underlying capability**: a persistent AI persona that monitors a channel, understands context, and responds in-character. The only differences are:
+- What it knows (story lore vs coding concepts vs product catalog)
+- Where it lives (Discord vs website comments vs Shopify chat)
+- What it's trying to do (engage readers vs teach vs sell)
+
+This is the Persona MCP's killer app. Build it once, deploy it everywhere. Each project proves the pattern and the Shopify bot monetizes it.
+
 ## Source Material
 
 - **Book 1**: "The Empire of the Cat" by John Burks (UnDead Animals series)
