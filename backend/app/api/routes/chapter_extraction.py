@@ -302,6 +302,13 @@ async def run_chapter_extraction(
 
                 await asyncio.sleep(2)
 
+                # Check cancellation between character and world extraction
+                if _extraction_cancel.get(project_id, False):
+                    job.status = "cancelled"
+                    job.completed_at = datetime.utcnow().isoformat()
+                    logger.info(f"Extraction cancelled for {project_id} after character extraction of chapter {i+1}")
+                    return
+
                 # Extract world elements
                 job.current_chapter_step = "Extracting world elements..."
                 world_result = await extraction_svc.extract_world(
@@ -333,12 +340,18 @@ async def run_chapter_extraction(
                 logger.warning(err)
                 job.errors.append(err)
 
+        # Check cancellation before memory phase
+        if _extraction_cancel.get(project_id, False):
+            job.status = "cancelled"
+            job.completed_at = datetime.utcnow().isoformat()
+            logger.info(f"Extraction cancelled for {project_id} after entity extraction of chapter {i+1}")
+            return
+
         # --- Phase: Memory extraction (per scene) — requires series ---
         if extract_memory and series_id:
             job.current_phase = "memory"
             try:
-                from app.services.memory_service import get_memory_service
-                memory_svc = get_memory_service()
+                from app.services.memory_service import memory_service as memory_svc
 
                 for scene_idx, (scene, prose) in enumerate(scenes_with_prose):
                     scene_id = scene.get("id", "unknown")
@@ -367,6 +380,13 @@ async def run_chapter_extraction(
                     job.scenes_processed += 1
                     await asyncio.sleep(1)
 
+                    # Check cancellation between scene memory extractions
+                    if _extraction_cancel.get(project_id, False):
+                        job.status = "cancelled"
+                        job.completed_at = datetime.utcnow().isoformat()
+                        logger.info(f"Extraction cancelled for {project_id} during memory extraction")
+                        return
+
             except Exception as e:
                 err = f"Memory phase failed for '{chapter_title}': {e}"
                 logger.warning(err)
@@ -383,8 +403,7 @@ async def run_chapter_extraction(
         job.current_chapter = None
         job.current_chapter_step = "Generating memory summaries..."
         try:
-            from app.services.memory_service import get_memory_service
-            memory_svc = get_memory_service()
+            from app.services.memory_service import memory_service as memory_svc
             await memory_svc.generate_summaries(series_id, model=model)
         except Exception as e:
             err = f"Summary generation failed: {e}"

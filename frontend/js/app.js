@@ -8417,6 +8417,7 @@ function startDeepImportProgressPolling(initialSceneCount) {
 let chapterExtractionPolling = null;
 
 async function startChapterExtraction() {
+    console.log('startChapterExtraction called, project:', currentProject?.id);
     if (!currentProject) return;
 
     const hasSeries = !!currentProject.series_id;
@@ -8452,7 +8453,9 @@ async function startChapterExtraction() {
         const result = await response.json();
 
         // Show progress modal
-        document.getElementById('chapter-extraction-modal').style.display = 'flex';
+        const modal = document.getElementById('chapter-extraction-modal');
+        console.log('Showing extraction modal:', modal);
+        modal.style.display = 'flex';
         document.getElementById('extract-overall-label').textContent = `Starting extraction of ${result.total_chapters} chapters...`;
         document.getElementById('extract-overall-fill').style.width = '0%';
         document.getElementById('extract-chapter-label').textContent = '';
@@ -8567,9 +8570,27 @@ function startExtractionPolling() {
 
 async function cancelChapterExtraction() {
     try {
-        await fetch(apiUrl('/extract-chapters/extract/cancel'), { method: 'POST' });
+        const response = await fetch(apiUrl('/extract-chapters/extract/cancel'), { method: 'POST' });
+
+        if (response.ok) {
+            // Immediate feedback
+            const label = document.getElementById('extract-overall-label');
+            if (label) label.textContent = 'Cancelling... (finishing current step)';
+
+            showToast('Cancelling', 'Extraction will stop after the current step completes.', 'warning');
+
+            // Disable button to prevent double-click
+            const btn = document.querySelector('#chapter-extraction-modal .btn-danger');
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Cancelling...';
+            }
+        } else {
+            showToast('Cancel Failed', 'Could not cancel extraction.', 'error');
+        }
     } catch (e) {
         console.error('Error cancelling extraction:', e);
+        showToast('Error', 'Failed to send cancel request.', 'error');
     }
 }
 

@@ -19,10 +19,13 @@ class NoCacheMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
-        # Only add no-cache headers to API routes (not static files)
         if request.url.path.startswith("/api"):
+            # API: never cache
             response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
             response.headers["Pragma"] = "no-cache"
+        elif request.url.path.endswith((".js", ".css", ".html")) or request.url.path == "/":
+            # Static assets: cache but always revalidate (ETag/If-Modified-Since still work)
+            response.headers["Cache-Control"] = "no-cache"
         return response
 
 # Setup logging

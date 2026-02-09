@@ -112,7 +112,6 @@ Requires the project to be in a series (entities save at series level). Processe
 ## Not Exposed via MCP (Yet)
 
 These backend features exist but aren't MCP tools:
-- Chat/Chico AI assistant
 - Chapter extraction (extract characters/world/memory from imported prose)
 - Manuscript import (.docx/.txt/.md upload)
 - Outline import (structured markdown → acts/chapters/scenes)
@@ -123,10 +122,11 @@ These backend features exist but aren't MCP tools:
 - LanguageTool grammar checking
 - Reference library
 
+**Note:** Chat/Chico AI assistant is intentionally NOT being exposed via MCP. Chico's per-series personality, memory, and context-aware conversation will be replaced by **Personage MCP** — a shared identity/memory service that provides persistent AI personas across all projects (CYOABot, CodeCampBot, HIWC Shopify, etc.). Building Chico MCP tools would be throwaway work.
+
 ## TODO
 
-- [ ] **Fix extraction progress modal.** The Extract button triggers the backend correctly and extraction runs, but the progress popup doesn't appear in the browser. Likely a static file caching issue — the JS code is correct (verified IDs match between index.html and app.js). Debug: hard refresh, check browser console for errors, verify the modal element exists in DOM. The 409 "already running" case now correctly opens the modal + starts polling instead of showing an error toast.
 - [ ] **Standalone deployment.** Move prose-pipeline backend out of VS Code Server terminal into a proper systemd service or LXC container. It should start on boot and stay running independently. The MCP wrapper should also run standalone (SSE on LXC 304 with the other MCPs, proxying back to the backend).
-- [ ] **Add remaining MCP tools.** Chat/Chico, backups, manuscript import, outline import, and references are useful via MCP but lower priority.
+- [ ] **Add remaining MCP tools.** Backups, manuscript import, outline import, and references are useful via MCP but lower priority.
 - [ ] **Revision UI.** Three-panel diff view for the revision workflow (see REVISION-UI-SKETCH.md).
-- [ ] **Personage MCP integration.** This project's memory system (memory_service.py, character persistence, style learning) is a candidate for extraction into the shared Personage MCP layer.
+- [ ] **Personage MCP integration.** This project's memory system (memory_service.py, character persistence, style learning) is a candidate for extraction into the shared Personage MCP layer. Chico's personality/conversation system is the primary candidate — it already implements per-series persistent AI personas with customizable name, personality, and contextual awareness.
