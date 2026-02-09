@@ -416,10 +416,13 @@ async def start_chapter_extraction(
 ):
     """Kick off chapter-by-chapter extraction as a background task."""
 
-    # Check for running job
+    # Check for running job — allow override if stale (>10 min without completing)
     existing = _extraction_jobs.get(project_id)
     if existing and existing.status == "running":
-        raise HTTPException(status_code=409, detail="Extraction already in progress for this project")
+        started = datetime.fromisoformat(existing.started_at)
+        age_minutes = (datetime.utcnow() - started).total_seconds() / 60
+        if age_minutes < 120:  # 2 hour timeout — long extractions are normal
+            raise HTTPException(status_code=409, detail="Extraction already in progress for this project")
 
     # Load project
     project_path = settings.project_dir(project_id) / "project.json"

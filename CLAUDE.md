@@ -125,6 +125,7 @@ These backend features exist but aren't MCP tools:
 
 ## TODO
 
+- [ ] **Fix extraction progress modal.** The Extract button triggers the backend correctly and extraction runs, but the progress popup doesn't appear in the browser. Likely a static file caching issue — the JS code is correct (verified IDs match between index.html and app.js). Debug: hard refresh, check browser console for errors, verify the modal element exists in DOM. The 409 "already running" case now correctly opens the modal + starts polling instead of showing an error toast.
 - [ ] **Standalone deployment.** Move prose-pipeline backend out of VS Code Server terminal into a proper systemd service or LXC container. It should start on boot and stay running independently. The MCP wrapper should also run standalone (SSE on LXC 304 with the other MCPs, proxying back to the backend).
 - [ ] **Add remaining MCP tools.** Chat/Chico, backups, manuscript import, outline import, and references are useful via MCP but lower priority.
 - [ ] **Revision UI.** Three-panel diff view for the revision workflow (see REVISION-UI-SKETCH.md).

@@ -8436,6 +8436,14 @@ async function startChapterExtraction() {
         });
 
         if (!response.ok) {
+            // If already running, just show the progress modal and start polling
+            if (response.status === 409) {
+                document.getElementById('chapter-extraction-modal').style.display = 'flex';
+                document.getElementById('extract-overall-label').textContent = 'Extraction in progress...';
+                document.getElementById('extract-errors').style.display = 'none';
+                startExtractionPolling();
+                return;
+            }
             const err = await response.json();
             showToast('Extraction Failed', err.detail || 'Could not start extraction', 'error');
             return;
