@@ -3608,12 +3608,11 @@ function renderStructureTree() {
 
     tree.innerHTML = html;
 
-    // Show/hide Extract button based on series membership and prose existence
+    // Show/hide Extract button based on prose existence
     const extractBtn = document.getElementById('extract-chapters-btn');
     if (extractBtn) {
-        const hasSeries = currentProject && currentProject.series_id;
         const hasProse = scenes.some(s => s.original_prose || s.prose);
-        extractBtn.style.display = (hasSeries && chapters.length > 0 && hasProse) ? 'inline-block' : 'none';
+        extractBtn.style.display = (chapters.length > 0 && hasProse) ? 'inline-block' : 'none';
     }
 }
 
@@ -8420,12 +8419,12 @@ let chapterExtractionPolling = null;
 async function startChapterExtraction() {
     if (!currentProject) return;
 
-    if (!currentProject.series_id) {
-        showToast('Series Required', 'Assign this project to a series before extracting.', 'error');
-        return;
-    }
+    const hasSeries = !!currentProject.series_id;
+    const confirmMsg = hasSeries
+        ? 'Extract characters, world elements, and memory from all chapters?\n\nThis sends each chapter to the AI for analysis and uses API credits.'
+        : 'Extract characters and world elements from all chapters?\n\n(Memory extraction requires a series assignment.)\n\nThis sends each chapter to the AI for analysis and uses API credits.';
 
-    if (!confirm('Extract characters, world elements, and memory from all chapters?\n\nThis sends each chapter to the AI for analysis and uses API credits.')) {
+    if (!confirm(confirmMsg)) {
         return;
     }
 

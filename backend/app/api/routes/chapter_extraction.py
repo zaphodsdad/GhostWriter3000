@@ -31,7 +31,7 @@ class ChapterExtractionRequest(BaseModel):
 
 class ChapterExtractionStatus(BaseModel):
     project_id: str
-    series_id: str
+    series_id: Optional[str] = None
     status: str  # running | completed | failed | cancelled
     total_chapters: int
     chapters_extracted: int
@@ -99,9 +99,127 @@ def _get_scene_prose(scene: Dict[str, Any]) -> str:
 # Background task
 # ---------------------------------------------------------------------------
 
+def _get_existing_project_character_names(project_id: str) -> List[str]:
+    """Get names of existing characters at project level."""
+    from app.services.entity_service import parse_markdown_frontmatter
+    chars_dir = settings.characters_dir(project_id)
+    names = []
+    if chars_dir.exists():
+        for fp in chars_dir.glob("*.md"):
+            try:
+                content = fp.read_text(encoding='utf-8')
+                metadata, _ = parse_markdown_frontmatter(content)
+                if 'name' in metadata:
+                    names.append(metadata['name'])
+            except Exception:
+                continue
+    return names
+
+
+def _get_existing_project_world_names(project_id: str) -> List[str]:
+    """Get names of existing world elements at project level."""
+    from app.services.entity_service import parse_markdown_frontmatter
+    world_dir = settings.world_dir(project_id)
+    names = []
+    if world_dir.exists():
+        for fp in world_dir.glob("*.md"):
+            try:
+                content = fp.read_text(encoding='utf-8')
+                metadata, _ = parse_markdown_frontmatter(content)
+                if 'name' in metadata:
+                    names.append(metadata['name'])
+            except Exception:
+                continue
+    return names
+
+
+async def _save_characters_to_project(
+    project_id: str,
+    book_number: int,
+    characters: List[Dict[str, Any]],
+) -> Dict[str, int]:
+    """Save extracted characters to project-level directory (for standalone books)."""
+    from app.services.entity_service import slugify, parse_markdown_frontmatter, build_markdown_with_frontmatter
+    entity_svc = get_entity_service()
+
+    chars_dir = settings.characters_dir(project_id)
+    chars_dir.mkdir(parents=True, exist_ok=True)
+
+    created = 0
+    updated = 0
+
+    for char in characters:
+        name = char.get('name', 'Unknown')
+        char_id = slugify(name)
+        filepath = chars_dir / f"{char_id}.md"
+
+        if filepath.exists():
+            content = filepath.read_text(encoding='utf-8')
+            metadata, body = parse_markdown_frontmatter(content)
+            new_section = entity_svc._format_character_section(char, project_id, book_number)
+            body = body + f"\n\n{new_section}"
+            metadata = entity_svc._merge_character_metadata(metadata, char, book_number)
+            filepath.write_text(build_markdown_with_frontmatter(metadata, body), encoding='utf-8')
+            updated += 1
+        else:
+            metadata = {
+                'name': name,
+                'role': char.get('role', 'supporting'),
+                'first_seen_book': book_number,
+                'created_from': project_id,
+            }
+            body = entity_svc._format_character_body(char, project_id, book_number)
+            filepath.write_text(build_markdown_with_frontmatter(metadata, body), encoding='utf-8')
+            created += 1
+
+    return {"created": created, "updated": updated}
+
+
+async def _save_world_to_project(
+    project_id: str,
+    book_number: int,
+    elements: List[Dict[str, Any]],
+) -> Dict[str, int]:
+    """Save extracted world elements to project-level directory (for standalone books)."""
+    from app.services.entity_service import slugify, parse_markdown_frontmatter, build_markdown_with_frontmatter
+    entity_svc = get_entity_service()
+
+    world_dir = settings.world_dir(project_id)
+    world_dir.mkdir(parents=True, exist_ok=True)
+
+    created = 0
+    updated = 0
+
+    for elem in elements:
+        name = elem.get('name', 'Unknown')
+        elem_id = slugify(name)
+        filepath = world_dir / f"{elem_id}.md"
+
+        if filepath.exists():
+            content = filepath.read_text(encoding='utf-8')
+            metadata, body = parse_markdown_frontmatter(content)
+            new_section = entity_svc._format_world_section(elem, project_id, book_number)
+            body = body + f"\n\n{new_section}"
+            metadata = entity_svc._merge_world_metadata(metadata, elem, book_number)
+            filepath.write_text(build_markdown_with_frontmatter(metadata, body), encoding='utf-8')
+            updated += 1
+        else:
+            metadata = {
+                'name': name,
+                'category': elem.get('category', 'GENERAL'),
+                'first_seen_book': book_number,
+                'created_from': project_id,
+            }
+            body = entity_svc._format_world_body(elem, project_id, book_number)
+            filepath.write_text(build_markdown_with_frontmatter(metadata, body), encoding='utf-8')
+            created += 1
+
+    return {"created": created, "updated": updated}
+
+
 async def run_chapter_extraction(
     project_id: str,
-    series_id: str,
+    series_id: Optional[str],
     book_number: int,
     chapters: List[Dict[str, Any]],
     extract_entities: bool,
@@ -114,8 +232,12 @@ async def run_chapter_extraction(
     entity_svc = get_entity_service()
 
     # Pre-load existing names so we can pass them to extraction to avoid dupes
-    existing_chars = entity_svc._get_existing_character_names(series_id)
-    existing_worlds = entity_svc._get_existing_world_names(series_id)
+    if series_id:
+        existing_chars = entity_svc._get_existing_character_names(series_id)
+        existing_worlds = entity_svc._get_existing_world_names(series_id)
+    else:
+        existing_chars = _get_existing_project_character_names(project_id)
+        existing_worlds = _get_existing_project_world_names(project_id)
 
     # Count total scenes up front
     total_scenes = 0
@@ -162,9 +284,14 @@ async def run_chapter_extraction(
                 new_chars = char_result.get("characters", [])
 
                 # Save characters with merge logic
-                char_stats = await entity_svc._save_characters(
-                    series_id, project_id, book_number, new_chars
-                )
+                if series_id:
+                    char_stats = await entity_svc._save_characters(
+                        series_id, project_id, book_number, new_chars
+                    )
+                else:
+                    char_stats = await _save_characters_to_project(
+                        project_id, book_number, new_chars
+                    )
                 job.characters_found += char_stats["created"] + char_stats["updated"]
 
                 # Add new names to accumulator
@@ -183,9 +310,14 @@ async def run_chapter_extraction(
                 new_worlds = world_result.get("world_elements", [])
 
                 # Save world elements with merge logic
-                world_stats = await entity_svc._save_world_elements(
-                    series_id, project_id, book_number, new_worlds
-                )
+                if series_id:
+                    world_stats = await entity_svc._save_world_elements(
+                        series_id, project_id, book_number, new_worlds
+                    )
+                else:
+                    world_stats = await _save_world_to_project(
+                        project_id, book_number, new_worlds
+                    )
                 job.world_elements_found += world_stats["created"] + world_stats["updated"]
 
                 # Add new names to accumulator
@@ -201,8 +333,8 @@ async def run_chapter_extraction(
                 logger.warning(err)
                 job.errors.append(err)
 
-        # --- Phase: Memory extraction (per scene) ---
-        if extract_memory:
+        # --- Phase: Memory extraction (per scene) — requires series ---
+        if extract_memory and series_id:
             job.current_phase = "memory"
             try:
                 from app.services.memory_service import get_memory_service
@@ -245,8 +377,8 @@ async def run_chapter_extraction(
             f"chars={job.characters_found}, world={job.world_elements_found}, scenes={job.scenes_processed}"
         )
 
-    # --- Final: generate memory summaries ---
-    if extract_memory:
+    # --- Final: generate memory summaries (series only) ---
+    if extract_memory and series_id:
         job.current_phase = "summaries"
         job.current_chapter = None
         job.current_chapter_step = "Generating memory summaries..."
@@ -297,10 +429,7 @@ async def start_chapter_extraction(
     with open(project_path) as f:
         project = json.load(f)
 
-    series_id = project.get("series_id")
-    if not series_id:
-        raise HTTPException(status_code=400, detail="Project must belong to a series for entity extraction. Assign it to a series first.")
-
+    series_id = project.get("series_id")  # None for standalone books
     book_number = project.get("book_number", 1) or 1
 
     # Load chapters
