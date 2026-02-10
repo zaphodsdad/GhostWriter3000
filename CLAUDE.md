@@ -10,19 +10,31 @@
 
 AI-powered prose generation tool for fiction writers. You give it characters, world docs, and scene outlines — it generates prose, critiques it, and iterates through a revision loop until you accept. Supports multi-book series with continuity tracking.
 
-## Running the App
+## Deployment
 
+**Production:** Systemd service on LXC 304 (192.168.2.210), the MCP gateway server.
+```
+Web UI:       http://192.168.2.210:8000/
+REST API:     http://192.168.2.210:8000/api/
+MCP endpoint: http://192.168.2.210:8000/mcp/  (trailing slash required)
+```
+
+**Dev (LXC 101):** Run manually for development:
 ```bash
 cd /root/prose-pipeline/backend
-python3 -m app.main
+venv/bin/python -m app.main
 # Web UI: http://192.168.2.187:8000
-# API docs: http://192.168.2.187:8000/docs
-# MCP endpoint: http://192.168.2.187:8000/mcp
+```
+
+**Service management (on LXC 304):**
+```bash
+ssh root@192.168.2.184 "pct exec 304 -- systemctl restart prose-pipeline"
+ssh root@192.168.2.184 "pct exec 304 -- journalctl -u prose-pipeline -f"
 ```
 
 ## MCP Wrapper
 
-The MCP wrapper lives at `backend/prose_mcp/` and exposes **66 tools** covering the full writing workflow. It's a thin proxy layer — all tools call the FastAPI backend via HTTP.
+The MCP wrapper lives at `backend/prose_mcp/` and exposes **68 tools** covering the full writing workflow. It's a thin proxy layer — all tools call the FastAPI backend via HTTP.
 
 **Architecture:**
 ```
@@ -35,7 +47,7 @@ FastAPI backend (http://127.0.0.1:8000)
 File-based data storage
 ```
 
-**Tool modules (66 tools total):**
+**Tool modules (68 tools total):**
 | Module | Tools | Coverage |
 |--------|-------|----------|
 | `tools/projects.py` | 11 | Project + series CRUD, export |
@@ -44,8 +56,8 @@ File-based data storage
 | `tools/characters.py` | 5 | Character CRUD |
 | `tools/world.py` | 5 | World context CRUD |
 | `tools/generation.py` | 7 | Start, poll, approve, accept, reject, list, queue |
-| `tools/memory.py` | 5 | Series memory, continuity, summaries |
-| `tools/extraction.py` | 2 | Manuscript analysis, health check |
+| `tools/memory.py` | 6 | Series memory, continuity, summaries, scene extraction |
+| `tools/extraction.py` | 3 | Manuscript import, manuscript analysis, health check |
 | `tools/style.py` | 4 | Project + series style guides |
 
 **Transports:**
@@ -58,11 +70,12 @@ File-based data storage
 {
   "mcpServers": {
     "prose-pipeline": {
-      "url": "http://192.168.2.187:8000/mcp"
+      "url": "http://192.168.2.210:8000/mcp/"
     }
   }
 }
 ```
+Note the **trailing slash** — `/mcp/` not `/mcp`. Without it you get 404.
 
 ## Key Directories
 
@@ -78,7 +91,7 @@ backend/
 │   ├── server.py            # FastMCP setup, tool registration
 │   ├── client.py            # HTTP client (proxies to FastAPI)
 │   ├── main.py              # Standalone entry point
-│   └── tools/               # 9 tool modules (66 tools)
+│   └── tools/               # 9 tool modules (68 tools)
 frontend/                    # Vanilla HTML/CSS/JS web UI
 data/                        # Sample/test data files
 ```
@@ -113,7 +126,6 @@ Requires the project to be in a series (entities save at series level). Processe
 
 These backend features exist but aren't MCP tools:
 - Chapter extraction (extract characters/world/memory from imported prose)
-- Manuscript import (.docx/.txt/.md upload)
 - Outline import (structured markdown → acts/chapters/scenes)
 - Story templates
 - Auto-generate outline from premise
@@ -126,7 +138,7 @@ These backend features exist but aren't MCP tools:
 
 ## TODO
 
-- [ ] **Standalone deployment.** Move prose-pipeline backend out of VS Code Server terminal into a proper systemd service or LXC container. It should start on boot and stay running independently. The MCP wrapper should also run standalone (SSE on LXC 304 with the other MCPs, proxying back to the backend).
-- [ ] **Add remaining MCP tools.** Backups, manuscript import, outline import, and references are useful via MCP but lower priority.
+- [x] ~~**Standalone deployment.**~~ Deployed to LXC 304 as systemd service (Feb 10, 2026). Starts on boot, accessible at `192.168.2.210:8000`.
+- [ ] **Add remaining MCP tools.** Backups, outline import, and references are useful via MCP but lower priority.
 - [ ] **Revision UI.** Three-panel diff view for the revision workflow (see REVISION-UI-SKETCH.md).
 - [ ] **Persona MCP integration.** Persona MCP is already deployed (LXC 304, port 8091) with 17 tools covering persistent identity, memory with decay, emotional arcs, and relationships. prose-pipeline is a *tool* that Persona MCP uses to write — not the other way around. The integration path: Persona MCP provides character emotional states and identity context before generation; prose-pipeline generates prose; scene events get submitted back to Persona MCP as character experiences. Chico's per-series AI assistant will eventually be replaced by Persona MCP personas.

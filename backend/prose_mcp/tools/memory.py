@@ -80,6 +80,65 @@ def register_memory_tools(mcp: FastMCP) -> None:
         )
 
     @mcp.tool()
+    async def prose_extract_scene_memory(
+        series_id: str,
+        book_id: str,
+        scene_id: str,
+        prose: str,
+        scene_title: str | None = None,
+        chapter_title: str | None = None,
+        book_number: int | None = None,
+        chapter_number: int | None = None,
+        scene_number: int | None = None,
+        character_names: list[str] | None = None,
+        model: str | None = None,
+    ) -> dict:
+        """Extract memory facts from a scene using LLM analysis.
+
+        Runs AI extraction on the scene prose to identify character state
+        changes, world facts, and plot events. Results are saved to the
+        series memory layer automatically. Call this after accepting a
+        new scene as canon.
+
+        Args:
+            series_id: Series ID the scene belongs to
+            book_id: Book/project ID containing the scene
+            scene_id: Scene ID
+            prose: Full prose text of the scene
+            scene_title: Scene title for context
+            chapter_title: Chapter title for context
+            book_number: Book number in the series
+            chapter_number: Chapter number within the book
+            scene_number: Scene number within the chapter
+            character_names: Known character names for better extraction
+            model: Optional LLM model override
+        """
+        body: dict = {
+            "book_id": book_id,
+            "scene_id": scene_id,
+            "prose": prose,
+        }
+        if scene_title is not None:
+            body["scene_title"] = scene_title
+        if chapter_title is not None:
+            body["chapter_title"] = chapter_title
+        if book_number is not None:
+            body["book_number"] = book_number
+        if chapter_number is not None:
+            body["chapter_number"] = chapter_number
+        if scene_number is not None:
+            body["scene_number"] = scene_number
+        if character_names is not None:
+            body["character_names"] = character_names
+        if model is not None:
+            body["model"] = model
+        return await safe_post(
+            f"/api/series/{series_id}/memory/extract-from-scene",
+            json=body,
+            timeout=LONG_TIMEOUT,
+        )
+
+    @mcp.tool()
     async def prose_generate_summaries(
         series_id: str,
         model: str | None = None,

@@ -414,6 +414,62 @@ async def list_book_summaries(series_id: str) -> Dict[str, Any]:
     return {"summaries": summaries}
 
 
+class ExtractFromSceneRequest(BaseModel):
+    """Request to LLM-extract memory facts from a scene's prose."""
+    book_id: str = Field(..., description="Book/project ID containing the scene")
+    scene_id: str = Field(..., description="Scene ID")
+    prose: str = Field(..., description="Scene prose text to extract from")
+    scene_title: Optional[str] = Field(None, description="Scene title for context")
+    chapter_title: Optional[str] = Field(None, description="Chapter title for context")
+    book_number: Optional[int] = Field(None, description="Book number in series")
+    chapter_number: Optional[int] = Field(None, description="Chapter number")
+    scene_number: Optional[int] = Field(None, description="Scene number")
+    character_names: Optional[list] = Field(None, description="Known character names for better extraction")
+    model: Optional[str] = Field(None, description="Optional LLM model override")
+
+
+@router.post("/{series_id}/memory/extract-from-scene")
+async def extract_from_scene(series_id: str, request: ExtractFromSceneRequest) -> Dict[str, Any]:
+    """
+    Extract memory facts from a scene using LLM analysis.
+
+    Runs AI extraction to identify character state changes, world facts,
+    and plot events from the scene prose. Results are saved to the series
+    memory layer automatically.
+
+    This is the tool CYOABot calls after generating and accepting a new scene.
+    """
+    series_dir = settings.series_path(series_id)
+    if not series_dir.exists():
+        raise HTTPException(status_code=404, detail=f"Series not found: {series_id}")
+
+    try:
+        extraction = await memory_service.extract_from_scene(
+            series_id=series_id,
+            book_id=request.book_id,
+            scene_id=request.scene_id,
+            prose=request.prose,
+            scene_title=request.scene_title,
+            chapter_title=request.chapter_title,
+            book_number=request.book_number,
+            chapter_number=request.chapter_number,
+            scene_number=request.scene_number,
+            character_names=request.character_names,
+            model=request.model,
+        )
+
+        return {
+            "status": "extracted",
+            "scene_id": request.scene_id,
+            "character_changes": len(extraction.character_changes),
+            "world_facts": len(extraction.world_facts),
+            "plot_events": len(extraction.plot_events),
+            "extraction": extraction.model_dump(),
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Scene extraction failed: {str(e)}")
+
+
 class ContinuityCheckRequest(BaseModel):
     """Request to check prose for continuity issues."""
     prose_text: str = Field(..., description="Prose to check for continuity issues")

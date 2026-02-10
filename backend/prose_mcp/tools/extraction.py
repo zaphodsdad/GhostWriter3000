@@ -4,10 +4,54 @@ from __future__ import annotations
 
 from fastmcp import FastMCP
 
-from prose_mcp.client import safe_get, safe_post, LONG_TIMEOUT
+from prose_mcp.client import safe_get, safe_post, safe_post_form, LONG_TIMEOUT
 
 
 def register_extraction_tools(mcp: FastMCP) -> None:
+
+    @mcp.tool()
+    async def prose_import_manuscript(
+        project_id: str,
+        text: str,
+        enable_edit_mode: bool = True,
+        create_chapters: bool = True,
+    ) -> dict:
+        """Import manuscript text into a project, auto-detecting chapter breaks.
+
+        Splits the text at chapter markers (e.g., "Chapter 1", "CHAPTER ONE"),
+        creates chapter structure, and imports each chapter as a scene in edit
+        mode. Use this for loading source material like novels into the system.
+
+        Args:
+            project_id: Target project ID
+            text: Full manuscript text (plain text or markdown)
+            enable_edit_mode: Put scenes in edit mode (default True)
+            create_chapters: Auto-create chapter structure (default True)
+        """
+        # Step 1: Split text into chapters
+        split_result = await safe_post_form(
+            f"/api/projects/{project_id}/manuscript/split",
+            data={"text": text},
+            timeout=LONG_TIMEOUT,
+        )
+
+        chapters = split_result.get("chapters", [])
+        if not chapters:
+            return {
+                "status": "no_chapters",
+                "message": "No chapter breaks detected in the text.",
+            }
+
+        # Step 2: Import the detected chapters
+        return await safe_post(
+            f"/api/projects/{project_id}/manuscript/import-bulk",
+            json={
+                "chapters": chapters,
+                "enable_edit_mode": enable_edit_mode,
+                "create_chapters": create_chapters,
+            },
+            timeout=LONG_TIMEOUT,
+        )
 
     @mcp.tool()
     async def prose_analyze_manuscript(

@@ -45,6 +45,12 @@ class ProseClient:
         resp.raise_for_status()
         return resp.json()
 
+    async def post_form(self, path: str, data: dict | None = None, timeout: httpx.Timeout | None = None) -> dict:
+        client = await self._get_client()
+        resp = await client.post(path, data=data, timeout=timeout)
+        resp.raise_for_status()
+        return resp.json()
+
     async def put(self, path: str, json: dict | None = None) -> dict:
         client = await self._get_client()
         resp = await client.put(path, json=json)
@@ -89,6 +95,11 @@ async def safe_get(path: str, **kwargs) -> dict:
 async def safe_post(path: str, **kwargs) -> dict:
     """POST with standardized error handling."""
     return await _safe_request(get_client().post(path, **kwargs))
+
+
+async def safe_post_form(path: str, **kwargs) -> dict:
+    """POST form data with standardized error handling."""
+    return await _safe_request(get_client().post_form(path, **kwargs))
 
 
 async def safe_put(path: str, **kwargs) -> dict:
