@@ -22,7 +22,7 @@ def register_scene_tools(mcp: FastMCP) -> None:
         params = {}
         if chapter_id is not None:
             params["chapter_id"] = chapter_id
-        return await safe_get(f"/api/projects/{project_id}/scenes", params=params or None)
+        return await safe_get(f"/api/projects/{project_id}/scenes/", params=params or None)
 
     @mcp.tool(annotations={"readOnlyHint": True})
     async def prose_get_scene(project_id: str, scene_id: str) -> dict:
@@ -94,7 +94,7 @@ def register_scene_tools(mcp: FastMCP) -> None:
             body["setting"] = setting
         if generation_notes is not None:
             body["generation_notes"] = generation_notes
-        return await safe_post(f"/api/projects/{project_id}/scenes", json=body)
+        return await safe_post(f"/api/projects/{project_id}/scenes/", json=body)
 
     @mcp.tool()
     async def prose_update_scene(

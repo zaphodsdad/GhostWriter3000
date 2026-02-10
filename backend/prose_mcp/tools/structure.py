@@ -18,7 +18,7 @@ def register_structure_tools(mcp: FastMCP) -> None:
         Args:
             project_id: Project ID
         """
-        return await safe_get(f"/api/projects/{project_id}/acts")
+        return await safe_get(f"/api/projects/{project_id}/acts/")
 
     @mcp.tool(annotations={"readOnlyHint": True})
     async def prose_get_act(project_id: str, act_id: str) -> dict:
@@ -60,7 +60,7 @@ def register_structure_tools(mcp: FastMCP) -> None:
             body["function"] = function
         if target_word_count is not None:
             body["target_word_count"] = target_word_count
-        return await safe_post(f"/api/projects/{project_id}/acts", json=body)
+        return await safe_post(f"/api/projects/{project_id}/acts/", json=body)
 
     @mcp.tool()
     async def prose_update_act(
@@ -120,7 +120,7 @@ def register_structure_tools(mcp: FastMCP) -> None:
         params = {}
         if act_id is not None:
             params["act_id"] = act_id
-        return await safe_get(f"/api/projects/{project_id}/chapters", params=params or None)
+        return await safe_get(f"/api/projects/{project_id}/chapters/", params=params or None)
 
     @mcp.tool(annotations={"readOnlyHint": True})
     async def prose_get_chapter(project_id: str, chapter_id: str) -> dict:
@@ -172,7 +172,7 @@ def register_structure_tools(mcp: FastMCP) -> None:
             body["target_word_count"] = target_word_count
         if function is not None:
             body["function"] = function
-        return await safe_post(f"/api/projects/{project_id}/chapters", json=body)
+        return await safe_post(f"/api/projects/{project_id}/chapters/", json=body)
 
     @mcp.tool()
     async def prose_update_chapter(

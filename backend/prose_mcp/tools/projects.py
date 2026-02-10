@@ -16,7 +16,7 @@ def register_project_tools(mcp: FastMCP) -> None:
         Returns project IDs, titles, word counts, scene counts,
         and series membership for every project.
         """
-        return await safe_get("/api/projects")
+        return await safe_get("/api/projects/")
 
     @mcp.tool(annotations={"readOnlyHint": True})
     async def prose_get_project(project_id: str) -> dict:
@@ -53,12 +53,12 @@ def register_project_tools(mcp: FastMCP) -> None:
             body["series_id"] = series_id
         if book_number is not None:
             body["book_number"] = book_number
-        return await safe_post("/api/projects", json=body)
+        return await safe_post("/api/projects/", json=body)
 
     @mcp.tool(annotations={"readOnlyHint": True})
     async def prose_list_series() -> dict:
         """List all book series with their metadata and book lists."""
-        return await safe_get("/api/series")
+        return await safe_get("/api/series/")
 
     @mcp.tool()
     async def prose_create_series(
@@ -78,7 +78,7 @@ def register_project_tools(mcp: FastMCP) -> None:
             body["description"] = description
         if genre is not None:
             body["genre"] = genre
-        return await safe_post("/api/series", json=body)
+        return await safe_post("/api/series/", json=body)
 
     @mcp.tool()
     async def prose_update_project(

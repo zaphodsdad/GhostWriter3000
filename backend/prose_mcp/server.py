@@ -41,6 +41,7 @@ def register_all_tools() -> None:
     from prose_mcp.tools.memory import register_memory_tools
     from prose_mcp.tools.extraction import register_extraction_tools
     from prose_mcp.tools.style import register_style_tools
+    from prose_mcp.tools.outline import register_outline_tools
 
     register_project_tools(mcp)
     logger.info("Project tools registered")
@@ -68,5 +69,8 @@ def register_all_tools() -> None:
 
     register_style_tools(mcp)
     logger.info("Style tools registered")
+
+    register_outline_tools(mcp)
+    logger.info("Outline tools registered")
 
     logger.info("All prose-pipeline MCP tools registered")

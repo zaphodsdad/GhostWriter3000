@@ -132,7 +132,7 @@ def register_generation_tools(mcp: FastMCP) -> None:
         Args:
             project_id: Project ID
         """
-        return await safe_get(f"/api/projects/{project_id}/generations")
+        return await safe_get(f"/api/projects/{project_id}/generations/")
 
     @mcp.tool(annotations={"readOnlyHint": True})
     async def prose_get_generation_queue(

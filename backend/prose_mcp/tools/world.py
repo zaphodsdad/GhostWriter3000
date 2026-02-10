@@ -16,7 +16,7 @@ def register_world_tools(mcp: FastMCP) -> None:
         Args:
             project_id: Project ID
         """
-        return await safe_get(f"/api/projects/{project_id}/world")
+        return await safe_get(f"/api/projects/{project_id}/world/")
 
     @mcp.tool(annotations={"readOnlyHint": True})
     async def prose_get_world_context(project_id: str, world_id: str) -> dict:

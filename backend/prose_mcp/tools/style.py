@@ -18,7 +18,7 @@ def register_style_tools(mcp: FastMCP) -> None:
         Args:
             project_id: Project ID
         """
-        return await safe_get(f"/api/projects/{project_id}/style")
+        return await safe_get(f"/api/projects/{project_id}/style/")
 
     @mcp.tool()
     async def prose_update_project_style(
@@ -50,7 +50,7 @@ def register_style_tools(mcp: FastMCP) -> None:
             body["heat_level"] = heat_level
         if guide is not None:
             body["guide"] = guide
-        return await safe_put(f"/api/projects/{project_id}/style", json=body)
+        return await safe_put(f"/api/projects/{project_id}/style/", json=body)
 
     @mcp.tool(annotations={"readOnlyHint": True})
     async def prose_get_series_style(series_id: str) -> dict:

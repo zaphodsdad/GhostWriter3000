@@ -34,7 +34,7 @@ ssh root@192.168.2.184 "pct exec 304 -- journalctl -u prose-pipeline -f"
 
 ## MCP Wrapper
 
-The MCP wrapper lives at `backend/prose_mcp/` and exposes **68 tools** covering the full writing workflow. It's a thin proxy layer — all tools call the FastAPI backend via HTTP.
+The MCP wrapper lives at `backend/prose_mcp/` and exposes **74 tools** covering the full writing workflow. It's a thin proxy layer — all tools call the FastAPI backend via HTTP.
 
 **Architecture:**
 ```
@@ -47,7 +47,7 @@ FastAPI backend (http://127.0.0.1:8000)
 File-based data storage
 ```
 
-**Tool modules (68 tools total):**
+**Tool modules (74 tools total):**
 | Module | Tools | Coverage |
 |--------|-------|----------|
 | `tools/projects.py` | 11 | Project + series CRUD, export |
@@ -59,6 +59,7 @@ File-based data storage
 | `tools/memory.py` | 6 | Series memory, continuity, summaries, scene extraction |
 | `tools/extraction.py` | 3 | Manuscript import, manuscript analysis, health check |
 | `tools/style.py` | 4 | Project + series style guides |
+| `tools/outline.py` | 6 | Outline generation, cost estimation, scopes, apply, next scene |
 
 **Transports:**
 - `streamable-http` — embedded at `/mcp` on the FastAPI app (port 8000)
@@ -77,6 +78,8 @@ File-based data storage
 ```
 Note the **trailing slash** — `/mcp/` not `/mcp`. Without it you get 404.
 
+**MCP proxy gotcha:** FastAPI list endpoints (routes defined as `@router.get("/")`) require trailing slashes when mounted at a prefix. All MCP tool proxy paths in `prose_mcp/tools/*.py` must include trailing slashes for list/create endpoints (e.g. `/api/projects/` not `/api/projects`). Single-resource endpoints like `/api/projects/{id}` work without.
+
 ## Key Directories
 
 ```
@@ -91,7 +94,7 @@ backend/
 │   ├── server.py            # FastMCP setup, tool registration
 │   ├── client.py            # HTTP client (proxies to FastAPI)
 │   ├── main.py              # Standalone entry point
-│   └── tools/               # 9 tool modules (68 tools)
+│   └── tools/               # 10 tool modules (74 tools)
 frontend/                    # Vanilla HTML/CSS/JS web UI
 data/                        # Sample/test data files
 ```
@@ -128,7 +131,6 @@ These backend features exist but aren't MCP tools:
 - Chapter extraction (extract characters/world/memory from imported prose)
 - Outline import (structured markdown → acts/chapters/scenes)
 - Story templates
-- Auto-generate outline from premise
 - Backups (scene versions, snapshots, checkpoints)
 - Settings/admin
 - LanguageTool grammar checking

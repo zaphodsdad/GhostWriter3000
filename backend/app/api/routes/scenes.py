@@ -117,6 +117,86 @@ async def create_scene(project_id: str, scene_data: SceneCreate):
         raise HTTPException(status_code=500, detail=f"Failed to create scene: {str(e)}")
 
 
+@router.get("/next-ungenerated")
+async def get_next_ungenerated_scene(project_id: str):
+    """
+    Get the next scene in outline order that hasn't been generated yet.
+
+    Returns the first scene (sorted by chapter_number, then scene_number)
+    where prose is null/empty and is_canon is false.
+
+    Args:
+        project_id: Project ID
+
+    Returns:
+        Next ungenerated scene with beats, or {"none": true} if all done
+    """
+    ensure_project_exists(project_id)
+
+    try:
+        scenes_dir = settings.scenes_dir(project_id)
+        if not scenes_dir.exists():
+            return {"none": True, "message": "No scenes in project"}
+
+        # Load all scenes
+        scenes = []
+        for filepath in scenes_dir.glob("*.json"):
+            try:
+                data = await read_json_file(filepath)
+                scenes.append(data)
+            except Exception:
+                continue
+
+        if not scenes:
+            return {"none": True, "message": "No scenes in project"}
+
+        # Build chapter_number lookup for proper ordering
+        chapters_dir = settings.project_dir(project_id) / "chapters"
+        chapter_order = {}
+        if chapters_dir.exists():
+            for ch_file in chapters_dir.glob("*.json"):
+                try:
+                    ch = await read_json_file(ch_file)
+                    chapter_order[ch["id"]] = ch.get("chapter_number", 999)
+                except Exception:
+                    continue
+
+        # Sort by chapter order, then scene_number
+        scenes.sort(key=lambda s: (
+            chapter_order.get(s.get("chapter_id", ""), 999),
+            s.get("scene_number", 0)
+        ))
+
+        # Find first scene without prose
+        for scene in scenes:
+            prose = scene.get("prose") or scene.get("original_prose")
+            if not prose and not scene.get("is_canon", False):
+                return {
+                    "none": False,
+                    "scene_id": scene["id"],
+                    "title": scene.get("title", ""),
+                    "chapter_id": scene.get("chapter_id"),
+                    "scene_number": scene.get("scene_number"),
+                    "chapter_number": chapter_order.get(scene.get("chapter_id", ""), None),
+                    "outline": scene.get("outline", ""),
+                    "outline_status": scene.get("outline_status", "idea"),
+                    "beats": scene.get("beats", []),
+                    "pov": scene.get("pov"),
+                    "tone": scene.get("tone"),
+                    "setting": scene.get("setting"),
+                    "target_length": scene.get("target_length"),
+                    "character_ids": scene.get("character_ids", []),
+                    "world_context_ids": scene.get("world_context_ids", []),
+                }
+
+        return {"none": True, "message": "All scenes have been generated"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/{scene_id}", response_model=Scene)
 async def get_scene(project_id: str, scene_id: str):
     """

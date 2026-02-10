@@ -16,7 +16,7 @@ def register_character_tools(mcp: FastMCP) -> None:
         Args:
             project_id: Project ID
         """
-        return await safe_get(f"/api/projects/{project_id}/characters")
+        return await safe_get(f"/api/projects/{project_id}/characters/")
 
     @mcp.tool(annotations={"readOnlyHint": True})
     async def prose_get_character(project_id: str, character_id: str) -> dict:
