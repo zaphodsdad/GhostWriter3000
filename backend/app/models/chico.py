@@ -36,13 +36,17 @@ class ChicoConversation(BaseModel):
 class ChicoSettings(BaseModel):
     """Settings for Chico assistant."""
 
+    persona_id: Optional[str] = Field(
+        None,
+        description="Persona MCP persona ID (e.g. 'mirror'). If set, uses Persona MCP for identity/memory."
+    )
     assistant_name: str = Field(
         default="Chico",
-        description="Name of the AI assistant"
+        description="Display name (overridden by persona name when persona_id is set)"
     )
     personality: str = Field(
         default="helpful",
-        description="Personality style: helpful, direct, enthusiastic"
+        description="Fallback personality for stateless mode: helpful, direct, enthusiastic"
     )
     model: Optional[str] = Field(
         None,

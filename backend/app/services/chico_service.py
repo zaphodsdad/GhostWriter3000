@@ -7,14 +7,13 @@ Chico is a persistent AI co-author that knows everything about your series:
 - Timeline and plot events
 - Learned style preferences
 
-Chico can:
-- Answer questions about the story
-- Catch continuity errors
-- Suggest plot developments
-- Brainstorm with you
-- Remember previous conversations
+When a Persona MCP persona_id is configured, Chico's identity and memory come from
+Persona MCP (persistent identity, emotional evolution, memory with decay). PP still
+provides series knowledge (characters, world, scenes). If Persona MCP is unreachable,
+Chico falls back to stateless mode automatically.
 """
 
+import asyncio
 import json
 import uuid
 from datetime import datetime
@@ -32,6 +31,7 @@ from app.services.llm_service import get_llm_service
 from app.services.series_service import SeriesService
 from app.services.memory_service import MemoryService
 from app.services.style_learning_service import get_style_learning_service
+from app.services.persona_client import get_persona_client
 from app.utils.file_utils import read_json_file, write_json_file
 from app.utils.logging import get_logger
 from app.config import settings
@@ -166,7 +166,7 @@ class ChicoService:
         )
         conversation.messages.append(user_message)
 
-        # Build context and system prompt
+        # Build series context (used in both persona and stateless modes)
         context = await self._build_series_context(
             series_id,
             conversation.current_book_id,
@@ -179,11 +179,23 @@ class ChicoService:
                 context["current_scene"] = {}
             context["current_scene"]["prose"] = request.current_prose
 
-        system_prompt = self._build_chico_prompt(
-            chico_settings.assistant_name,
-            chico_settings.personality,
-            context
-        )
+        # Build system prompt — persona mode or stateless fallback
+        persona_context = None
+        if chico_settings.persona_id:
+            persona_context = await self._get_persona_context(chico_settings.persona_id)
+
+        if persona_context:
+            system_prompt = self._build_persona_prompt(
+                chico_settings.persona_id,
+                persona_context,
+                context
+            )
+        else:
+            system_prompt = self._build_chico_prompt(
+                chico_settings.assistant_name,
+                chico_settings.personality,
+                context
+            )
 
         # Build LLM messages (include conversation history)
         llm_messages = self._build_llm_messages(conversation.messages)
@@ -208,11 +220,241 @@ class ChicoService:
         conversation.updated_at = datetime.utcnow()
         await self._save_conversation(series_id, conversation)
 
+        # Submit experience to Persona MCP (fire-and-forget, non-blocking)
+        if chico_settings.persona_id and persona_context:
+            asyncio.create_task(self._submit_chat_experience(
+                chico_settings.persona_id,
+                request.message,
+                response_text,
+            ))
+
+        # Display name: use persona name if available, otherwise settings
+        display_name = chico_settings.assistant_name
+        if persona_context and persona_context.get("name"):
+            display_name = persona_context["name"]
+
         return ChicoChatResponse(
             message=assistant_message,
-            assistant_name=chico_settings.assistant_name,
+            assistant_name=display_name,
             conversation_id=conversation.id
         )
+
+    async def _get_persona_context(self, persona_id: str) -> Optional[Dict[str, Any]]:
+        """Fetch full persona context from Persona MCP. Returns None if unavailable."""
+        client = get_persona_client()
+
+        if not await client.health_check():
+            logger.info("Persona MCP unavailable, falling back to stateless mode")
+            return None
+
+        context = await client.get_full_context(persona_id)
+        if context is None:
+            logger.warning(f"Failed to get context for persona {persona_id}, falling back")
+            return None
+
+        # Also fetch the persona definition for name/personality info
+        persona = await client.get_persona(persona_id)
+        if persona:
+            context["name"] = persona.get("name", persona_id)
+            context["personality"] = persona.get("personality", "")
+            context["voice"] = persona.get("voice", "")
+
+        return context
+
+    def _build_persona_prompt(
+        self,
+        persona_id: str,
+        persona_context: Dict[str, Any],
+        series_context: Dict[str, Any],
+    ) -> str:
+        """Build system prompt with Persona MCP identity + PP series knowledge."""
+        name = persona_context.get("name", persona_id)
+        personality = persona_context.get("personality", "")
+        voice = persona_context.get("voice", "")
+
+        parts = []
+
+        # Identity block from Persona MCP
+        parts.append(f"You are {name}, a writing assistant and co-author with a persistent memory and evolving identity.")
+        if personality:
+            parts.append(f"Personality: {personality}")
+        if voice:
+            parts.append(f"Voice: {voice}")
+        parts.append("")
+
+        # Persona memory — recent experiences
+        context_text = persona_context.get("context", "")
+        if isinstance(context_text, dict):
+            # If context is structured, format it
+            recent = context_text.get("recent_experiences", [])
+            summaries = context_text.get("summaries", [])
+            if recent:
+                parts.append("=== YOUR RECENT EXPERIENCES ===")
+                for exp in recent:
+                    if isinstance(exp, dict):
+                        emotion = exp.get("emotional_state", "")
+                        content = exp.get("content", str(exp))
+                        parts.append(f"- ({emotion}) {content}")
+                    else:
+                        parts.append(f"- {exp}")
+                parts.append("")
+            if summaries:
+                parts.append("=== EARLIER EXPERIENCES (summarized) ===")
+                for s in summaries:
+                    if isinstance(s, dict):
+                        parts.append(f"- {s.get('content', str(s))}")
+                    else:
+                        parts.append(f"- {s}")
+                parts.append("")
+        elif context_text:
+            parts.append("=== YOUR MEMORIES ===")
+            parts.append(str(context_text))
+            parts.append("")
+
+        # Emotional state
+        trend = persona_context.get("emotional_trend", "")
+        emotions = persona_context.get("recent_emotions", [])
+        if trend or emotions:
+            parts.append("=== YOUR CURRENT STATE ===")
+            if emotions:
+                parts.append(f"Recent emotions: {', '.join(e for e in emotions if e)}")
+            if trend:
+                parts.append(f"Emotional trend: {trend}")
+            parts.append("")
+
+        # Callbacks (memorable moments)
+        callbacks = persona_context.get("callbacks", [])
+        if callbacks:
+            parts.append("=== MEMORABLE MOMENTS ===")
+            for cb in callbacks:
+                if cb:
+                    parts.append(f"- {cb}")
+            parts.append("")
+
+        # Now add PP's series knowledge (same as stateless mode)
+        parts.append("=== SERIES KNOWLEDGE ===")
+        parts.append("")
+        parts.append(self._format_series_knowledge(series_context))
+
+        # Guidelines
+        parts.extend([
+            "",
+            "=== GUIDELINES ===",
+            "",
+            "1. You remember your experiences and they shape how you engage with the story.",
+            "2. When asked about characters, events, or world details, draw from your series knowledge.",
+            "3. If you notice something contradicts established canon, point it out!",
+            "4. Help brainstorm, but don't take over - the author makes the final decisions.",
+            "5. Be conversational and personable. You have a real voice and point of view.",
+            "6. If you don't know something, say so rather than making it up.",
+        ])
+
+        return "\n".join(parts)
+
+    def _format_series_knowledge(self, context: Dict[str, Any]) -> str:
+        """Format PP series knowledge for inclusion in any prompt (shared by persona and stateless modes)."""
+        parts = []
+
+        # Series info
+        series = context.get("series")
+        if series:
+            parts.append(f"SERIES: {series.get('title', 'Untitled Series')}")
+            if series.get("description"):
+                parts.append(f"Description: {series['description']}")
+            parts.append("")
+
+        # Books in series
+        books = context.get("books", [])
+        if books:
+            parts.append("BOOKS IN SERIES:")
+            for book in books:
+                marker = " (CURRENT)" if book.get("id") == (context.get("current_book") or {}).get("id") else ""
+                parts.append(f"  Book {book.get('book_number', '?')}: {book.get('title', 'Untitled')}{marker}")
+            parts.append("")
+
+        # Characters
+        characters = context.get("characters", [])
+        if characters:
+            parts.append(f"CHARACTERS ({len(characters)} total):")
+            for char in characters[:20]:
+                books_str = ", ".join(str(b) for b in char.get("books_appeared", []))
+                parts.append(f"  - {char['name']} ({char.get('role', '?')}) - Books: {books_str or 'unknown'}")
+            if len(characters) > 20:
+                parts.append(f"  ... and {len(characters) - 20} more")
+            parts.append("")
+
+        # World elements
+        worlds = context.get("worlds", [])
+        if worlds:
+            parts.append(f"WORLD ELEMENTS ({len(worlds)} total):")
+            for world in worlds[:15]:
+                parts.append(f"  - {world['name']} [{world.get('category', 'general')}]")
+            if len(worlds) > 15:
+                parts.append(f"  ... and {len(worlds) - 15} more")
+            parts.append("")
+
+        # Memory layer
+        memory = context.get("memory", {})
+        if memory:
+            if memory.get("character_states"):
+                parts.append("CHARACTER STATES (current):")
+                parts.append(memory["character_states"][:2000])
+                parts.append("")
+            if memory.get("world_state"):
+                parts.append("WORLD STATE (established facts):")
+                parts.append(memory["world_state"][:2000])
+                parts.append("")
+            if memory.get("timeline"):
+                parts.append("TIMELINE (major events):")
+                parts.append(memory["timeline"][:2000])
+                parts.append("")
+
+        # Style preferences
+        style_prefs = context.get("style_preferences", "")
+        if style_prefs:
+            parts.append("AUTHOR'S STYLE PREFERENCES:")
+            parts.append(style_prefs)
+            parts.append("")
+
+        # Current focus
+        current_scene = context.get("current_scene")
+        if current_scene:
+            parts.append("CURRENTLY WORKING ON:")
+            parts.append(f"Scene: {current_scene.get('title', 'Untitled')}")
+            if current_scene.get("outline"):
+                parts.append(f"Outline: {current_scene['outline'][:500]}")
+            if current_scene.get("prose"):
+                prose_preview = current_scene['prose'][:3000]
+                if len(current_scene['prose']) > 3000:
+                    prose_preview += "...(truncated)"
+                parts.append(f"Current prose:\n{prose_preview}")
+            parts.append("")
+
+        return "\n".join(parts)
+
+    async def _submit_chat_experience(
+        self,
+        persona_id: str,
+        user_message: str,
+        assistant_response: str,
+    ) -> None:
+        """Submit a chat interaction as an experience to Persona MCP. Fire-and-forget."""
+        try:
+            client = get_persona_client()
+            # Summarize the exchange
+            user_snippet = user_message[:150]
+            response_snippet = assistant_response[:150]
+            content = f"Chat about writing: User asked '{user_snippet}' — responded with '{response_snippet}'"
+
+            await client.submit_experience(
+                persona_id=persona_id,
+                content=content,
+                emotional_state="engaged",
+                experience_type="chat",
+                key_insight=user_snippet,
+            )
+        except Exception as e:
+            logger.warning(f"Failed to submit chat experience: {e}")
 
     async def _build_series_context(
         self,
@@ -344,7 +586,7 @@ class ChicoService:
         personality: str,
         context: Dict[str, Any]
     ) -> str:
-        """Build Chico's system prompt with full series context."""
+        """Build Chico's stateless system prompt with full series context."""
         # Personality variations
         personality_prompts = {
             "helpful": f"""You are {assistant_name}, a helpful AI writing assistant and co-author.
@@ -370,87 +612,8 @@ When you spot continuity issues, you frame them as exciting opportunities to str
             "",
             "=== YOUR KNOWLEDGE ===",
             "",
-        ]
-
-        # Series info
-        series = context.get("series")
-        if series:
-            parts.append(f"SERIES: {series.get('title', 'Untitled Series')}")
-            if series.get("description"):
-                parts.append(f"Description: {series['description']}")
-            parts.append("")
-
-        # Books in series
-        books = context.get("books", [])
-        if books:
-            parts.append("BOOKS IN SERIES:")
-            for book in books:
-                marker = " (CURRENT)" if book.get("id") == context.get("current_book", {}).get("id") else ""
-                parts.append(f"  Book {book.get('book_number', '?')}: {book.get('title', 'Untitled')}{marker}")
-            parts.append("")
-
-        # Characters
-        characters = context.get("characters", [])
-        if characters:
-            parts.append(f"CHARACTERS ({len(characters)} total):")
-            for char in characters[:20]:  # Limit to 20 for context
-                books_str = ", ".join(str(b) for b in char.get("books_appeared", []))
-                parts.append(f"  - {char['name']} ({char.get('role', '?')}) - Books: {books_str or 'unknown'}")
-            if len(characters) > 20:
-                parts.append(f"  ... and {len(characters) - 20} more")
-            parts.append("")
-
-        # World elements
-        worlds = context.get("worlds", [])
-        if worlds:
-            parts.append(f"WORLD ELEMENTS ({len(worlds)} total):")
-            for world in worlds[:15]:
-                parts.append(f"  - {world['name']} [{world.get('category', 'general')}]")
-            if len(worlds) > 15:
-                parts.append(f"  ... and {len(worlds) - 15} more")
-            parts.append("")
-
-        # Memory layer (accumulated canon knowledge)
-        memory = context.get("memory", {})
-        if memory:
-            if memory.get("character_states"):
-                parts.append("CHARACTER STATES (current):")
-                parts.append(memory["character_states"][:2000])
-                parts.append("")
-
-            if memory.get("world_state"):
-                parts.append("WORLD STATE (established facts):")
-                parts.append(memory["world_state"][:2000])
-                parts.append("")
-
-            if memory.get("timeline"):
-                parts.append("TIMELINE (major events):")
-                parts.append(memory["timeline"][:2000])
-                parts.append("")
-
-        # Style preferences
-        style_prefs = context.get("style_preferences", "")
-        if style_prefs:
-            parts.append("AUTHOR'S STYLE PREFERENCES:")
-            parts.append(style_prefs)
-            parts.append("")
-
-        # Current focus
-        current_scene = context.get("current_scene")
-        if current_scene:
-            parts.append("CURRENTLY WORKING ON:")
-            parts.append(f"Scene: {current_scene.get('title', 'Untitled')}")
-            if current_scene.get("outline"):
-                parts.append(f"Outline: {current_scene['outline'][:500]}")
-            if current_scene.get("prose"):
-                prose_preview = current_scene['prose'][:3000]
-                if len(current_scene['prose']) > 3000:
-                    prose_preview += "...(truncated)"
-                parts.append(f"Current prose:\n{prose_preview}")
-            parts.append("")
-
-        # Instructions
-        parts.extend([
+            self._format_series_knowledge(context),
+            "",
             "=== GUIDELINES ===",
             "",
             "1. You remember our entire conversation history. Reference previous discussions naturally.",
@@ -460,7 +623,7 @@ When you spot continuity issues, you frame them as exciting opportunities to str
             "5. Be conversational and personable. You're a co-author, not a generic AI.",
             "6. If you don't know something, say so rather than making it up.",
             ""
-        ])
+        ]
 
         return "\n".join(parts)
 

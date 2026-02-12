@@ -2192,16 +2192,24 @@ This will be included in the AI prompt during generation."></textarea>
         <div class="modal-content modal-small" onclick="event.stopPropagation()">
             <h3>Assistant Settings</h3>
             <div class="form-group">
-                <label>Assistant Name</label>
-                <input type="text" id="chico-name-input" value="Chico" placeholder="e.g., Chico, Max, Aria">
-            </div>
-            <div class="form-group">
-                <label>Personality</label>
-                <select id="chico-personality">
-                    <option value="helpful">Helpful (supportive, encouraging)</option>
-                    <option value="direct">Direct (honest, straightforward)</option>
-                    <option value="enthusiastic">Enthusiastic (excited, creative)</option>
+                <label>Persona <span id="persona-status" style="font-size: 0.8em; margin-left: 6px;"></span></label>
+                <select id="chico-persona-select" onchange="onPersonaSelectChange()">
+                    <option value="">Stateless mode (no persona)</option>
                 </select>
+            </div>
+            <div id="chico-stateless-settings">
+                <div class="form-group">
+                    <label>Assistant Name</label>
+                    <input type="text" id="chico-name-input" value="Chico" placeholder="e.g., Chico, Max, Aria">
+                </div>
+                <div class="form-group">
+                    <label>Personality</label>
+                    <select id="chico-personality">
+                        <option value="helpful">Helpful (supportive, encouraging)</option>
+                        <option value="direct">Direct (honest, straightforward)</option>
+                        <option value="enthusiastic">Enthusiastic (excited, creative)</option>
+                    </select>
+                </div>
             </div>
             <div class="action-bar">
                 <button class="btn btn-primary" onclick="saveChicoSettings()">Save</button>

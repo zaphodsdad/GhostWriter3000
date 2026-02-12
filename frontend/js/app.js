@@ -10436,6 +10436,10 @@ function toggleChicoMinimize() {
 }
 
 // Load Chico settings from API
+// Cached persona list for the settings dropdown
+let chicoPersonas = [];
+let chicoPersonaConnected = false;
+
 async function loadChicoSettings() {
     if (!currentSeries) return;
 
@@ -10445,14 +10449,34 @@ async function loadChicoSettings() {
             chicoSettings = await response.json();
             applyChicoSettings();
         } else {
-            // Use defaults
-            chicoSettings = { assistant_name: 'Chico', personality: 'helpful' };
+            chicoSettings = { assistant_name: 'Chico', personality: 'helpful', persona_id: null };
             applyChicoSettings();
         }
     } catch (e) {
         console.error('Failed to load Chico settings:', e);
-        chicoSettings = { assistant_name: 'Chico', personality: 'helpful' };
+        chicoSettings = { assistant_name: 'Chico', personality: 'helpful', persona_id: null };
         applyChicoSettings();
+    }
+
+    // Fetch available personas in the background
+    loadPersonasList();
+}
+
+async function loadPersonasList() {
+    if (!currentSeries) return;
+    try {
+        const response = await fetch(`/api/series/${currentSeries.id}/personas`);
+        if (response.ok) {
+            const data = await response.json();
+            chicoPersonas = data.personas || [];
+            chicoPersonaConnected = data.connected || false;
+        } else {
+            chicoPersonas = [];
+            chicoPersonaConnected = false;
+        }
+    } catch (e) {
+        chicoPersonas = [];
+        chicoPersonaConnected = false;
     }
 }
 
@@ -10465,9 +10489,10 @@ function applyChicoSettings() {
     const nameInput = document.getElementById('chico-name-input');
     const personality = document.getElementById('chico-personality');
 
-    if (title) title.textContent = chicoSettings.assistant_name || 'Chico';
-    if (nameDisplay) nameDisplay.textContent = chicoSettings.assistant_name || 'Chico';
-    if (nameInput) nameInput.value = chicoSettings.assistant_name || 'Chico';
+    const displayName = chicoSettings.assistant_name || 'Chico';
+    if (title) title.textContent = displayName;
+    if (nameDisplay) nameDisplay.textContent = displayName;
+    if (nameInput) nameInput.value = displayName;
     if (personality) personality.value = chicoSettings.personality || 'helpful';
 }
 
@@ -10644,6 +10669,38 @@ async function sendChicoMessage() {
 function showChicoSettingsModal() {
     const modal = document.getElementById('chico-settings-modal');
     if (modal) modal.style.display = 'flex';
+
+    // Populate persona dropdown
+    const select = document.getElementById('chico-persona-select');
+    const statusSpan = document.getElementById('persona-status');
+    if (select) {
+        select.innerHTML = '<option value="">Stateless mode (no persona)</option>';
+        for (const p of chicoPersonas) {
+            const id = p.id || p.persona_id || '';
+            const name = p.name || id;
+            select.innerHTML += `<option value="${id}">${name}</option>`;
+        }
+        select.value = chicoSettings?.persona_id || '';
+    }
+    if (statusSpan) {
+        if (chicoPersonaConnected) {
+            statusSpan.innerHTML = '<span style="color: var(--success);">&#9679; connected</span>';
+        } else {
+            statusSpan.innerHTML = '<span style="color: var(--danger);">&#9679; disconnected</span>';
+        }
+    }
+
+    // Toggle stateless settings visibility
+    onPersonaSelectChange();
+}
+
+// Toggle stateless settings based on persona selection
+function onPersonaSelectChange() {
+    const select = document.getElementById('chico-persona-select');
+    const statelessDiv = document.getElementById('chico-stateless-settings');
+    if (statelessDiv) {
+        statelessDiv.style.display = (select && select.value) ? 'none' : 'block';
+    }
 }
 
 // Hide Chico settings modal
@@ -10658,11 +10715,22 @@ async function saveChicoSettings() {
 
     const nameInput = document.getElementById('chico-name-input');
     const personality = document.getElementById('chico-personality');
+    const personaSelect = document.getElementById('chico-persona-select');
 
-    if (!nameInput) return;
+    const personaId = personaSelect?.value || null;
+
+    // If persona is selected, try to get the persona's name for display
+    let assistantName = nameInput?.value?.trim() || 'Chico';
+    if (personaId && chicoPersonas.length > 0) {
+        const persona = chicoPersonas.find(p => (p.id || p.persona_id) === personaId);
+        if (persona?.name) {
+            assistantName = persona.name;
+        }
+    }
 
     const newSettings = {
-        assistant_name: nameInput.value.trim() || 'Chico',
+        persona_id: personaId,
+        assistant_name: assistantName,
         personality: personality?.value || 'helpful',
         enabled: true
     };
@@ -10675,10 +10743,11 @@ async function saveChicoSettings() {
         });
 
         if (response.ok) {
-            chicoSettings = newSettings;
+            chicoSettings = await response.json();
             applyChicoSettings();
             hideChicoSettings();
-            showToast('Settings Saved', `${newSettings.assistant_name} settings updated`, 'success');
+            const mode = personaId ? `Persona: ${assistantName}` : 'Stateless mode';
+            showToast('Settings Saved', `${mode} activated`, 'success');
         } else {
             throw new Error('Failed to save settings');
         }

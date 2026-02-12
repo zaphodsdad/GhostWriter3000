@@ -11,6 +11,7 @@ from app.models.chico import (
     ChicoMessage,
 )
 from app.services.chico_service import get_chico_service
+from app.services.persona_client import get_persona_client
 from app.config import settings
 
 router = APIRouter()
@@ -114,8 +115,9 @@ async def update_chico_settings(series_id: str, chico_settings: ChicoSettings):
     Update Chico settings for a series.
 
     Configurable options:
-    - assistant_name: What to call the assistant (default: "Chico")
-    - personality: "helpful", "direct", or "enthusiastic"
+    - persona_id: Persona MCP persona ID (e.g. "mirror") or null for stateless mode
+    - assistant_name: Display name fallback (overridden by persona name when persona_id is set)
+    - personality: Fallback personality for stateless mode: "helpful", "direct", or "enthusiastic"
     - model: LLM model override (null for default)
     - enabled: Whether Chico is enabled
     """
@@ -127,3 +129,25 @@ async def update_chico_settings(series_id: str, chico_settings: ChicoSettings):
         return chico_settings
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Persona MCP Endpoints
+# =============================================================================
+
+@router.get("/{series_id}/personas")
+async def list_personas(series_id: str):
+    """
+    List available Persona MCP personas for the assistant dropdown.
+
+    Returns empty list if Persona MCP is unreachable.
+    """
+    ensure_series_exists(series_id)
+
+    client = get_persona_client()
+    personas = await client.list_personas()
+    healthy = await client.health_check()
+    return {
+        "personas": personas,
+        "connected": healthy,
+    }

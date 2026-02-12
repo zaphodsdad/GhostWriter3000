@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     cors_origins: List[str] = ["http://localhost:8000"]
     api_auth_key: str = ""  # Optional API key for authentication (empty = no auth)
 
+    # Persona MCP Integration
+    persona_mcp_url: str = "http://192.168.2.210:8091/mcp"
+
     # Server Settings
     host: str = "0.0.0.0"
     port: int = 8000

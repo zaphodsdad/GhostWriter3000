@@ -108,6 +108,32 @@ data/                        # Sample/test data files
 | `GENERATION_MODEL` | deepseek/deepseek-chat-v3.1 | Prose generation model |
 | `CRITIQUE_MODEL` | deepseek/deepseek-chat-v3.1 | Critique model |
 | `MAX_ITERATIONS` | 5 | Max revision iterations |
+| `PERSONA_MCP_URL` | http://192.168.2.210:8091/mcp | Persona MCP server URL |
+
+## Persona MCP Integration
+
+The Chico AI assistant supports **Persona MCP** for persistent identity and memory. When a `persona_id` is set in Chico's per-series settings, the assistant's identity, memories, and emotional state come from Persona MCP instead of static personality templates.
+
+**How it works:**
+1. User sends message via Chico floating widget
+2. PP fetches persona context from Persona MCP (experiences, emotional arc, callbacks)
+3. PP loads series knowledge locally (characters, world, scenes, memory — same as always)
+4. PP builds system prompt combining persona identity + series knowledge
+5. PP calls OpenRouter for chat response
+6. PP saves to local history (for UI display)
+7. PP submits interaction summary as experience to Persona MCP (memory evolves)
+
+**Fallback:** If Persona MCP is unreachable or `persona_id` is null, Chico works in stateless mode (original behavior). No breakage.
+
+**Settings UI:** The Chico settings modal has a "Persona" dropdown that lists available Persona MCP personas (e.g., Mirror, Editor) with a connection status indicator. When a persona is selected, the name/personality fields are hidden since identity comes from Persona MCP.
+
+**Key files:**
+- `backend/app/services/persona_client.py` — Reusable HTTP client for Persona MCP (also used later by generation hooks)
+- `backend/app/services/chico_service.py` — Chat logic with persona mode branching
+- `backend/app/models/chico.py` — `ChicoSettings.persona_id` field
+- `backend/app/api/routes/chico.py` — `GET /{series_id}/personas` endpoint
+
+**Available personas:** Mirror (prose writer) and Editor (quality reviewer) are currently defined in Persona MCP on LXC 304.
 
 ## Chapter Extraction
 
@@ -136,11 +162,12 @@ These backend features exist but aren't MCP tools:
 - LanguageTool grammar checking
 - Reference library
 
-**Note:** Chat/Chico AI assistant is intentionally NOT being exposed via MCP. Chico's per-series personality, memory, and context-aware conversation will be replaced by **Personage MCP** — a shared identity/memory service that provides persistent AI personas across all projects (CYOABot, CodeCampBot, HIWC Shopify, etc.). Building Chico MCP tools would be throwaway work.
+**Note:** Chat/Chico AI assistant is intentionally NOT exposed via MCP. Chico now uses Persona MCP for identity/memory (see "Persona MCP Integration" above). Exposing Chico as MCP tools is unnecessary since Persona MCP already provides the relevant tools.
 
 ## TODO
 
 - [x] ~~**Standalone deployment.**~~ Deployed to LXC 304 as systemd service (Feb 10, 2026). Starts on boot, accessible at `192.168.2.210:8000`.
 - [ ] **Add remaining MCP tools.** Backups, outline import, and references are useful via MCP but lower priority.
 - [ ] **Revision UI.** Three-panel diff view for the revision workflow (see REVISION-UI-SKETCH.md).
-- [ ] **Persona MCP integration.** Persona MCP is already deployed (LXC 304, port 8091) with 17 tools covering persistent identity, memory with decay, emotional arcs, and relationships. prose-pipeline is a *tool* that Persona MCP uses to write — not the other way around. The integration path: Persona MCP provides character emotional states and identity context before generation; prose-pipeline generates prose; scene events get submitted back to Persona MCP as character experiences. Chico's per-series AI assistant will eventually be replaced by Persona MCP personas.
+- [x] ~~**Persona MCP integration (chat).**~~ Chico's chat backend now uses Persona MCP for persistent identity and memory (Feb 12, 2026). Mirror and Editor personas available. Full cycle: fetch context → chat → submit experience.
+- [ ] **Persona MCP generation hooks.** Pre-generation: inject persona emotional context into generation prompts. Post-canon: submit scene events as experiences. The persona_client.py is already built for this.
