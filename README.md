@@ -73,6 +73,9 @@ Each series gets a conversational AI assistant (default name: "Chico") that know
 | **Generation** | Critique-revision loop, polish mode, evaluate-only, batch queue, floating inline revision bubble |
 | **Structure** | Acts, chapters, scenes with beats. Manual creation or auto-generated outlines |
 | **Import** | Manuscript import (.docx/.txt/.md), structured outline import with full metadata extraction |
+
+![Structured outline import](docs/screenshots/outline-import.png)
+![Create a new book](docs/screenshots/create-book.png)
 | **Characters** | Markdown + YAML frontmatter, portrait support, bulk import, chapter-by-chapter extraction from existing prose |
 | **World** | World context files, automatic extraction, location/magic/politics/creature categorization |
 | **Memory** | Series memory layer, causal chains, decay, staleness detection, tiered summaries |
