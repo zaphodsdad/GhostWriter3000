@@ -12,7 +12,7 @@ I spent 20 years in oil and gas — MWD coordination, field operations, real-tim
 
 The writing never stopped, though. I've been a fiction writer my whole adult life — took some swings at self-publishing years ago, never quite landed it because the mechanics of getting stories onto the page always outpaced the hours in the day. I've got multiple novels in progress, a head full of characters and plot, and not enough time.
 
-I'd been using NovelCrafter, which is genuinely great software. But I hate subscriptions when I can avoid them. Then I discovered vibe coding — building real applications with AI assistance — and this was the first thing I thought of. A writing engine I own, that runs on my own hardware, that remembers my entire series and lets me pick any model I want. I started coding a few weeks ago. This is the result.
+I'd been using NovelCrafter, which is genuinely great software. But I hate subscriptions when I can avoid them. This seemed like a fun project to build — a writing engine I own, that runs on my own hardware, that remembers my entire series and lets me pick any model I want. And I actually use it.
 
 **Great stories shouldn't be trapped by writing mechanics.** GhostWriter 3000 helps storytellers who have vivid characters, compelling plots, and rich worlds — but need help getting them onto the page. It generates natural prose, critiques it, revises it, and learns your writing style over time.
 
