@@ -103,3 +103,21 @@ references/
 # Personal notes
 NOTES_PERSONAL.md
 my_*.md
+
+# Claude Code / MCP config (contains local paths/IPs)
+CLAUDE.md
+Claude.md
+.mcp.json
+.claude/
+
+# Import scripts and manuscripts
+IMPORTS/
+
+# Internal dev docs (personal references, not portfolio material)
+CYOABOT-VISION.md
+TEST_GENERATION.md
+TEST_NOW.md
+outline_plan.md
+
+# Deprecated frontend
+frontend_old/

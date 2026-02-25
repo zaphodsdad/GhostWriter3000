@@ -17,7 +17,7 @@ SETTINGS_FILE = settings.data_dir / "settings.json"
 
 # Global config file location (fixed, outside data dir)
 # This allows changing data_dir without losing the setting
-GLOBAL_CONFIG_FILE = Path.home() / ".prometheus-config.json"
+GLOBAL_CONFIG_FILE = Path.home() / ".ghostwriter3000-config.json"
 
 
 class UserSettings(BaseModel):
@@ -348,7 +348,7 @@ async def backup_data():
 
     buffer.seek(0)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"prometheus-backup-{timestamp}.zip"
+    filename = f"ghostwriter3000-backup-{timestamp}.zip"
 
     return StreamingResponse(
         buffer,

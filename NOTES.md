@@ -1,4 +1,4 @@
-# Prometheus - Development Notes
+# GhostWriter 3000 — Development Notes
 
 **Last Updated:** 2026-02-01
 

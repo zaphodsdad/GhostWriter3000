@@ -194,7 +194,7 @@ class PersonaClient:
         try:
             args: Dict[str, Any] = {
                 "persona_id": persona_id,
-                "source_app": "prose-pipeline",
+                "source_app": "ghostwriter3000",
                 "experience_type": experience_type,
                 "content": content,
                 "emotional_state": emotional_state,

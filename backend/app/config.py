@@ -6,7 +6,7 @@ from typing import List
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Check for global config override before Settings class is instantiated
-GLOBAL_CONFIG_FILE = Path.home() / ".prometheus-config.json"
+GLOBAL_CONFIG_FILE = Path.home() / ".ghostwriter3000-config.json"
 
 
 def _get_data_dir_override() -> Path | None:
@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     api_auth_key: str = ""  # Optional API key for authentication (empty = no auth)
 
     # Persona MCP Integration
-    persona_mcp_url: str = "http://192.168.2.210:8091/mcp"
+    persona_mcp_url: str = "http://localhost:8091/mcp"
 
     # Server Settings
     host: str = "0.0.0.0"

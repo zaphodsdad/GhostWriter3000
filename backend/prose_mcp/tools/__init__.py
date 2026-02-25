@@ -1,1 +1,1 @@
-"""MCP tool modules for prose-pipeline."""
+"""MCP tool modules for GhostWriter 3000."""

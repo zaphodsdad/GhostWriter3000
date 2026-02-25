@@ -1,4 +1,4 @@
-"""Prose Pipeline MCP Server — FastMCP setup and tool registration."""
+"""GhostWriter 3000 MCP Server — FastMCP setup and tool registration."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import logging
 from fastmcp import FastMCP
 
 mcp = FastMCP(
-    name="Prose Pipeline MCP",
+    name="GhostWriter 3000 MCP",
     instructions=(
         "Provides tools to manage AI-powered prose generation projects. "
         "Supports full project lifecycle: story structure (acts, chapters, beats), "
@@ -73,4 +73,4 @@ def register_all_tools() -> None:
     register_outline_tools(mcp)
     logger.info("Outline tools registered")
 
-    logger.info("All prose-pipeline MCP tools registered")
+    logger.info("All GhostWriter 3000 MCP tools registered")

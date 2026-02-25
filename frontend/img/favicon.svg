@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" rx="4" fill="#0a0e14"/>
+  <text x="16" y="22" font-family="monospace" font-size="18" font-weight="bold" fill="#f0a030" text-anchor="middle">GW</text>
+  <rect x="6" y="26" width="20" height="2" rx="1" fill="#f0a030" opacity="0.4"/>
+</svg>

@@ -57,7 +57,7 @@ def register_outline_tools(mcp: FastMCP) -> None:
           Best for CYOABot and automated workflows.
         - 'staged': Generate one level at a time. Call repeatedly with level='acts',
           then 'chapters', 'scenes', 'beats'. Allows review between levels.
-          Best for the prose-pipeline UI where writers want to review each level.
+          Best for the GhostWriter 3000 UI where writers want to review each level.
 
         The generated outline is NOT automatically applied to the project. Call
         prose_apply_outline to create the actual acts/chapters/scenes/beats.

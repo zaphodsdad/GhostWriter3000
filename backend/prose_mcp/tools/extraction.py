@@ -1,4 +1,4 @@
-"""Extraction, analysis, and health check tools."""
+"""Extraction, analysis, and health check tools for GhostWriter 3000."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ def register_extraction_tools(mcp: FastMCP) -> None:
 
     @mcp.tool(annotations={"readOnlyHint": True})
     async def prose_health_check() -> dict:
-        """Check if the prose-pipeline API is running and healthy.
+        """Check if the GhostWriter 3000 API is running and healthy.
 
         Returns status, timestamp, and version.
         """

@@ -1,11 +1,11 @@
 version: '3.8'
 
 services:
-  prometheus:
+  ghostwriter3000:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: prometheus
+    container_name: ghostwriter3000
     ports:
       - "${PORT:-8000}:8000"
     environment:
@@ -21,7 +21,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-info}
       - DATA_DIR=/app/data
     volumes:
-      - prometheus-data:/app/data
+      - ghostwriter3000-data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
@@ -31,5 +31,5 @@ services:
       start_period: 10s
 
 volumes:
-  prometheus-data:
+  ghostwriter3000-data:
     driver: local

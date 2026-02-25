@@ -1,4 +1,4 @@
-"""Data models for the Prometheus application."""
+"""Data models for the GhostWriter 3000 application."""
 
 from app.models.project import Project, ProjectCreate, ProjectUpdate, ProjectSummary
 from app.models.scene import Scene, SceneCreate, SceneUpdate, Beat, BeatCreate, BeatUpdate

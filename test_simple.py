@@ -34,7 +34,7 @@ def open_browser():
 
 if __name__ == "__main__":
     print("=" * 50)
-    print("  Prometheus - Simple Test Server")
+    print("  GhostWriter 3000 — Simple Test Server")
     print("=" * 50)
     print()
     print(f"Serving frontend from: {DIRECTORY}")

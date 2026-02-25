@@ -1,4 +1,4 @@
-# Prometheus - TODO
+# GhostWriter 3000 — TODO
 
 **Last Updated:** 2026-02-02
 
@@ -251,7 +251,7 @@ Audit revealed: Initial generation has full context, but **revisions lose everyt
   - Memory decay (half-life by importance), learns from corrections, causal narratives
   - Could inspire: memory decay for older plot events, learning from prose edits
   - Token-efficient compression based on priority
-  - **Application to prose-pipeline:**
+  - **Application to GhostWriter 3000:**
     - Memory that decays: prequel facts have lower weight by Book 3
     - Learn from corrections: user edits prose → extract style preferences
     - Causal chains: trace WHY through plot events, not just current state

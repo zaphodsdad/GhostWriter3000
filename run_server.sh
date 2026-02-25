@@ -1,16 +1,17 @@
 #!/bin/bash
 
-# Prometheus - Development Server Startup Script
+# GhostWriter 3000 — Development Server Startup Script
 
-echo "========================================="
-echo "  Prometheus"
-echo "  AI-Powered Prose Generation"
-echo "========================================="
+echo ""
+echo "  ╔═══════════════════════════════════════════╗"
+echo "  ║   G H O S T W R I T E R   3 0 0 0        ║"
+echo "  ║   AI-Powered Prose Generation Engine      ║"
+echo "  ╚═══════════════════════════════════════════╝"
 echo ""
 
 # Check if we're in the right directory
 if [ ! -d "backend" ]; then
-    echo "Error: Please run this script from the prose-pipeline directory"
+    echo "Error: Please run this script from the GhostWriter 3000 project directory"
     exit 1
 fi
 
@@ -19,7 +20,7 @@ if [ ! -f ".env" ]; then
     echo "Warning: .env file not found"
     echo "Copying .env.example to .env..."
     cp .env.example .env
-    echo "Please edit .env and add your ANTHROPIC_API_KEY"
+    echo "Please edit .env and add your OPENROUTER_API_KEY"
 fi
 
 # Check if Python is available
@@ -48,13 +49,11 @@ echo "Installing dependencies..."
 pip install -q -r backend/requirements.txt
 
 echo ""
-echo "========================================="
-echo "  Starting FastAPI server on port 8000"
-echo "========================================="
-echo ""
-echo "Open your browser to: http://localhost:8000"
-echo ""
-echo "Press Ctrl+C to stop the server"
+echo "  ┌───────────────────────────────────────────┐"
+echo "  │  Starting server on port 8000             │"
+echo "  │  http://localhost:8000                    │"
+echo "  │  Press Ctrl+C to stop                     │"
+echo "  └───────────────────────────────────────────┘"
 echo ""
 
 # Start the server

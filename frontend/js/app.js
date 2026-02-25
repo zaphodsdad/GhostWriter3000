@@ -1,4 +1,4 @@
-// Prometheus - Frontend Application
+// GhostWriter 3000 — Frontend Application
 
 // ============================================
 // State

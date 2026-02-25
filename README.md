@@ -1,10 +1,8 @@
-# Prometheus
+# GhostWriter 3000
 
-<img src="frontend/img/logo.png" alt="Prometheus" width="80" align="right">
+AI-powered prose generation engine with critique-revision loop. Features a retro-futuristic web interface for managing characters, world context, and scene generation with support for 300+ LLM models via OpenRouter.
 
-An AI-powered prose generation tool with critique-revision loop. Features a clean web interface for managing characters, world context, and scene generation with support for 300+ LLM models via OpenRouter.
-
-**Core Philosophy**: Great stories shouldn't be trapped by writing mechanics. Prometheus helps storytellers who have vivid characters, compelling plots, and rich worlds—but struggle to get them onto the page.
+**Core Philosophy**: Great stories shouldn't be trapped by writing mechanics. GhostWriter 3000 helps storytellers who have vivid characters, compelling plots, and rich worlds — but struggle to get them onto the page.
 
 ## Features
 
@@ -55,7 +53,7 @@ An AI-powered prose generation tool with critique-revision loop. Features a clea
 ## Project Structure
 
 ```
-prometheus/
+ghostwriter3000/
 ├── backend/              # FastAPI application
 │   ├── app/
 │   │   ├── models/       # Pydantic data models
@@ -87,7 +85,7 @@ prometheus/
 
 1. **Clone and navigate to the project**:
    ```bash
-   cd prometheus
+   cd ghostwriter3000
    ```
 
 2. **Set up Python environment**:
@@ -504,7 +502,7 @@ To add a new theme (e.g., "sepia" for writers):
 - **Smarter AI assistant** - Chico with tool use, batch operations, proactive suggestions
 - **Better imports** - File upload, preview before import, auto-link characters
 
-See [Issues](https://github.com/zaphodsdad/prose-pipeline/issues) for details and discussion.
+See [Issues](https://github.com/zaphodsdad/ghostwriter3000/issues) for details and discussion.
 
 ## License
 

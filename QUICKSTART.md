@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-Get up and running with Prometheus in minutes.
+Get up and running with GhostWriter 3000 in minutes.
 
 ## Prerequisites
 
@@ -144,7 +144,7 @@ Before marking a scene as canon, you can check it for contradictions:
 ## File Locations
 
 ```
-prometheus/
+ghostwriter3000/
 ├── data/                    # Default data storage
 │   └── projects/            # Your projects
 │       └── {project-id}/

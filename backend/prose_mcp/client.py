@@ -1,4 +1,4 @@
-"""HTTP client for proxying MCP tool calls to the local FastAPI app."""
+"""HTTP client for proxying MCP tool calls to the local GhostWriter 3000 FastAPI app."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ LONG_TIMEOUT = httpx.Timeout(120.0, connect=5.0)
 
 
 class ProseClient:
-    """Async HTTP client targeting the local prose-pipeline FastAPI app."""
+    """Async HTTP client targeting the local GhostWriter 3000 FastAPI app."""
 
     def __init__(self, base_url: str = "http://127.0.0.1:8000", api_key: str = ""):
         self.base_url = base_url
@@ -125,7 +125,7 @@ async def _safe_request(coro) -> dict:
         raise RuntimeError(f"HTTP {status}: {detail}") from None
     except httpx.ConnectError:
         raise RuntimeError(
-            "Cannot connect to prose-pipeline API. Is the server running?"
+            "Cannot connect to GhostWriter 3000 API. Is the server running?"
         ) from None
     except httpx.TimeoutException:
         raise RuntimeError(

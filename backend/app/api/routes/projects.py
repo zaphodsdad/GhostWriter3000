@@ -1436,7 +1436,7 @@ async def export_project_markdown(
 
     # Add footer with stats
     lines.append("")
-    lines.append(f"*Exported from Prometheus - {scene_count} scenes, {word_count:,} words*")
+    lines.append(f"*Exported from GhostWriter 3000 - {scene_count} scenes, {word_count:,} words*")
 
     # Join and create response
     markdown_content = "\n".join(lines)
