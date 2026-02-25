@@ -1,513 +1,183 @@
 # GhostWriter 3000
 
-AI-powered prose generation engine with critique-revision loop. Features a retro-futuristic web interface for managing characters, world context, and scene generation with support for 300+ LLM models via OpenRouter.
+> AI-powered prose generation engine for fiction writers. Critique-revision loop, series memory, continuity tracking, and 300+ LLM models via OpenRouter.
 
-**Core Philosophy**: Great stories shouldn't be trapped by writing mechanics. GhostWriter 3000 helps storytellers who have vivid characters, compelling plots, and rich worlds — but struggle to get them onto the page.
+**Great stories shouldn't be trapped by writing mechanics.** GhostWriter 3000 is a tool for storytellers who have vivid characters, compelling plots, and rich worlds — but need help getting them onto the page. It generates natural prose, critiques it, revises it, and learns your writing style over time.
+
+Built with Python/FastAPI and a retro-futuristic vanilla JS frontend. No database — everything is markdown and JSON files. Bring your own API key.
+
+<!-- TODO: Add screenshot/GIF of the UI here -->
+
+## Quick Start
+
+### Docker (recommended)
+
+```bash
+git clone https://github.com/zaphodsdad/ghostwriter3000.git
+cd ghostwriter3000
+make docker
+```
+
+### Local
+
+```bash
+git clone https://github.com/zaphodsdad/ghostwriter3000.git
+cd ghostwriter3000
+make run
+```
+
+Both methods open the UI at **http://localhost:8000**. Add your [OpenRouter API key](https://openrouter.ai/keys) in Settings — that's it. Demo data is included so you can explore immediately.
+
+## What It Does
+
+### The Core Loop
+
+```
+Scene Outline → Generate Prose → AI Critique → Revise → Repeat → Accept as Canon
+```
+
+You define characters, world context, and scene outlines. The AI generates prose, then a second AI pass critiques it. You review, give feedback, and the system revises — up to 5 iterations until you're happy. When you accept a scene as canon, it becomes part of the series memory.
+
+### Series Memory
+
+This is the differentiator. Most AI writing tools are stateless — each generation starts from scratch. GhostWriter 3000 accumulates knowledge across your entire series:
+
+- **Automatic extraction** — when scenes become canon, the system extracts characters, world elements, plot events, and causal chains
+- **Tiered summaries** — book-level and scene-level summaries assembled into context for each generation
+- **Memory decay** — older facts deprioritized by book distance so recent events feel more present
+- **Continuity checking** — LLM-based detection of contradictions with established canon
+- **Style learning** — the system learns your voice from your edits (vocabulary, sentence structure, dialogue patterns)
+
+### AI Writing Assistant
+
+Each series gets a conversational AI assistant (default name: "Chico") that knows everything about your series — characters, world, plot, current prose. Ask it questions, check continuity, brainstorm plot points. Supports optional integration with [Persona MCP](https://github.com/zaphodsdad) for persistent AI identity and emotional memory.
 
 ## Features
 
-- **Natural-Sounding Prose**: Built-in safeguards for authentic voice - avoids overused phrases, repetitive structures, and stiff language patterns
-- **Web-based Interface**: Clean, modern UI for managing all aspects of prose generation
-- **Character Management**: Store character sheets as markdown files with YAML frontmatter, with portrait support and bulk import
-- **World Building**: Maintain world context files for consistent story elements
-- **Scene-based Generation**: Generate prose from detailed scene outlines
-- **Critique-Revision Loop**: Automatic critique with manual approval for each revision iteration
-- **Series System**: Group related books with shared characters, world-building, and style guides with full context maintained across revision iterations
-- **Series Memory Layer**: Accumulated knowledge across canon scenes with automatic extraction, staleness detection, and context assembly
-- **Memory Decay**: Older facts automatically deprioritized based on book distance, with configurable decay rates
-- **Style Learning**: System learns from user edits to extract writing preferences (vocabulary, sentence structure, dialogue patterns)
-- **Causal Chains**: Plot events linked by cause and consequence for narrative coherence
-- **AI Writing Assistant**: Customizable series-level conversational AI (default name: "Chico") that knows all characters, world, plot, and current prose for continuity checking and brainstorming
-- **Token Optimization**: Scene-relevant entity filtering and tiered book summaries to reduce context size
-- **Continuity Warnings**: LLM-based detection of contradictions with established canon
-- **Series Dashboard**: Overview of all books, memory status, and quick actions when series is selected
-- **Reference Library**: Import style guides, published works, or notes as AI context
-- **Edit Mode**: Revise existing prose through the critique loop
-- **Manuscript Import**: Upload .docx/.txt/.md files, auto-detect chapters, create scenes in edit mode
-- **Enhanced Outline Import**: Import structured markdown outlines with full metadata extraction (POV, tone, beats, emotional arcs, settings, character IDs, generation notes)
-- **Continuity System**: Automatically includes summaries from last 10 scenes for context
-- **Backup System**: Auto-backup before destructive operations, scene version history, project snapshots, manual checkpoints, and full data export
-- **Data Directory Management**: Configurable storage location with migration support to move existing projects/settings to new location
-- **Dynamic Model Selection**: Choose from available OpenRouter models with live pricing
-- **Default Model Settings**: Configure preferred models for generation, critique, and AI assistant chat
-- **Customizable AI Assistant**: Set default name and personality for the writing assistant (can override per-series)
-- **Word Count Goals**: Track progress toward writing targets with visual progress bar
-- **Credit Alerts**: Notifications when OpenRouter balance drops below threshold
-- **Generation Queue**: Batch process multiple scenes with sequential generation and queue management
-- **Queue Review Panel**: Floating, draggable editor for reviewing queued generations with inline prose editing, undo/redo, and save draft
-- **Evaluate-Only Mode**: Get AI critique without entering the revision loop
-- **Floating AI Bubble**: Select text for inline AI-powered revisions with quick actions
-- **Polish Mode**: Choose between full structural revision or light line-edits only
-- **Failed Generation Recovery**: Error handling with retry/dismiss options
-- **Docker Support**: Easy deployment with Docker and docker-compose
-- **Theme Support**: Light/dark themes with system preference detection
-- **Markdown Export**: Export entire projects as formatted markdown files
+| Category | What |
+|----------|------|
+| **Generation** | Critique-revision loop, polish mode, evaluate-only, batch queue, floating inline revision bubble |
+| **Structure** | Acts, chapters, scenes with beats. Manual creation or auto-generated outlines |
+| **Import** | Manuscript import (.docx/.txt/.md), structured outline import with full metadata extraction |
+| **Characters** | Markdown + YAML frontmatter, portrait support, bulk import, chapter-by-chapter extraction from existing prose |
+| **World** | World context files, automatic extraction, location/magic/politics/creature categorization |
+| **Memory** | Series memory layer, causal chains, decay, staleness detection, tiered summaries |
+| **Continuity** | Cross-scene summaries, LLM contradiction detection, series-level knowledge |
+| **Style** | Style learning from edits, per-series style guides, reference library for tone/voice examples |
+| **Models** | 300+ models via OpenRouter with live pricing. DeepSeek for cost, Claude for quality. BYOK |
+| **Backup** | Auto-backup before destructive ops, scene version history, project snapshots, full data export |
+| **UI** | Dark/light themes, generation queue with review panel, word count goals, credit alerts |
+| **MCP** | 74 MCP tools across 10 modules (see below) |
 
-## Technology Stack
+## Architecture
 
-- **Backend**: Python 3.11 + FastAPI
-- **Frontend**: Vanilla HTML/CSS/JavaScript (no build step required)
-- **AI**: Claude API (Opus for generation, Sonnet for critique)
-- **Data**: File-based storage with markdown and JSON
+```
+┌──────────────────────────────────────────────────────┐
+│                    Web UI (vanilla JS)                │
+│         Retro-futuristic dark theme / light theme     │
+└─────────────────────┬────────────────────────────────┘
+                      │ HTTP
+┌─────────────────────▼────────────────────────────────┐
+│                FastAPI Backend (Python)               │
+│                                                      │
+│  Routes ──→ Services ──→ LLM Service ──→ OpenRouter  │
+│    │            │                                    │
+│    │     ┌──────┴──────────┐                         │
+│    │     │  Memory Service │  Style Learning          │
+│    │     │  Entity Service │  Continuity Checking     │
+│    │     │  Persona Client │  Generation Queue        │
+│    │     └─────────────────┘                         │
+│    │                                                 │
+│  MCP Wrapper (74 tools) ──→ FastMCP ──→ /mcp/        │
+└─────────────────────┬────────────────────────────────┘
+                      │ File I/O
+┌─────────────────────▼────────────────────────────────┐
+│              File-Based Storage                       │
+│  projects/ ── characters/ ── world/ ── scenes/       │
+│  series/   ── memory/     ── style/  ── generations/ │
+│              (Markdown + JSON, no database)           │
+└──────────────────────────────────────────────────────┘
+```
+
+### MCP Integration
+
+GhostWriter 3000 exposes its full API as **74 MCP (Model Context Protocol) tools** across 10 modules. This means any MCP-compatible client — Claude Desktop, custom agents, bots — can drive the entire writing workflow programmatically.
+
+| Module | Tools | Coverage |
+|--------|-------|----------|
+| Projects | 11 | Project + series CRUD, export |
+| Structure | 16 | Acts, chapters, beats CRUD |
+| Scenes | 11 | Scene CRUD, prose, evaluate, edit mode, selection revise |
+| Characters | 5 | Character CRUD |
+| World | 5 | World context CRUD |
+| Generation | 7 | Start, poll, approve, accept, reject, list, queue |
+| Memory | 6 | Series memory, continuity, summaries, scene extraction |
+| Extraction | 3 | Manuscript import, analysis, health check |
+| Style | 4 | Project + series style guides |
+| Outline | 6 | Outline generation, cost estimation, scopes, apply |
+
+MCP endpoint: `http://localhost:8000/mcp/` (trailing slash required).
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.11+, FastAPI, Pydantic, uvicorn |
+| Frontend | Vanilla HTML/CSS/JavaScript (no build step) |
+| AI | OpenRouter API (300+ models), optional Persona MCP |
+| Data | File-based (Markdown + YAML frontmatter, JSON) |
+| MCP | FastMCP (streamable-http transport) |
+| Deploy | Docker, docker-compose, or bare Python |
 
 ## Project Structure
 
 ```
 ghostwriter3000/
-├── backend/              # FastAPI application
+├── backend/
 │   ├── app/
-│   │   ├── models/       # Pydantic data models
-│   │   ├── services/     # Business logic
-│   │   ├── api/routes/   # REST API endpoints
-│   │   └── utils/        # Utilities
+│   │   ├── api/routes/      # 20 route modules
+│   │   ├── models/          # Pydantic data models
+│   │   ├── services/        # Business logic, LLM, memory, style
+│   │   └── utils/           # Prompts, backup, file I/O
+│   ├── prose_mcp/           # MCP wrapper (74 tools, 10 modules)
 │   └── requirements.txt
-├── frontend/             # Web UI
-│   ├── css/
-│   ├── js/
-│   └── index.html
-├── data/                 # Data storage
-│   ├── characters/       # Character markdown files
-│   ├── world/            # World context markdown files
-│   ├── scenes/           # Scene JSON files
-│   └── generations/      # Generation state files
-└── docker/               # Docker configuration
-```
-
-## Quick Start
-
-### Prerequisites
-
-- Python 3.11+
-- Claude API key from Anthropic
-- Docker (optional, for containerized deployment)
-
-### Local Development Setup
-
-1. **Clone and navigate to the project**:
-   ```bash
-   cd ghostwriter3000
-   ```
-
-2. **Set up Python environment**:
-   ```bash
-   cd backend
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   pip install -r requirements.txt
-   ```
-
-3. **Configure environment**:
-   ```bash
-   cp ../.env.example ../.env
-   # Edit .env and add your ANTHROPIC_API_KEY
-   ```
-
-4. **Run the application**:
-   ```bash
-   cd ..
-   DATA_DIR=./data python -m backend.app.main
-   ```
-
-5. **Access the web interface**:
-   Open your browser to `http://localhost:8000`
-
-### Docker Deployment
-
-1. **Set up environment**:
-   ```bash
-   cp .env.example .env
-   # Edit .env and add your ANTHROPIC_API_KEY
-   ```
-
-2. **Build and run with docker-compose**:
-   ```bash
-   docker-compose -f docker/docker-compose.yml up -d
-   ```
-
-3. **Access the web interface**:
-   Open your browser to `http://localhost:8000`
-
-## Usage
-
-### Creating Characters
-
-Characters are stored as markdown files with YAML frontmatter in `data/characters/`.
-
-**Example** (`data/characters/protagonist.md`):
-
-```markdown
----
-name: Jane Doe
-age: 30
-role: protagonist
-personality_traits:
-  - Brave
-  - Curious
-skills:
-  - Sword fighting
-  - Ancient languages
----
-
-# Jane Doe
-
-## Background
-Jane grew up in a small village...
-
-## Voice and Mannerisms
-- Speaks confidently
-- Uses military jargon
-```
-
-### Creating World Context
-
-World building information is stored in `data/world/` as markdown files.
-
-**Example** (`data/world/fantasy-realm.md`):
-
-```markdown
----
-name: The Kingdom of Aldoria
-era: Medieval fantasy
-magic_system: Elemental magic
-technology_level: Medieval
----
-
-# The Kingdom of Aldoria
-
-## History
-The kingdom was founded 500 years ago...
-
-## Current Political Climate
-The kingdom is ruled by Queen Eleanor...
-```
-
-### Creating Scenes
-
-Scenes can be created manually or imported via structured outlines.
-
-#### Manual Scene Creation
-
-Scenes are defined as JSON files in `data/scenes/`.
-
-**Example** (`data/scenes/scene-001.json`):
-
-```json
-{
-  "id": "scene-001",
-  "title": "The Tavern Meeting",
-  "outline": "Jane meets her old friend at a tavern and learns about a new quest...",
-  "character_ids": ["jane-doe"],
-  "world_context_ids": ["fantasy-realm"],
-  "tone": "Mysterious and intriguing",
-  "pov": "Third person limited",
-  "target_length": "1000-1500 words"
-}
-```
-
-#### Outline Import
-
-Import structured markdown outlines that parse into acts, chapters, and scenes with full metadata.
-
-**Outline Format:**
-```markdown
-# Book 2: Title
-
-**Series:** Series Name
-**Target Length:** 100,000 words
-**POV Structure:** Alternating First Person
-
-## New Characters Introduced
-
-### character-id
-**Role:** Role description
-**Description:** Physical and personality description
-**Voice:** How they speak
-**First Appearance:** Chapter X, Scene Y
-
-# Act 1: Act Title
-
-**Function:** What this act accomplishes structurally
-**Target:** ~35,000 words
-
-## Chapter 1: Chapter Title
-
-**POV Pattern:** character-id
-**Chapter Target:** 3,500 words
-**Chapter Function:** What this chapter accomplishes
-
-#### Scene 1: Scene Title
-
-**POV:** First person - character-id
-**Tone:** tense, anticipation, guilt
-**Target:** 1200 words
-**Heat Level:** sensual (optional)
-
-**Emotional Arc:** starting-emotion → ending-emotion
-
-Outline paragraph describing what happens in concrete terms.
-
-**Setting:** Location - sensory detail 1, sensory detail 2
-
-**Beats:**
-1. First beat action
-2. Second beat action
-3. Third beat action
-
-**Characters:** char1, char2
-**Tags:** setup, action, revelation
-**Notes:** Generation guidance for the AI
-```
-
-**Parsed Fields:**
-- **Act**: title, number, function, target_word_count
-- **Chapter**: title, number, pov_pattern, target_word_count, function
-- **Scene**: title, pov, tone, target_length, heat_level, emotional_arc, setting, outline, beats, character_ids, tags, generation_notes
-- **Characters**: Creates placeholder stubs for new character IDs with role, description, voice
-
-### Generation Workflow
-
-1. **Create or select a scene** in the web interface
-2. **Click "Generate"** to start the pipeline
-3. **Review the generated prose** when complete
-4. **Read the automatic critique** of the prose
-5. **Choose an action**:
-   - **Approve & Revise**: Triggers a revision based on the critique
-   - **Accept Final**: Marks the prose as complete
-   - **Reject**: Cancels the generation
-6. **Repeat** the critique-revision loop up to the maximum iterations (default: 5)
-
-#### Batch Generation
-
-- **Select multiple scenes** using checkboxes in the sidebar
-- **Click "Generate Selected"** to queue all selected scenes
-- Scenes are processed **sequentially** (one at a time)
-- **Queue management**: View progress, delete items, clear finished generations
-- **Conflict detection**: Warns if a scene already has an active generation
-
-#### Revision Features
-
-- **Diff View**: After the first revision, click "Show Changes" to see exactly what the AI changed (green = additions, red = deletions)
-- **Revision Instructions**: Expand the "Revision Instructions" section to guide the AI's revision with specific feedback like "make the pacing faster" or "improve the dialogue"
-- **Floating AI Bubble**: Select any text in the prose view to get quick AI revision options (Shorten, Lengthen, Rephrase, etc.)
-- **Polish Mode**: Toggle between full structural revision and light polish (word choice and rhythm only)
-
-#### Evaluate-Only Mode
-
-- Click **"Evaluate"** on any scene with prose
-- Get AI critique feedback without entering the revision loop
-- Choose to start revision from the evaluation or just read the feedback
-
-## API Documentation
-
-Once running, visit `http://localhost:8000/docs` for interactive API documentation (Swagger UI).
-
-### Key Endpoints
-
-#### Health Check
-```
-GET /api/health
-```
-
-#### Characters
-```
-GET    /api/characters          # List all characters
-GET    /api/characters/{id}     # Get character by ID
-POST   /api/characters          # Create new character
-PUT    /api/characters/{id}     # Update character
-DELETE /api/characters/{id}     # Delete character
-```
-
-#### World Contexts
-```
-GET    /api/world               # List all world contexts
-GET    /api/world/{id}          # Get world context by ID
-POST   /api/world               # Create new world context
-PUT    /api/world/{id}          # Update world context
-DELETE /api/world/{id}          # Delete world context
-```
-
-#### Scenes
-```
-GET    /api/scenes              # List all scenes
-GET    /api/scenes/{id}         # Get scene by ID
-POST   /api/scenes              # Create new scene
-PUT    /api/scenes/{id}         # Update scene
-DELETE /api/scenes/{id}         # Delete scene
-```
-
-#### Generations
-```
-POST   /api/generations/start              # Start new generation
-GET    /api/generations/{id}               # Get generation state
-POST   /api/generations/{id}/approve       # Approve & revise
-POST   /api/generations/{id}/accept        # Accept final
-POST   /api/generations/{id}/reject        # Reject generation
-```
-
-#### Outline Import
-```
-POST   /api/projects/{id}/outline/preview  # Preview parsed outline
-POST   /api/projects/{id}/outline/import   # Import outline (creates acts, chapters, scenes, character stubs)
-```
-
-#### Backups
-```
-GET    /api/projects/{id}/backups/scenes/{scene_id}/versions   # List scene backup versions
-POST   /api/projects/{id}/backups/scenes/{scene_id}/backup     # Create manual scene backup
-POST   /api/projects/{id}/backups/scenes/{scene_id}/restore    # Restore scene from version
-GET    /api/projects/{id}/backups/snapshots                    # List project snapshots
-POST   /api/projects/{id}/backups/snapshots/restore            # Restore from snapshot
-POST   /api/projects/{id}/backups/checkpoint                   # Create manual checkpoint
-```
-
-#### Settings & Data Management
-```
-GET    /api/settings                    # Get all settings (API keys, data dir, models)
-PUT    /api/settings/data-dir           # Change data directory (with optional migration)
-DELETE /api/settings/data-dir           # Reset data directory to default
-GET    /api/settings/backup             # Download full backup as ZIP (all projects, series, settings)
-```
-
-#### Series Memory
-```
-GET    /api/series/{id}/memory                       # Get complete memory state
-POST   /api/series/{id}/memory/initialize            # Initialize memory structure
-GET    /api/series/{id}/memory/context               # Get compact summaries for prompts
-GET    /api/series/{id}/memory/staleness             # Check if summaries are stale
-POST   /api/series/{id}/memory/generate-summaries    # Generate all summaries from extractions
-POST   /api/series/{id}/memory/generate-tiered-summary  # Generate essential/full book summaries
-GET    /api/series/{id}/memory/book-summary/{book}   # Get tiered book summary
-GET    /api/series/{id}/memory/book-summaries        # List all book summaries
-POST   /api/series/{id}/memory/check-continuity      # Check prose for contradictions
-DELETE /api/series/{id}/memory                       # Clear all memory
-```
-
-#### Chico AI Assistant
-```
-POST   /api/series/{id}/chat            # Send message to Chico
-GET    /api/series/{id}/history         # Get conversation history
-DELETE /api/series/{id}/history         # Clear conversation history
-GET    /api/series/{id}/settings        # Get Chico settings (name, personality)
-PUT    /api/series/{id}/settings        # Update Chico settings
+├── frontend/
+│   ├── css/styles.css       # Single stylesheet, CSS variables
+│   ├── js/app.js            # Single JS file, no framework
+│   └── index.html           # Single HTML file
+├── data/                    # Demo data (characters, scenes, world)
+├── docker/                  # Dockerfile
+├── docker-compose.yml       # One-command deployment
+├── Makefile                 # make run | make docker | make stop
+└── .env.example             # Configuration template
 ```
 
 ## Configuration
 
-All configuration is managed through environment variables (see `.env.example`):
+All settings can be configured through the UI (Settings panel) or via environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `ANTHROPIC_API_KEY` | (required) | Your Claude API key |
-| `MAX_ITERATIONS` | 5 | Maximum revision iterations |
-| `GENERATION_MODEL` | deepseek/deepseek-chat-v3.1 | Model for prose generation (OpenRouter) |
-| `CRITIQUE_MODEL` | deepseek/deepseek-chat-v3.1 | Model for critique (OpenRouter) |
-| `GENERATION_TEMPERATURE` | 0.7 | Temperature for generation |
-| `CRITIQUE_TEMPERATURE` | 0.3 | Temperature for critique |
-| `GENERATION_MAX_TOKENS` | 4000 | Max tokens for generation |
-| `CRITIQUE_MAX_TOKENS` | 2000 | Max tokens for critique |
+| `OPENROUTER_API_KEY` | (required) | Your OpenRouter API key |
+| `GENERATION_MODEL` | deepseek/deepseek-chat-v3.1 | Model for prose generation |
+| `CRITIQUE_MODEL` | deepseek/deepseek-chat-v3.1 | Model for critique |
+| `MAX_ITERATIONS` | 5 | Max revision iterations per generation |
 | `DATA_DIR` | ./data | Data storage directory |
 | `PORT` | 8000 | Server port |
+| `API_AUTH_KEY` | (empty) | Optional API key for authentication |
 
-## Development
+Full list in [.env.example](.env.example). API docs at `http://localhost:8000/docs` (Swagger UI).
 
-### Running Tests
+## Design Decisions
 
-```bash
-cd backend
-pytest
-```
+**Why file-based storage?** Simplicity. Characters and world docs are markdown files you can edit in any text editor. Scenes are JSON. No database setup, no migrations, easy to back up (just copy the folder). For a single-user writing tool, this is the right tradeoff.
 
-### Project Structure
+**Why vanilla JS?** No build step means anyone can clone and run. The frontend is one HTML file, one CSS file, one JS file. It works. For a tool that's about writing, not about the UI framework, this keeps the focus where it belongs.
 
-The codebase follows a clean layered architecture:
+**Why OpenRouter?** One API key gives you 300+ models from every major provider. Writers can use cheap models (DeepSeek at $0.14/M tokens) for iteration and expensive ones (Claude Opus) for final passes. No vendor lock-in.
 
-- **Models Layer** (`app/models/`): Pydantic models for data validation
-- **Services Layer** (`app/services/`): Business logic and Claude API integration
-- **API Layer** (`app/api/routes/`): FastAPI route handlers
-- **Utils** (`app/utils/`): Shared utilities and prompt templates
-
-### Adding New Features
-
-1. **Add data model** in `app/models/`
-2. **Implement service** in `app/services/`
-3. **Create API routes** in `app/api/routes/`
-4. **Register routes** in `app/main.py`
-5. **Add frontend components** in `frontend/js/components/`
-
-## Troubleshooting
-
-### "File not found" errors
-- Ensure `DATA_DIR` environment variable points to the correct directory
-- Check that data directories exist and have proper permissions
-
-### API key errors
-- Verify `ANTHROPIC_API_KEY` is set in `.env`
-- Ensure the API key is valid and has sufficient credits
-
-### Generation hangs
-- Check logs for rate limiting errors
-- Verify internet connectivity to Claude API
-- Consider reducing `MAX_ITERATIONS` or token limits
-
-## Theming
-
-The frontend uses CSS custom properties (variables) for theming, making it easy to customize colors or add new themes.
-
-### Theme Options
-
-- **System** (default): Automatically matches your OS light/dark preference
-- **Light**: Clean light theme for daytime use
-- **Dark**: Navy/slate dark theme (the original design)
-
-Theme preference is saved to localStorage and persists across sessions.
-
-### CSS Architecture
-
-All colors are defined as CSS variables in `:root` (dark theme) and `[data-theme="light"]`:
-
-```css
-:root {
-    --bg-dark: #0f172a;      /* Main background */
-    --bg-card: #1e293b;      /* Card/panel backgrounds */
-    --bg-input: #334155;     /* Input field backgrounds */
-    --border: #475569;       /* Borders */
-    --text: #f1f5f9;         /* Primary text */
-    --text-muted: #94a3b8;   /* Secondary text */
-    --primary: #3b82f6;      /* Primary accent (blue) */
-    --success: #10b981;      /* Success states (green) */
-    --danger: #ef4444;       /* Danger states (red) */
-    --warning: #f59e0b;      /* Warning states (amber) */
-}
-```
-
-### Adding Custom Themes
-
-To add a new theme (e.g., "sepia" for writers):
-
-1. Add CSS variables in `frontend/css/styles.css`:
-   ```css
-   [data-theme="sepia"] {
-       --bg-dark: #f5f0e6;
-       --bg-card: #ebe5d9;
-       /* ... */
-   }
-   ```
-
-2. Add the option to the theme selector in `frontend/index.html`
-3. The JavaScript handles the rest automatically
-
-## What's Next
-
-- **Desktop app** - Standalone executable (no Python setup required)
-- **Smarter AI assistant** - Chico with tool use, batch operations, proactive suggestions
-- **Better imports** - File upload, preview before import, auto-link characters
-
-See [Issues](https://github.com/zaphodsdad/ghostwriter3000/issues) for details and discussion.
+**Why MCP?** The writing engine is useful beyond the web UI. MCP tools let Claude Desktop, Discord bots, or custom agents drive the full workflow. The 74-tool surface was designed for this.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
-## Support
-
-For issues and feature requests, please open an issue on the project repository.
+MIT License — see [LICENSE](LICENSE) for details.
