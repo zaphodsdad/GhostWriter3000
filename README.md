@@ -14,12 +14,6 @@ The writing never stopped, though. I've been a fiction writer my whole adult lif
 
 I'd been using NovelCrafter, which is genuinely great software. But I hate subscriptions when I can avoid them. Then I discovered vibe coding — building real applications with AI assistance — and this was the first thing I thought of. A writing engine I own, that runs on my own hardware, that remembers my entire series and lets me pick any model I want. I started coding a few weeks ago. This is the result.
 
-**What this project demonstrates:**
-- **Systems thinking** — 20 years of coordinating complex operations translates directly to designing software systems. The memory layer, continuity tracking, and MCP integration aren't random features — they're a coherent architecture for a specific problem.
-- **Full-stack development** — Python/FastAPI backend with 20 route modules, vanilla JS frontend, Docker deployment, 74-tool MCP integration. No framework magic — I understand what every piece does.
-- **Real-world problem solving** — This isn't a tutorial project. I use it to write actual novels. Every feature exists because I needed it during real writing sessions.
-- **AI-assisted development** — I built this with Claude Code. I'm transparent about that. The architecture decisions, the product vision, and the problem definition are mine. The implementation is a collaboration. That's the future of software development, and I'm already living in it.
-
 **Great stories shouldn't be trapped by writing mechanics.** GhostWriter 3000 helps storytellers who have vivid characters, compelling plots, and rich worlds — but need help getting them onto the page. It generates natural prose, critiques it, revises it, and learns your writing style over time.
 
 Built with Python/FastAPI and a retro-futuristic vanilla JS frontend. No database — everything is markdown and JSON files. Bring your own API key.
