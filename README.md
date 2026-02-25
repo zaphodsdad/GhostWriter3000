@@ -2,7 +2,8 @@
 
 > AI-powered prose generation engine for fiction writers. Critique-revision loop, series memory, continuity tracking, and 300+ LLM models via OpenRouter.
 
-<!-- TODO: Add screenshot/GIF of the UI here -->
+![Dashboard](docs/screenshots/dashboard.png)
+*Dashboard with outline sidebar, project stats, and chapter navigation*
 
 ## About This Project
 
@@ -47,6 +48,9 @@ Scene Outline → Generate Prose → AI Critique → Revise → Repeat → Accep
 ```
 
 You define characters, world context, and scene outlines. The AI generates prose, then a second AI pass critiques it. You review, give feedback, and the system revises — up to 5 iterations until you're happy. When you accept a scene as canon, it becomes part of the series memory.
+
+![Prose generation with AI critique](docs/screenshots/prose-critique.png)
+![Critique results and revision](docs/screenshots/critique-results.png)
 
 ### Series Memory
 
@@ -177,6 +181,8 @@ All settings can be configured through the UI (Settings panel) or via environmen
 | `API_AUTH_KEY` | (empty) | Optional API key for authentication |
 
 Full list in [.env.example](.env.example). API docs at `http://localhost:8000/docs` (Swagger UI).
+
+![Settings panel](docs/screenshots/settings.png)
 
 ## Design Decisions
 
